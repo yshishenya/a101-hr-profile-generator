@@ -18,13 +18,19 @@ import json
 import logging
 import uuid
 
+# Импорт будет после определения класса DatabaseManager, чтобы избежать циклических импортов
 logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
     """Менеджер базы данных SQLite с методами для создания схемы и управления соединениями"""
     
-    def __init__(self, db_path: str = "/home/yan/A101/HR/data/profiles.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        if db_path is None:
+            # Импорт здесь, чтобы избежать циклических импортов
+            from ..core.config import config
+            db_path = config.database_path
+        
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._connection = None
@@ -287,23 +293,25 @@ class DatabaseManager:
             if user_count == 0:
                 # Создаем пользователей только если их нет
                 from passlib.context import CryptContext
+                from ..core.config import config
+                
                 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
                 
-                admin_password_hash = pwd_context.hash("admin123")
-                hr_password_hash = pwd_context.hash("hr123")
+                admin_password_hash = pwd_context.hash(config.ADMIN_PASSWORD)
+                hr_password_hash = pwd_context.hash(config.HR_PASSWORD)
                 
                 cursor.execute("""
                     INSERT INTO users (username, password_hash, full_name, is_active)
                     VALUES (?, ?, ?, ?)
-                """, ("admin", admin_password_hash, "Администратор системы", True))
+                """, (config.ADMIN_USERNAME, admin_password_hash, config.ADMIN_FULL_NAME, True))
                 
                 cursor.execute("""
                     INSERT INTO users (username, password_hash, full_name, is_active)
                     VALUES (?, ?, ?, ?)
-                """, ("hr", hr_password_hash, "HR Специалист", True))
+                """, (config.HR_USERNAME, hr_password_hash, config.HR_FULL_NAME, True))
                 
                 conn.commit()
-                logger.info("✅ Начальные данные созданы (admin/admin123, hr/hr123)")
+                logger.info(f"✅ Начальные данные созданы ({config.ADMIN_USERNAME}, {config.HR_USERNAME})")
             else:
                 logger.info("ℹ️ Пользователи уже существуют, пропускаем создание")
             

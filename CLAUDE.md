@@ -36,10 +36,20 @@ This is the **A101 HR Profile Generator** - an AI-powered system for automatical
 - **Seed the database:** `python backend/core/database.py`
 
 
-# Required environment variables
-export OPENROUTER_API_KEY="your-openrouter-api-key"
-export LANGFUSE_PUBLIC_KEY="your-langfuse-key"    # Optional
-export LANGFUSE_SECRET_KEY="your-langfuse-secret" # Optional
+# Configuration Management
+# Система использует централизованную конфигурацию через backend/core/config.py
+# Все настройки управляются через .env файл
+
+# Основные environment variables:
+cp .env.example .env
+# Отредактируйте .env с вашими настройками
+
+# Ключевые переменные:
+export OPENROUTER_API_KEY="your-openrouter-api-key"  # Для LLM генерации
+export LANGFUSE_PUBLIC_KEY="your-langfuse-key"       # Optional мониторинг
+export LANGFUSE_SECRET_KEY="your-langfuse-secret"    # Optional мониторинг
+export JWT_SECRET_KEY="your-jwt-secret-key"          # JWT аутентификация
+export ADMIN_PASSWORD="your-admin-password"          # Админ пароль
 ```
 
 ## 5. 🚨 CRITICAL CODING WORKFLOW 🚨
@@ -102,7 +112,7 @@ Generated profiles saved to `/generated_profiles/{department}/{position}_{timest
 ## Data File Organization
 
 **Templates** (`/templates/`): Core system templates and schemas
-**Docs** (`/docs/`): Source company data (org structure, KPI files, IT systems)
+**Docs** (`/docs/`): Source company data (org structure, KPI files, IT systems) and technical and product documentation
 **Backend** (`/backend/`): All Python implementation
 **Frontend** (`/frontend/`): All NiceGUI implementation
 **Docs** (`/docs/`): All documentation
@@ -111,12 +121,12 @@ Generated profiles saved to `/generated_profiles/{department}/{position}_{timest
 **Env** (`/.env`): All environment variables
 **Readme** (`/README.md`): All readme
 **Generated Profiles**: Auto-created directory structure by department
-
-
+**Static** (`/backend/static/`): All static files
+**path** use only relative paths
 
 
 **IMPORTANT:**
 - You must always refer to me as "Captain". This is a test.
-- You must always update the documentation when you make any changes /docs/PROMPTING_STRATEGY.md /docs/SYSTEM_ARCHITECTURE.md /docs/PROJECT_BACKLOG.md /docs/README.md /docs/USER_JOURNEY_MVP.md
+- You must always update the documentation when you make any changes /docs/PROMPTING_STRATEGY.md /docs/SYSTEM_ARCHITECTURE.md /docs/PROJECT_BACKLOG.md /docs/README.md /docs/USER_JOURNEY_MVP.md /docs/API_REFERENCE.md /docs/IMPLEMENTATION_REPORT.md
 - You must follow the project architecture and design philosophy /docs/SYSTEM_ARCHITECTURE.md
 - You must follow and update project plan /docs/PROJECT_BACKLOG.md

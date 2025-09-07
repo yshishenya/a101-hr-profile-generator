@@ -12,20 +12,20 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
-import jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
-from passlib.exc import InvalidTokenError
 
 from ..models.database import db_manager
 from ..models.schemas import LoginRequest, LoginResponse, UserInfo
+from ..core.config import config
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Настройки JWT
-JWT_SECRET_KEY = "a101-hr-profile-generator-secret-key-2024"  # В production использовать environment variable
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24
+# Настройки JWT из конфигурации
+JWT_SECRET_KEY = config.JWT_SECRET_KEY
+JWT_ALGORITHM = config.JWT_ALGORITHM
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = config.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Настройки хеширования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -41,7 +41,7 @@ class AuthenticationService:
         """Проверка пароля против хеша"""
         try:
             return pwd_context.verify(plain_password, hashed_password)
-        except InvalidTokenError:
+        except JWTError:
             return False
     
     def hash_password(self, password: str) -> str:
@@ -120,7 +120,7 @@ class AuthenticationService:
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
+            expire = datetime.utcnow() + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         
         # Данные для включения в токен
         token_data = {
@@ -168,7 +168,7 @@ class AuthenticationService:
         except jwt.ExpiredSignatureError:
             logger.warning("Token has expired")
             return None
-        except jwt.InvalidTokenError as e:
+        except JWTError as e:
             logger.warning(f"Invalid token: {e}")
             return None
         except Exception as e:
@@ -207,7 +207,7 @@ class AuthenticationService:
     def create_user_session(self, user_id: int, user_agent: str = None, ip_address: str = None) -> str:
         """Создание пользовательской сессии в базе данных"""
         session_id = str(uuid.uuid4())
-        expires_at = datetime.now() + timedelta(hours=JWT_EXPIRATION_HOURS)
+        expires_at = datetime.now() + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         
         conn = self.db.get_connection()
         cursor = conn.cursor()
@@ -271,7 +271,7 @@ class AuthenticationService:
                 return None
             
             # Создание токена
-            token_expiration = timedelta(hours=JWT_EXPIRATION_HOURS * 24 if login_request.remember_me else JWT_EXPIRATION_HOURS)
+            token_expiration = timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 7 if login_request.remember_me else JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
             access_token = self.create_access_token(user, expires_delta=token_expiration)
             
             # Создание сессии
@@ -353,7 +353,7 @@ if __name__ == "__main__":
         db_manager.seed_initial_data()
         
         # Тест аутентификации существующего пользователя
-        login_req = LoginRequest(username="admin", password="admin123")
+        login_req = LoginRequest(username=config.ADMIN_USERNAME, password=config.ADMIN_PASSWORD)
         
         result = await auth_service.login(login_req, "test-user-agent", "127.0.0.1")
         

@@ -85,14 +85,23 @@
 ```
 [Пользователь] →[Nginx:80] → [NiceGUI:8033] → [FastAPI:8022]
                                                         ↓
+                                                   [Config.py] ← [.env file]
+                                                        ↓
 [DataLoader] ← [ProfileGenerator] → [LangfuseService] → [OpenRouter]
-     ↓                                    ↓                 ↓
-[Company Data] → [Langfuse Variables] → [Prompt+Context] → [Gemini 2.5]
-                                                                ↓
-[SQLite] ← [Profile Validation] ← [JSON Parsing] ← [LLM Response]
-    ↓
+     ↓              ↑                     ↓                 ↓
+[Company Data] → [Config Settings] → [Langfuse Variables] → [Prompt+Context] → [Gemini 2.5]
+     ↓              ↓                     ↓                      ↓
+[SQLite] ← [Auth Service] ← [JWT Config] ← [Profile Validation] ← [JSON Parsing] ← [LLM Response]
+    ↓              ↓
 [File Storage] → [JSON/MD Export] → [Frontend Display]
 ```
+
+**Ключевые изменения в потоке данных:**
+- ✅ **Config.py** теперь центральная точка всех настроек
+- ✅ **.env file** загружается автоматически при старте
+- ✅ **Auth Service** получает JWT настройки из Config
+- ✅ **ProfileGenerator** использует API ключи из Config
+- ✅ **DataLoader** использует пути к данным из Config
 
 ## 📁 **СТРУКТУРА ПРОЕКТА**
 
@@ -108,6 +117,7 @@ hr-profile-generator/
 │   │   └── catalog.py           # Каталог организации
 │   ├── 🧠 core/                  # Бизнес логика
 │   │   ├── __init__.py
+│   │   ├── config.py            # Централизованная конфигурация (.env)
 │   │   ├── models.py            # Pydantic модели
 │   │   ├── database.py          # SQLite подключение
 │   │   ├── llm_client.py        # OpenRouter клиент

@@ -1,0 +1,64 @@
+services:
+  # Основное приложение A101 HR
+  app:
+    build: .
+    container_name: a101hr_app
+    ports:
+      - "8022:8022"
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      # JWT Secret для Docker
+      - JWT_SECRET_KEY=docker-dev-secret-key-a101hr-system
+      # OpenRouter API для LLM (добавить в .env файл)
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Langfuse для мониторинга (опционально)
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+    volumes:
+      # Монтируем код для разработки с hot-reload
+      - ./backend:/app/backend
+      - ./data:/app/data
+      - ./templates:/app/templates
+      - ./docs:/app/docs
+      # Персистентные данные
+      - ./generated_profiles:/app/generated_profiles
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - a101hr_network
+
+  # NiceGUI Frontend (будущий)
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: a101hr_frontend
+    ports:
+      - "8033:8033"
+    environment:
+      - BACKEND_URL=http://app:8022
+    volumes:
+      - ./frontend:/app/frontend
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - a101hr_network
+    profiles:
+      - frontend  # Включается только при --profile frontend
+
+networks:
+  a101hr_network:
+    driver: bridge
+
+volumes:
+  a101hr_data:
+    driver: local

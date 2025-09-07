@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OrganizationMapper:
     """Детерминированное извлечение релевантной организационной структуры"""
     
-    def __init__(self, org_structure_path: str = "/home/yan/A101/HR/org_structure/structure.json"):
+    def __init__(self, org_structure_path: str = "data/structure.json"):
         self.org_structure_path = Path(org_structure_path)
         self._org_data = None
         self._department_index = {}
@@ -39,26 +39,33 @@ class OrganizationMapper:
     
     def _build_department_index(self):
         """Построение индекса для быстрого поиска департаментов"""
-        def index_node(node: dict, path: str = ""):
+        def index_node(node: dict, path: str = "", parent_name: str = ""):
             if isinstance(node, dict):
-                name = node.get('name', '')
-                if name:
-                    full_path = f"{path}/{name}" if path else name
-                    self._department_index[name] = {
-                        'path': full_path,
-                        'node': node,
-                        'level': len([p for p in full_path.split('/') if p])
-                    }
-                
-                # Рекурсивно обходим детей
-                children = node.get('children', [])
-                if isinstance(children, list):
-                    for child in children:
-                        index_node(child, full_path if name else path)
+                # В нашей структуре имена департаментов - это ключи объекта
+                for dept_name, dept_data in node.items():
+                    if isinstance(dept_data, dict) and dept_name not in ["organization"]:
+                        # Создаем полный путь
+                        full_path = f"{path}/{dept_name}" if path else dept_name
+                        
+                        # Добавляем в индекс
+                        self._department_index[dept_name] = {
+                            'path': full_path,
+                            'node': dept_data,
+                            'level': len([p for p in full_path.split('/') if p])
+                        }
+                        
+                        # Рекурсивно обходим детей если есть
+                        children = dept_data.get('children', {})
+                        if isinstance(children, dict) and children:
+                            index_node(children, full_path, dept_name)
         
         self._load_org_structure()
         if self._org_data:
-            index_node(self._org_data)
+            # Начинаем с organization если он есть
+            if "organization" in self._org_data:
+                index_node(self._org_data["organization"])
+            else:
+                index_node(self._org_data)
     
     def find_department_path(self, department_name: str) -> str:
         """Находит полный путь департамента в иерархии"""
@@ -172,79 +179,31 @@ class OrganizationMapper:
 class KPIMapper:
     """Детерминированное определение KPI файлов по департаментам"""
     
-    def __init__(self, kpi_dir: str = "/home/yan/A101/HR/KPI/md_converted"):
+    def __init__(self, kpi_dir: str = "data/KPI"):
         self.kpi_dir = Path(kpi_dir)
         
-        # Точные соответствия названий департаментов
-        self.kpi_mapping = {
-            "ДИТ": "КПЭ 2025_ДИТ (Сложеникин А)+_structured.md",
-            "Департамент информационных технологий": "КПЭ 2025_ДИТ (Сложеникин А)+_structured.md",
-            "Блок ДИТ": "КПЭ 2025_ДИТ (Сложеникин А)+_structured.md",
-            
-            "Коммерческий департамент": "КПЭ 2025_ТОП_финал__structured.md",
-            "Департамент маркетинга": "КПЭ 2025_ТОП_финал__structured.md",
-            "Отдел продаж": "КПЭ 2025_ТОП_финал__structured.md",
-            
-            "Финансовый департамент": "КПЭ 2025_ТОП_финал__structured.md",
-            "Департамент финансов": "КПЭ 2025_ТОП_финал__structured.md",
-            "Финансы": "КПЭ 2025_ТОП_финал__structured.md",
-            
-            "Юридический департамент": "КПЭ 2025_ТОП_финал__structured.md",
-            "Правовой департамент": "КПЭ 2025_ТОП_финал__structured.md",
-            
-            "HR": "КПЭ 2025_ТОП_финал__structured.md",
-            "Кадры": "КПЭ 2025_ТОП_финал__structured.md",
-            "Управление персоналом": "КПЭ 2025_ТОП_финал__structured.md"
-        }
+        # Единственный доступный KPI файл - используем для всех департаментов
+        self.kpi_file = "KPI_DIT.md"
         
-        # Регулярные выражения для нечеткого поиска
-        self.kpi_patterns = [
-            (r".*[Ии][Тт].*|.*информационн.*|.*цифр.*|.*технолог.*", 
-             "КПЭ 2025_ДИТ (Сложеникин А)+_structured.md"),
-            
-            (r".*коммерч.*|.*продаж.*|.*маркетинг.*|.*реклам.*", 
-             "КПЭ 2025_ТОП_финал__structured.md"),
-            
-            (r".*финанс.*|.*бухгалт.*|.*казначейств.*|.*контролл.*", 
-             "КПЭ 2025_ТОП_финал__structured.md"),
-            
-            (r".*юридич.*|.*правов.*|.*комплаенс.*|.*безопасност.*", 
-             "КПЭ 2025_ТОП_финал__structured.md"),
-            
-            (r".*[Кк]адр.*|.*[Hh][Rr].*|.*персонал.*|.*сотрудник.*", 
-             "КПЭ 2025_ТОП_финал__structured.md")
-        ]
-        
-        # Fallback файл для неопознанных департаментов
-        self.fallback_file = "КПЭ 2025_ТОП_финал__structured.md"
+        # Логгинг для отслеживания маппинга
+        self.mappings_log = []
     
     def find_kpi_file(self, department: str) -> str:
         """
-        Детерминированный алгоритм поиска KPI файла:
-        1. Точное соответствие названия
-        2. Нечеткое соответствие по регулярным выражениям  
-        3. Fallback на общие корпоративные KPI
+        Возвращает единственный доступный KPI файл для любого департамента.
+        В MVP версии используем KPI_DIT.md для всех департаментов.
         """
-        if not department:
-            return self.fallback_file
+        # Логируем для отслеживания
+        mapping_entry = {
+            "department": department,
+            "kpi_file": self.kpi_file,
+            "method": "single_file_fallback"
+        }
+        self.mappings_log.append(mapping_entry)
         
-        # Нормализация входного названия
-        department_clean = department.strip()
+        logger.info(f"KPI mapping: '{department}' -> '{self.kpi_file}' (MVP single file mode)")
         
-        # 1. Точное соответствие
-        if department_clean in self.kpi_mapping:
-            logger.info(f"Exact match for '{department}' -> {self.kpi_mapping[department_clean]}")
-            return self.kpi_mapping[department_clean]
-        
-        # 2. Нечеткое соответствие по паттернам
-        for pattern, kpi_file in self.kpi_patterns:
-            if re.search(pattern, department_clean, re.IGNORECASE):
-                logger.info(f"Pattern match for '{department}' -> {kpi_file}")
-                return kpi_file
-        
-        # 3. Fallback
-        logger.warning(f"No KPI match found for '{department}', using fallback: {self.fallback_file}")
-        return self.fallback_file
+        return self.kpi_file
     
     def load_kpi_content(self, department: str) -> str:
         """Загрузка и автоматическая очистка KPI контента"""
@@ -295,16 +254,11 @@ class KPIMapper:
         return [f.name for f in self.kpi_dir.glob("*.md")]
     
     def validate_kpi_mappings(self) -> Dict[str, bool]:
-        """Проверка существования всех маппированных KPI файлов"""
-        results = {}
-        all_files = set(self.kpi_mapping.values())
-        all_files.add(self.fallback_file)
-        
-        for filename in all_files:
-            file_path = self.kpi_dir / filename
-            results[filename] = file_path.exists()
-            
-        return results
+        """Проверка существования KPI файла"""
+        file_path = self.kpi_dir / self.kpi_file
+        return {
+            self.kpi_file: file_path.exists()
+        }
 
 
 if __name__ == "__main__":

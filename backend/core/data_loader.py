@@ -22,26 +22,22 @@ class DataLoader:
     Подготавливает все переменные для Langfuse промптов.
     """
     
-    def __init__(self, base_path: str = "/home/yan/A101/HR"):
+    def __init__(self, base_path: str = "."):
         self.base_path = Path(base_path)
         
         # Инициализация маппинговых компонентов
-        self.org_mapper = OrganizationMapper(
-            str(self.base_path / "org_structure" / "structure.json")
-        )
-        self.kpi_mapper = KPIMapper(
-            str(self.base_path / "KPI" / "md_converted")
-        )
+        self.org_mapper = OrganizationMapper("data/structure.json")
+        self.kpi_mapper = KPIMapper("data/KPI")
         
         # Кеш для статических данных
         self._cache = {}
         
         # Пути к статическим файлам
         self.paths = {
-            "company_map": self.base_path / "Карта Компании А101.md",
-            "profile_examples": self.base_path / "Profiles" / "Профили архитекторы.xlsx",
-            "json_schema": self.base_path / "Profiles" / "job_profile_schema.json",
-            "it_systems_dir": self.base_path / "IT systems"
+            "company_map": self.base_path / "data" / "anonymized_digitization_map.md",
+            "profile_examples": self.base_path / "templates" / "profile_examples.xlsx",
+            "json_schema": self.base_path / "templates" / "job_profile_schema.json",
+            "it_systems_dir": self.base_path / "data" / "it_systems"
         }
     
     def prepare_langfuse_variables(self, department: str, position: str, employee_name: Optional[str] = None) -> Dict[str, Any]:
@@ -237,6 +233,10 @@ class DataLoader:
     
     def get_available_departments(self) -> List[str]:
         """Получение списка всех доступных департаментов"""
+        # Убеждаемся, что данные загружены
+        if not self.org_mapper._department_index:
+            self.org_mapper._load_org_structure()
+        
         return list(self.org_mapper._department_index.keys()) if self.org_mapper._department_index else []
     
     def get_positions_for_department(self, department: str) -> List[str]:
@@ -294,8 +294,8 @@ class DataLoader:
             "profile_examples": self.paths["profile_examples"].exists(), 
             "json_schema": self.paths["json_schema"].exists(),
             "it_systems_dir": self.paths["it_systems_dir"].exists(),
-            "org_structure": (self.base_path / "org_structure" / "structure.json").exists(),
-            "kpi_dir": (self.base_path / "KPI" / "md_converted").exists()
+            "org_structure": (self.base_path / "data" / "structure.json").exists(),
+            "kpi_file": (self.base_path / "data" / "KPI" / "KPI_DIT.md").exists()
         }
         
         # Проверяем KPI файлы

@@ -20,9 +20,11 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import time
 
-# Импорты для аутентификации
+# Импорты для аутентификации и каталога
 from .api.auth import auth_router
+from .api.catalog import catalog_router
 from .utils.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from .core.config import config
 
 # Настройка логирования
 logging.basicConfig(
@@ -42,13 +44,14 @@ async def lifespan(app: FastAPI):
     
     # Startup: Инициализация компонентов системы
     try:
-        # Проверяем наличие необходимых environment variables
-        openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        if not openrouter_key:
-            logger.warning("⚠️ OPENROUTER_API_KEY не установлен - LLM генерация недоступна")
+        # Проверяем наличие необходимых environment variables через конфигурацию
+        if not config.openrouter_configured:
+            logger.warning("⚠️ OpenRouter API не настроен - LLM генерация недоступна")
         
-        langfuse_public = os.getenv("LANGFUSE_PUBLIC_KEY")
-        langfuse_secret = os.getenv("LANGFUSE_SECRET_KEY")
+        if not config.langfuse_configured:
+            logger.info("ℹ️ Langfuse мониторинг не настроен - работаем без трекинга")
+        else:
+            logger.info("✅ Langfuse мониторинг настроен")
         
         # Инициализируем компоненты (lazy loading при первом запросе)
         app_components["initialized"] = True
@@ -100,12 +103,7 @@ app = FastAPI(
 # CORS middleware для интеграции с NiceGUI frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8033",  # NiceGUI frontend
-        "http://127.0.0.1:8033",
-        "http://0.0.0.0:8033",
-        # В production добавить реальный домен
-    ],
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -161,16 +159,14 @@ async def health_check() -> Dict[str, Any]:
             "timestamp": datetime.now().isoformat(),
             "uptime_seconds": int(uptime.total_seconds()),
             "version": "1.0.0",
-            "environment": os.getenv("ENVIRONMENT", "development"),
+            "environment": config.ENVIRONMENT,
             "components": {
                 "api": "operational",
                 "core_modules": "initialized" if app_components.get("initialized") else "pending",
             },
             "external_services": {
-                "openrouter_configured": bool(os.getenv("OPENROUTER_API_KEY")),
-                "langfuse_configured": bool(
-                    os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY")
-                ),
+                "openrouter_configured": config.openrouter_configured,
+                "langfuse_configured": config.langfuse_configured,
             }
         }
         
@@ -211,8 +207,8 @@ async def root() -> Dict[str, Any]:
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Создаем папку static если не существует
-static_dir = "/home/yan/A101/HR/backend/static"
+# Создаем папку static если не существует  
+static_dir = "backend/static"
 os.makedirs(static_dir, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -220,6 +216,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Подключение API роутеров
 app.include_router(auth_router)
+app.include_router(catalog_router)
 
 
 if __name__ == "__main__":
