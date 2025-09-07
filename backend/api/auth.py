@@ -27,10 +27,7 @@ security = HTTPBearer()
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """
-    Dependency для получения текущего пользователя из JWT токена.
-    Используется для защищенных endpoints.
-    """
+    """Retrieve the current user from the JWT token."""
     token = credentials.credentials
     user_data = auth_service.verify_token(token)
     
@@ -49,17 +46,13 @@ async def login(
     login_request: LoginRequest,
     request: Request
 ):
-    """
-    Авторизация пользователя в системе.
+    """Handles user login and authorization.
     
-    Процесс авторизации:
-    1. Проверка учетных данных пользователя  
-    2. Создание JWT токена
-    3. Создание пользовательской сессии
-    4. Возврат токена и информации о пользователе
-    
-    Returns:
-        LoginResponse с JWT токеном и информацией о пользователе
+    The login function processes user login requests by validating the provided
+    credentials. It retrieves client information such as the user agent and IP
+    address, logs the login attempt, and calls the auth_service.login method to
+    perform the authorization. Depending on the result, it either returns the
+    login response or raises an HTTPException for failed attempts.
     """
     try:
         # Получаем информацию о клиенте
@@ -97,11 +90,7 @@ async def login(
 
 @auth_router.post("/logout", response_model=BaseResponse)
 async def logout(current_user: dict = Depends(get_current_user)):
-    """
-    Выход пользователя из системы.
-    
-    Инвалидирует все активные сессии пользователя.
-    """
+    """Logs out the current user and invalidates all active sessions."""
     try:
         user_id = current_user["user_id"]
         username = current_user["username"]
@@ -126,12 +115,7 @@ async def logout(current_user: dict = Depends(get_current_user)):
 
 @auth_router.get("/me", response_model=UserInfo)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
-    """
-    Получение информации о текущем авторизованном пользователе.
-    
-    Returns:
-        UserInfo с полной информацией о пользователе
-    """
+    """Retrieve information about the currently authenticated user."""
     try:
         user_data = current_user["user"]
         
@@ -154,11 +138,7 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
 
 @auth_router.post("/refresh", response_model=LoginResponse)
 async def refresh_token(current_user: dict = Depends(get_current_user)):
-    """
-    Обновление JWT токена.
-    
-    Создает новый токен с тем же временем жизни для текущего пользователя.
-    """
+    """Refreshes the JWT token for the current user."""
     try:
         user_data = current_user["user"]
         
@@ -195,11 +175,7 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
 
 @auth_router.get("/validate", response_model=BaseResponse)
 async def validate_token(current_user: dict = Depends(get_current_user)):
-    """
-    Проверка валидности текущего токена.
-    
-    Endpoint для frontend для проверки, что токен все еще действителен.
-    """
+    """Validate the current user's token."""
     return BaseResponse(
         success=True,
         message=f"Токен действителен для пользователя {current_user['username']}"
@@ -209,10 +185,7 @@ async def validate_token(current_user: dict = Depends(get_current_user)):
 # Дополнительные utility функции для использования в других модулях
 
 def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """
-    Опциональная авторизация - не вызывает исключение если токен невалиден.
-    Возвращает None если пользователь не авторизован.
-    """
+    """Returns the current user if authorized, otherwise None."""
     if not credentials:
         return None
     
@@ -221,10 +194,7 @@ def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depend
 
 
 async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
-    """
-    Dependency для endpoints, требующих admin права.
-    В текущей реализации проверяет username == 'admin'
-    """
+    """Checks if the current user has admin privileges."""
     if current_user["username"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

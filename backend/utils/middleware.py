@@ -40,9 +40,16 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     }
     
     async def dispatch(self, request: Request, call_next):
-        """Обработка запроса с проверкой авторизации"""
         
         # Проверяем, нужна ли авторизация для этого пути
+        """Handles request processing with authorization checks.
+        
+        This function checks if authorization is required for the requested path.  It
+        allows unauthenticated access to exempt paths and static resources.  If
+        authorization is needed, it extracts the token from the Authorization header,
+        verifies it using the auth_service, and adds user information to the request
+        state  before proceeding with the request processing.
+        """
         path = request.url.path
         
         # Пропускаем неавторизованные пути
@@ -98,8 +105,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next):
-        """Логирование запроса и ответа с детальными метриками"""
         
+        """Log request and response with detailed metrics.
+        
+        This function logs the incoming request details, including the method, path,
+        client IP, and user information if available. It measures the processing time
+        of the request and logs the response status along with the same details.  In
+        case of an error, it logs the error information and returns a structured  error
+        response with relevant details.
+        
+        Args:
+            request (Request): The incoming request object.
+            call_next: The next middleware or endpoint to call.
+        """
         start_time = time.time()
         
         # Информация о запросе
@@ -171,8 +189,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next):
-        """Добавление security headers к ответу"""
         
+        """Add security headers to the response."""
         response = await call_next(request)
         
         # Добавляем security headers
@@ -196,11 +214,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 async def get_request_user(request: Request) -> dict:
-    """
-    Utility function для получения пользователя из request state.
-    
-    Используется в endpoints для получения текущего пользователя.
-    """
+    """Retrieve the user from the request state."""
     return getattr(request.state, 'user', None)
 
 
