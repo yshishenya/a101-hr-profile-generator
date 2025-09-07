@@ -33,15 +33,18 @@ class CatalogService:
         self._positions_last_update = {}
     
     def get_departments(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
-        """
-        Получение списка всех доступных департаментов с использованием оптимизированной загрузки.
+        """def get_departments(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        Retrieve a list of all available departments using optimized loading.  This
+        function checks if the departments cache is valid and returns the cached data
+        if  `force_refresh` is not set. If a refresh is required, it clears the cache,
+        loads the  full organization structure, transforms the data into a suitable
+        format for the API,  and updates the cache. The departments are sorted by name
+        for consistency, and the  loading time is logged. In case of an error, it
+        attempts to return cached data from  the database before falling back to an
+        empty list.
         
         Args:
-            force_refresh: Принудительное обновление кеша
-            
-        Returns:
-            List[Dict] с информацией о департаментах
-        """
+            force_refresh: A boolean indicating whether to force a cache refresh."""
         try:
             start_time = datetime.now()
             
@@ -99,15 +102,18 @@ class CatalogService:
             return []
     
     def get_positions(self, department: str, force_refresh: bool = False) -> List[Dict[str, Any]]:
-        """
-        Получение списка должностей для конкретного департамента с использованием оптимизированной загрузки.
+        """Retrieve a list of positions for a specific department using optimized loading.
+        
+        This function checks the cache for the specified department and returns the
+        cached positions if valid. If the cache is not valid or a refresh is forced, it
+        loads the full organization structure using the DataLoader, extracts the
+        positions for the department, and updates the cache accordingly. The positions
+        are sorted by level and name before being returned. In case of an error, it
+        attempts to return cached data from the database as a fallback.
         
         Args:
-            department: Название департамента
-            force_refresh: Принудительное обновление кеша
-            
-        Returns:
-            List[Dict] с информацией о должностях
+            department: The name of the department.
+            force_refresh: Whether to force a cache refresh.
         """
         try:
             start_time = datetime.now()
