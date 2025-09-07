@@ -232,11 +232,14 @@ class DataLoader:
         return estimated_tokens
     
     def load_full_organization_structure(self) -> Dict[str, Any]:
-        """
-        Загрузка полной структуры организации за один запрос с кешированием.
+        """Load the full organization structure with caching.
         
-        Returns:
-            Dict с полной структурой департаментов и позиций
+        This function retrieves the complete structure of departments and positions  in
+        a single request, ensuring that the data is loaded into the cache for
+        subsequent access. It first checks if the organization structure is already
+        cached; if not, it loads the data from the organization mapper, constructs  the
+        full structure, and caches the result. The function also logs the  loading time
+        and the total number of departments and positions loaded.
         """
         cache_key = "full_org_structure"
         
@@ -299,13 +302,26 @@ class DataLoader:
         return self._cache[cache_key]
     
     def get_available_departments(self) -> List[str]:
-        """Получение списка всех доступных департаментов"""
         # Используем оптимизированный метод
+        """Retrieve a list of all available departments."""
         full_structure = self.load_full_organization_structure()
         return list(full_structure["departments"].keys())
     
     def _get_positions_for_department_internal(self, department: str) -> List[str]:
-        """Внутренний метод для получения позиций департамента без дополнительной обработки"""
+        """Retrieve a list of positions for a given department.
+        
+        This internal method generates typical positions based on the department name
+        and adds specialized positions depending on keywords found in the department
+        string. It first defines a set of base positions and then checks for specific
+        keywords to append relevant specialized roles. The final list of positions is
+        returned in a sorted and unique format.
+        
+        Args:
+            department (str): The name of the department for which to retrieve positions.
+        
+        Returns:
+            List[str]: A sorted list of unique positions relevant to the specified department.
+        """
         try:
             # Генерируем типичные должности для департамента на основе его названия
             base_positions = [
@@ -359,7 +375,14 @@ class DataLoader:
             return ["Специалист", "Менеджер", "Аналитик"]  # Fallback
     
     def _determine_position_level(self, position_name: str) -> str:
-        """Определение уровня должности по названию"""
+        """Determine the position level based on the position name.
+        
+        This function analyzes the provided position_name by converting it to
+        lowercase and checking for specific keywords that indicate the level of  the
+        position. It categorizes the position into four levels: senior,  lead, middle,
+        and junior, based on the presence of certain keywords.  If no keywords match,
+        it defaults to returning "middle".
+        """
         position_lower = position_name.lower()
         
         if any(keyword in position_lower for keyword in ['руководитель', 'директор', 'управляющий', 'начальник']):
@@ -374,7 +397,19 @@ class DataLoader:
             return "middle"  # По умолчанию
     
     def _determine_position_category(self, position_name: str) -> str:
-        """Определение категории должности"""
+        """Determine the category of a position based on its name.
+        
+        This function analyzes the provided position_name by converting it to lowercase
+        and checking for the presence of specific keywords associated with various
+        categories such as management, technical, analytical, sales, financial, and HR.
+        If no keywords match, it defaults to the operational category.
+        
+        Args:
+            position_name (str): The name of the position to categorize.
+        
+        Returns:
+            str: The category of the position as a string.
+        """
         position_lower = position_name.lower()
         
         if any(keyword in position_lower for keyword in ['руководитель', 'директор', 'управляющий', 'начальник']):
@@ -393,10 +428,7 @@ class DataLoader:
             return "operational"  # По умолчанию
 
     def get_positions_for_department(self, department: str) -> List[str]:
-        """
-        Получение списка должностей для конкретного департамента.
-        Использует кешированную полную структуру для быстрого доступа.
-        """
+        """Retrieve a list of positions for a specific department."""
         try:
             # Получаем данные из кешированной полной структуры
             full_structure = self.load_full_organization_structure()
