@@ -334,6 +334,26 @@ class ProfileSearchResponse(PaginatedResponse):
     filters_applied: Dict[str, Any]
 
 
+class ProfileListResponse(BaseModel):
+    """Ответ списка профилей с пагинацией"""
+    profiles: List[ProfileSummary]
+    pagination: Dict[str, Any]
+    filters_applied: Dict[str, Any]
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Запрос обновления метаданных профиля"""
+    employee_name: Optional[str] = Field(None, max_length=200, description="Новое ФИО сотрудника")
+    status: Optional[str] = Field(None, description="Новый статус профиля")
+    
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v is not None and v not in ["completed", "failed", "processing", "archived"]:
+            raise ValueError("Status must be one of: completed, failed, processing, archived")
+        return v
+
+
 # ================================
 # WEBHOOK MODELS (для будущего использования)
 # ================================

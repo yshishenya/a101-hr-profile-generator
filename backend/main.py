@@ -14,17 +14,18 @@ from datetime import datetime
 from typing import Dict, Any
 
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-import time
 
-# Импорты для аутентификации, каталога и генерации
+# Импорты для аутентификации, каталога, генерации и управления профилями
 from .api.auth import auth_router
 from .api.catalog import catalog_router
 from .api.generation import router as generation_router, initialize_generation_system
+from .api.profiles import router as profiles_router
 from .utils.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from .utils.exception_handlers import setup_exception_handlers
 from .core.config import config
 
 # Настройка логирования
@@ -129,22 +130,8 @@ app.add_middleware(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
-
-# Глобальный exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Обработка всех неперехваченных исключений"""
-    logger.error(f"💥 Unhandled exception: {str(exc)}", exc_info=True)
-    
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "message": "Произошла внутренняя ошибка сервера",
-            "timestamp": datetime.now().isoformat(),
-            "path": str(request.url.path)
-        }
-    )
+# Настройка глобальных обработчиков исключений
+setup_exception_handlers(app)
 
 
 # Health check endpoint
@@ -222,6 +209,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.include_router(auth_router)
 app.include_router(catalog_router)
 app.include_router(generation_router)
+app.include_router(profiles_router)
 
 
 if __name__ == "__main__":
