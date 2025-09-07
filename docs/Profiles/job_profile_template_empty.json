@@ -1,0 +1,50 @@
+{
+  "position_title": "",
+  "department_broad": "",
+  "department_specific": "",
+  "category": "",
+  "direct_manager": "",
+  "subordinates": {
+    "departments": 0,
+    "people": ""
+  },
+  "primary_activity": "",
+  "responsibility_areas": [
+    {
+      "title": "",
+      "tasks": []
+    }
+  ],
+  "professional_skills": [
+    {
+      "category": "",
+      "skills": [],
+      "target_level": ""
+    }
+  ],
+  "corporate_competencies": [],
+  "personal_qualities": [],
+  "education": {
+    "previous_position_experience": "",
+    "total_experience": "",
+    "education_level": "",
+    "specialties": "",
+    "additional_education": null
+  },
+  "career_path": {
+    "donor_positions": [],
+    "target_positions": []
+  },
+  "technical_requirements": {
+    "software": [],
+    "equipment": []
+  },
+  "additional_info": {
+    "promotion_conditions": "",
+    "promotion_decision": ""
+  },
+  "metadata": {
+    "prepared_by": "",
+    "creation_date": ""
+  }
+}
