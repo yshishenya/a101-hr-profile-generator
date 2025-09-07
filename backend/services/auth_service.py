@@ -38,18 +38,26 @@ class AuthenticationService:
         self.db = db_manager
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Проверка пароля против хеша"""
+        """Verify a plain password against a hashed password."""
         try:
             return pwd_context.verify(plain_password, hashed_password)
         except InvalidTokenError:
             return False
     
     def hash_password(self, password: str) -> str:
-        """Хеширование пароля"""
+        """Hash a password using the password context."""
         return pwd_context.hash(password)
     
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
-        """Получение пользователя по username"""
+        """def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        Retrieve a user by their username.  This function establishes a database
+        connection and executes a query to  fetch user details based on the provided
+        username. It checks if the user  is active and returns a dictionary containing
+        user information if found.  In case of an error during the database operation,
+        it logs the error and  returns None.
+        
+        Args:
+            username (str): The username of the user to retrieve."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
         
@@ -78,7 +86,7 @@ class AuthenticationService:
             return None
     
     def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        """Аутентификация пользователя по username и password"""
+        """Authenticate a user by username and password."""
         user = self.get_user_by_username(username)
         
         if not user:
@@ -100,7 +108,7 @@ class AuthenticationService:
         return user
     
     def _update_last_login(self, user_id: int):
-        """Обновление времени последнего входа пользователя"""
+        """Update the last login time for a user."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
         
@@ -116,7 +124,7 @@ class AuthenticationService:
             logger.error(f"Error updating last login for user {user_id}: {e}")
     
     def create_access_token(self, user_data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-        """Создание JWT access token"""
+        """Create a JWT access token for the given user data."""
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
@@ -136,7 +144,18 @@ class AuthenticationService:
         return encoded_jwt
     
     def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
-        """Проверка и декодирование JWT token"""
+        """def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
+        
+        Verify and decode a JWT token.  This function attempts to decode the provided
+        JWT token using the specified secret key and algorithm. It checks the token
+        type, verifies the existence and status of the user associated with the token,
+        and ensures that the user has active sessions. If any of these checks fail, the
+        function returns None. Additionally, it handles exceptions related to token
+        expiration and validity, logging appropriate warnings or errors.
+        
+        Args:
+            token (str): The JWT token to verify.
+        """
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
             
@@ -176,7 +195,16 @@ class AuthenticationService:
             return None
     
     def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """Получение пользователя по ID"""
+        """def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+        Retrieve a user by their ID.  This function establishes a connection to the
+        database and executes a SQL query to fetch user details based on the provided
+        user_id. If a user is found, it returns a dictionary containing the user's
+        information, including their username, password hash, full name, active status,
+        creation date, and last login date. If no user is found or an error occurs
+        during the process, it returns None.
+        
+        Args:
+            user_id (int): The ID of the user to retrieve."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
         
@@ -205,7 +233,7 @@ class AuthenticationService:
             return None
     
     def create_user_session(self, user_id: int, user_agent: str = None, ip_address: str = None) -> str:
-        """Создание пользовательской сессии в базе данных"""
+        """Create a user session in the database."""
         session_id = str(uuid.uuid4())
         expires_at = datetime.now() + timedelta(hours=JWT_EXPIRATION_HOURS)
         
@@ -227,7 +255,7 @@ class AuthenticationService:
             raise
     
     def invalidate_user_sessions(self, user_id: int):
-        """Инвалидация всех сессий пользователя (logout из всех устройств)"""
+        """Invalidate all active sessions for a given user."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
         
@@ -245,7 +273,7 @@ class AuthenticationService:
             logger.error(f"Error invalidating user sessions: {e}")
     
     def invalidate_session(self, session_id: str):
-        """Инвалидация конкретной сессии"""
+        """Invalidate a specific user session."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
         
@@ -263,7 +291,7 @@ class AuthenticationService:
             logger.error(f"Error invalidating session {session_id}: {e}")
     
     async def login(self, login_request: LoginRequest, user_agent: str = None, ip_address: str = None) -> Optional[LoginResponse]:
-        """Полный процесс авторизации пользователя"""
+        """Handles user authentication and session creation."""
         try:
             # Аутентификация
             user = self.authenticate_user(login_request.username, login_request.password)
@@ -306,7 +334,7 @@ class AuthenticationService:
             return None
     
     def _has_active_sessions(self, user_id: int) -> bool:
-        """Проверка наличия активных сессий у пользователя"""
+        """Check if the user has active sessions."""
         conn = self.db.get_connection()
         cursor = conn.cursor()
         
@@ -328,7 +356,7 @@ class AuthenticationService:
             return True
     
     def cleanup_expired_sessions(self):
-        """Очистка истекших сессий (вызывается периодически)"""
+        """Cleans up expired sessions."""
         try:
             self.db.cleanup_expired_sessions()
             logger.info("Expired sessions cleaned up")
@@ -346,6 +374,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     async def test_auth_service():
+        """Tests the AuthenticationService for user login and token verification."""
         print("🔐 Тестирование AuthenticationService...")
         
         # Инициализируем базу данных
