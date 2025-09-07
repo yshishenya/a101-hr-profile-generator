@@ -40,7 +40,7 @@ app_components = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle events для инициализации и очистки компонентов"""
+    """Manage the lifespan of the FastAPI application."""
     logger.info("🚀 Starting A101 HR Profile Generator API...")
     
     # Startup: Инициализация компонентов системы
