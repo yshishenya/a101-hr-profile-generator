@@ -65,7 +65,7 @@ _task_results: Dict[str, Dict[str, Any]] = {}
 
 
 async def get_profile_generator() -> ProfileGenerator:
-    """Dependency для получения ProfileGenerator с актуальными настройками"""
+    """Retrieve a ProfileGenerator with the current settings."""
     if not config.openrouter_configured:
         raise HTTPException(
             status_code=503,
@@ -87,9 +87,17 @@ async def background_generate_profile(
     request: GenerationRequest,
     user_id: int
 ):
-    """Background task для генерации профиля"""
     
     # Обновляем статус на "processing"
+    """Background task for generating a profile.
+    
+    This function manages the background generation of a user profile by updating
+    the task status, initializing the profile generator, and processing the
+    generation steps. It validates the system readiness, generates the profile
+    using the provided request parameters, and saves the result to the database.
+    The function also handles errors and updates the task status accordingly
+    throughout the process.
+    """
     _active_tasks[task_id].update({
         "status": "processing",
         "started_at": datetime.now(),
@@ -162,7 +170,7 @@ async def background_generate_profile(
 
 
 async def save_generation_to_db(result: Dict[str, Any], user_id: int, task_id: str):
-    """Сохранение результата генерации в базу данных"""
+    """Saves the generation result to the database."""
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor()
@@ -209,13 +217,8 @@ async def start_generation(
     background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user)
 ):
-    """
-    Запуск асинхронной генерации профиля должности
-    
-    Returns:
-        task_id и примерное время выполнения
-    """
     # Создаем уникальный ID задачи
+    """Starts an asynchronous profile generation task."""
     task_id = str(uuid.uuid4())
     
     # Оценочное время генерации (30-60 секунд)
@@ -258,14 +261,13 @@ async def get_task_status(
     task_id: str,
     current_user = Depends(get_current_user)
 ):
-    """
-    Получение статуса задачи генерации
+    """Retrieve the status of a generation task.
     
     Args:
-        task_id: ID задачи генерации
+        task_id: ID of the generation task.
     
     Returns:
-        Текущий статус задачи и результат (если доступен)
+        Current status of the task and result (if available).
     """
     if task_id not in _active_tasks:
         raise HTTPException(status_code=404, detail="Задача не найдена")
@@ -288,14 +290,16 @@ async def get_task_result(
     task_id: str,
     current_user = Depends(get_current_user)
 ):
-    """
-    Получение результата генерации профиля
+    """Retrieve the result of a task generation.
+    
+    This function checks if the provided task_id exists in the active tasks.  It
+    verifies the current user's access rights to the task and checks the  task's
+    status. If the task is still in progress or the result is not  available,
+    appropriate HTTP exceptions are raised. Finally, it returns  the result of the
+    task if all checks pass.
     
     Args:
         task_id: ID задачи генерации
-    
-    Returns:
-        Полный результат генерации профиля
     """
     if task_id not in _active_tasks:
         raise HTTPException(status_code=404, detail="Задача не найдена")
@@ -324,11 +328,10 @@ async def cancel_task(
     task_id: str,
     current_user = Depends(get_current_user)
 ):
-    """
-    Отмена задачи генерации (если возможно)
+    """Cancels a generation task if possible.
     
     Args:
-        task_id: ID задачи генерации
+        task_id: ID задачи генерации.
     """
     if task_id not in _active_tasks:
         raise HTTPException(status_code=404, detail="Задача не найдена")
@@ -362,11 +365,12 @@ async def cancel_task(
 async def get_active_tasks(
     current_user = Depends(get_current_user)
 ) -> List[GenerationTask]:
-    """
-    Получение списка активных задач пользователя
+    """Retrieve a list of active tasks for the current user.
     
-    Returns:
-        Список активных задач генерации для текущего пользователя
+    This function checks the `_active_tasks` dictionary for tasks associated with
+    the  `current_user`. It filters out tasks that are completed, failed, or
+    cancelled and  older than one hour. The resulting active tasks are then
+    returned as a list of  `GenerationTask` instances.
     """
     user_tasks = []
     
@@ -387,8 +391,13 @@ async def get_active_tasks(
 async def cleanup_old_tasks(
     current_user = Depends(get_current_user)
 ):
-    """
-    Очистка старых завершенных задач (только admin)
+    """Cleans up old completed tasks for admin users.
+    
+    This function checks if the current user is an admin and raises an
+    HTTPException if not.  It then identifies tasks that have been completed,
+    failed, or cancelled more than 24 hours ago  and removes them from the active
+    tasks and task results. The number of tasks cleaned up is logged  and returned
+    in the response along with the count of remaining active tasks.
     """
     if current_user["username"] != "admin":
         raise HTTPException(status_code=403, detail="Только admin может очищать задачи")
@@ -419,7 +428,7 @@ async def cleanup_old_tasks(
 
 
 def initialize_generation_system():
-    """Инициализация системы генерации при запуске"""
+    """Initialize the generation system at startup."""
     logger.info("🧹 Initializing generation system...")
     _active_tasks.clear()
     _task_results.clear()
