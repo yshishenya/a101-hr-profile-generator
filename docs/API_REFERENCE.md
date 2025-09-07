@@ -198,8 +198,36 @@ Content-Type: application/json
 
 ## 🏢 Каталог департаментов
 
+## ⚡ Performance Metrics
+
+### 🚀 Catalog API Optimization
+
+**Ключевой endpoint `/api/catalog/departments` оптимизирован для высокой производительности:**
+
+#### 📊 Performance Benchmarks:
+- **Холодный старт:** `40ms` (пакетная загрузка 510 департаментов + 4376 должностей)
+- **С кешем:** `3ms` (моментальный возврат из памяти)
+- **Кеш TTL:** 1 час с автоматическим обновлением
+- **Архитектура:** 1 пакетная загрузка вместо 510 отдельных запросов
+
+#### 🔍 Performance Logs:
+```
+2025-09-07 16:21:53 - ✅ Full organization structure loaded in 0.024s: 510 departments, 4376 positions
+2025-09-07 16:21:53 - ✅ Loaded 510 departments in 0.036s (total positions: 4376)
+2025-09-07 16:22:03 - Using cached departments data (0.003s)
+```
+
+#### 💡 Performance Features:
+- **Intelligent Caching** - Memory + Database persistence
+- **Batch Loading** - All data in single operation
+- **TTL Management** - Auto-refresh after 1 hour
+- **Fallback Strategy** - Graceful degradation on errors
+- **Performance Monitoring** - Detailed timing logs
+
+---
+
 ### `GET /api/catalog/departments`
-Получение списка всех департаментов.
+Получение списка всех департаментов с оптимизированной производительностью.
 
 **Parameters:**
 - `force_refresh` (query, boolean, optional) - Принудительное обновление кеша

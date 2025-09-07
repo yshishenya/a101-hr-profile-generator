@@ -34,7 +34,7 @@ class CatalogService:
     
     def get_departments(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """
-        Получение списка всех доступных департаментов с кешированием.
+        Получение списка всех доступных департаментов с использованием оптимизированной загрузки.
         
         Args:
             force_refresh: Принудительное обновление кеша
@@ -43,24 +43,30 @@ class CatalogService:
             List[Dict] с информацией о департаментах
         """
         try:
+            start_time = datetime.now()
+            
             # Проверяем кеш
             if not force_refresh and self._is_departments_cache_valid():
                 logger.info("Using cached departments data")
                 return self._departments_cache
             
-            logger.info("Loading departments from data source")
+            logger.info("Loading departments using optimized full structure method")
             
-            # Загружаем департаменты через DataLoader
-            department_names = self.data_loader.get_available_departments()
+            # Очистить кеш DataLoader если принудительное обновление
+            if force_refresh:
+                self.data_loader.clear_cache()
             
-            # Получаем дополнительную информацию о департаментах
+            # Загружаем полную структуру за один запрос
+            full_structure = self.data_loader.load_full_organization_structure()
+            
+            # Преобразуем в формат для API
             departments_info = []
-            for dept_name in department_names:
+            for dept_name, dept_data in full_structure["departments"].items():
                 dept_info = {
                     "name": dept_name,
                     "display_name": dept_name,
-                    "path": self.data_loader.org_mapper.find_department_path(dept_name),
-                    "positions_count": len(self.get_positions(dept_name, force_refresh=True)),
+                    "path": dept_data["path"],
+                    "positions_count": dept_data["positions_count"],
                     "last_updated": datetime.now().isoformat()
                 }
                 departments_info.append(dept_info)
@@ -75,7 +81,9 @@ class CatalogService:
             # Сохраняем в БД кеш для персистентности
             self._save_departments_to_cache(departments_info)
             
-            logger.info(f"Loaded {len(departments_info)} departments")
+            load_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"✅ Loaded {len(departments_info)} departments in {load_time:.3f}s "
+                       f"(total positions: {full_structure['metadata']['total_positions']})")
             return departments_info
             
         except Exception as e:
@@ -92,7 +100,7 @@ class CatalogService:
     
     def get_positions(self, department: str, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """
-        Получение списка должностей для конкретного департамента с кешированием.
+        Получение списка должностей для конкретного департамента с использованием оптимизированной загрузки.
         
         Args:
             department: Название департамента
@@ -102,6 +110,8 @@ class CatalogService:
             List[Dict] с информацией о должностях
         """
         try:
+            start_time = datetime.now()
+            
             # Проверяем кеш для этого департамента
             cache_key = department
             
@@ -109,26 +119,31 @@ class CatalogService:
                 logger.info(f"Using cached positions data for {department}")
                 return self._positions_cache[cache_key]
             
-            logger.info(f"Loading positions for department: {department}")
+            logger.info(f"Loading positions for department using optimized method: {department}")
             
-            # Загружаем должности через DataLoader
-            position_names = self.data_loader.get_positions_for_department(department)
+            # Получаем данные из полной структуры DataLoader (уже оптимизировано)
+            full_structure = self.data_loader.load_full_organization_structure()
             
-            # Создаем детальную информацию о должностях
+            # Получаем позиции для департамента из кешированной структуры
             positions_info = []
-            for pos_name in position_names:
-                pos_info = {
-                    "name": pos_name,
-                    "department": department,
-                    "display_name": pos_name,
-                    "level": self._determine_position_level(pos_name),
-                    "category": self._determine_position_category(pos_name),
-                    "last_updated": datetime.now().isoformat()
-                }
-                positions_info.append(pos_info)
-            
-            # Сортируем должности по уровню и названию
-            positions_info.sort(key=lambda x: (x["level"], x["name"]))
+            if department in full_structure["departments"]:
+                dept_positions = full_structure["departments"][department]["positions"]
+                
+                for pos_data in dept_positions:
+                    pos_info = {
+                        "name": pos_data["name"],
+                        "department": department,
+                        "display_name": pos_data["name"],
+                        "level": pos_data["level"],
+                        "category": pos_data["category"],
+                        "last_updated": datetime.now().isoformat()
+                    }
+                    positions_info.append(pos_info)
+                
+                # Сортируем должности по уровню и названию
+                positions_info.sort(key=lambda x: (x["level"], x["name"]))
+            else:
+                logger.warning(f"Department '{department}' not found in organization structure")
             
             # Обновляем кеш
             self._positions_cache[cache_key] = positions_info
@@ -137,7 +152,8 @@ class CatalogService:
             # Сохраняем в БД кеш
             self._save_positions_to_cache(department, positions_info)
             
-            logger.info(f"Loaded {len(positions_info)} positions for {department}")
+            load_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"✅ Loaded {len(positions_info)} positions for {department} in {load_time:.3f}s")
             return positions_info
             
         except Exception as e:

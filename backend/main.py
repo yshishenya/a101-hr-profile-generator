@@ -20,9 +20,10 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import time
 
-# Импорты для аутентификации и каталога
+# Импорты для аутентификации, каталога и генерации
 from .api.auth import auth_router
 from .api.catalog import catalog_router
+from .api.generation import router as generation_router, initialize_generation_system
 from .utils.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from .core.config import config
 
@@ -58,6 +59,9 @@ async def lifespan(app: FastAPI):
         app_components["startup_time"] = datetime.now()
         
         logger.info("✅ Система инициализирована успешно")
+        
+        # Инициализируем систему генерации профилей
+        initialize_generation_system()
         
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации системы: {e}")
@@ -217,6 +221,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Подключение API роутеров
 app.include_router(auth_router)
 app.include_router(catalog_router)
+app.include_router(generation_router)
 
 
 if __name__ == "__main__":

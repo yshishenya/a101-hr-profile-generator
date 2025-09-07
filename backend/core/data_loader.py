@@ -231,56 +231,188 @@ class DataLoader:
         
         return estimated_tokens
     
+    def load_full_organization_structure(self) -> Dict[str, Any]:
+        """
+        Загрузка полной структуры организации за один запрос с кешированием.
+        
+        Returns:
+            Dict с полной структурой департаментов и позиций
+        """
+        cache_key = "full_org_structure"
+        
+        if cache_key not in self._cache:
+            start_time = datetime.now()
+            logger.info("Loading full organization structure...")
+            
+            # Убеждаемся, что данные загружены
+            if not self.org_mapper._department_index:
+                self.org_mapper._load_org_structure()
+            
+            # Загружаем всю структуру за один проход
+            full_structure = {
+                "departments": {},
+                "metadata": {
+                    "total_departments": 0,
+                    "total_positions": 0,
+                    "loaded_at": start_time.isoformat()
+                }
+            }
+            
+            # Получаем все департаменты
+            all_departments = list(self.org_mapper._department_index.keys()) if self.org_mapper._department_index else []
+            
+            for dept_name in all_departments:
+                # Получаем позиции для каждого департамента
+                positions = self._get_positions_for_department_internal(dept_name)
+                
+                # Определяем путь департамента
+                dept_path = self.org_mapper.find_department_path(dept_name)
+                
+                # Собираем информацию о департаменте
+                dept_info = {
+                    "name": dept_name,
+                    "path": dept_path,
+                    "positions": [
+                        {
+                            "name": pos_name,
+                            "level": self._determine_position_level(pos_name),
+                            "category": self._determine_position_category(pos_name)
+                        }
+                        for pos_name in positions
+                    ],
+                    "positions_count": len(positions)
+                }
+                
+                full_structure["departments"][dept_name] = dept_info
+                full_structure["metadata"]["total_positions"] += len(positions)
+            
+            full_structure["metadata"]["total_departments"] = len(all_departments)
+            
+            # Кеширование результата
+            self._cache[cache_key] = full_structure
+            
+            load_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"✅ Full organization structure loaded in {load_time:.3f}s: "
+                       f"{full_structure['metadata']['total_departments']} departments, "
+                       f"{full_structure['metadata']['total_positions']} positions")
+        
+        return self._cache[cache_key]
+    
     def get_available_departments(self) -> List[str]:
         """Получение списка всех доступных департаментов"""
-        # Убеждаемся, что данные загружены
-        if not self.org_mapper._department_index:
-            self.org_mapper._load_org_structure()
-        
-        return list(self.org_mapper._department_index.keys()) if self.org_mapper._department_index else []
+        # Используем оптимизированный метод
+        full_structure = self.load_full_organization_structure()
+        return list(full_structure["departments"].keys())
     
+    def _get_positions_for_department_internal(self, department: str) -> List[str]:
+        """Внутренний метод для получения позиций департамента без дополнительной обработки"""
+        try:
+            # Генерируем типичные должности для департамента на основе его названия
+            base_positions = [
+                "Руководитель департамента",
+                "Заместитель руководителя", 
+                "Ведущий специалист",
+                "Старший специалист",
+                "Специалист",
+                "Аналитик",
+                "Менеджер"
+            ]
+            
+            # Добавляем специализированные должности в зависимости от департамента
+            dept_lower = department.lower()
+            specialized_positions = []
+            
+            if any(keyword in dept_lower for keyword in ['ит', 'информац', 'цифр', 'разработ']):
+                specialized_positions.extend([
+                    "Системный архитектор", 
+                    "Архитектор решений",
+                    "Разработчик",
+                    "DevOps инженер",
+                    "Системный администратор"
+                ])
+            elif any(keyword in dept_lower for keyword in ['коммерч', 'продаж', 'реализац']):
+                specialized_positions.extend([
+                    "Менеджер по продажам",
+                    "Коммерческий директор",
+                    "Менеджер по работе с клиентами",
+                    "Специалист по продажам"
+                ])
+            elif any(keyword in dept_lower for keyword in ['финанс', 'бухгалт', 'экономич']):
+                specialized_positions.extend([
+                    "Финансовый аналитик",
+                    "Контролер", 
+                    "Экономист",
+                    "Бухгалтер"
+                ])
+            elif any(keyword in dept_lower for keyword in ['безопасн', 'охран']):
+                specialized_positions.extend([
+                    "Специалист по безопасности",
+                    "Инженер по охране труда"
+                ])
+            
+            # Объединяем базовые и специализированные должности
+            all_positions = base_positions + specialized_positions
+            return sorted(list(set(all_positions)))
+            
+        except Exception as e:
+            logger.error(f"Error getting positions for {department}: {e}")
+            return ["Специалист", "Менеджер", "Аналитик"]  # Fallback
+    
+    def _determine_position_level(self, position_name: str) -> str:
+        """Определение уровня должности по названию"""
+        position_lower = position_name.lower()
+        
+        if any(keyword in position_lower for keyword in ['руководитель', 'директор', 'управляющий', 'начальник']):
+            return "senior"
+        elif any(keyword in position_lower for keyword in ['ведущий', 'главный', 'старший']):
+            return "lead"  
+        elif any(keyword in position_lower for keyword in ['специалист', 'аналитик', 'консультант']):
+            return "middle"
+        elif any(keyword in position_lower for keyword in ['младший', 'помощник', 'стажер']):
+            return "junior"
+        else:
+            return "middle"  # По умолчанию
+    
+    def _determine_position_category(self, position_name: str) -> str:
+        """Определение категории должности"""
+        position_lower = position_name.lower()
+        
+        if any(keyword in position_lower for keyword in ['руководитель', 'директор', 'управляющий', 'начальник']):
+            return "management"
+        elif any(keyword in position_lower for keyword in ['архитектор', 'разработчик', 'программист', 'техник']):
+            return "technical"
+        elif any(keyword in position_lower for keyword in ['аналитик', 'исследователь']):
+            return "analytical"
+        elif any(keyword in position_lower for keyword in ['продаж', 'менеджер', 'коммерческий']):
+            return "sales"
+        elif any(keyword in position_lower for keyword in ['бухгалтер', 'финансовый', 'экономист']):
+            return "financial"
+        elif any(keyword in position_lower for keyword in ['hr', 'кадр', 'персонал']):
+            return "hr"
+        else:
+            return "operational"  # По умолчанию
+
     def get_positions_for_department(self, department: str) -> List[str]:
         """
         Получение списка должностей для конкретного департамента.
-        В MVP версии возвращаем типичные должности.
+        Использует кешированную полную структуру для быстрого доступа.
         """
-        # В реальной реализации это будет извлекаться из структуры
-        common_positions = [
-            "Руководитель департамента",
-            "Заместитель руководителя",
-            "Ведущий специалист", 
-            "Старший специалист",
-            "Специалист",
-            "Младший специалист",
-            "Аналитик",
-            "Менеджер",
-            "Координатор"
-        ]
-        
-        # Добавляем специализированные должности в зависимости от департамента
-        if "ит" in department.lower() or "информац" in department.lower():
-            common_positions.extend([
-                "Архитектор решений",
-                "Системный архитектор",
-                "Разработчик",
-                "DevOps инженер",
-                "Системный администратор",
-                "Аналитик данных"
-            ])
-        elif "коммерч" in department.lower() or "продаж" in department.lower():
-            common_positions.extend([
-                "Менеджер по продажам",
-                "Коммерческий директор",
-                "Менеджер по работе с клиентами"
-            ])
-        elif "финанс" in department.lower():
-            common_positions.extend([
-                "Финансовый аналитик",
-                "Контролер",
-                "Казначей"
-            ])
-        
-        return sorted(list(set(common_positions)))
+        try:
+            # Получаем данные из кешированной полной структуры
+            full_structure = self.load_full_organization_structure()
+            
+            if department in full_structure["departments"]:
+                # Возвращаем имена позиций из кешированной структуры
+                positions = [pos["name"] for pos in full_structure["departments"][department]["positions"]]
+                return positions
+            else:
+                logger.warning(f"Department '{department}' not found in organization structure")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error getting positions for department '{department}': {e}")
+            # Fallback to internal method
+            return self._get_positions_for_department_internal(department)
     
     def clear_cache(self):
         """Очистка кеша (полезно для тестирования)"""
