@@ -45,17 +45,7 @@ class DataLoader:
         }
     
     def prepare_langfuse_variables(self, department: str, position: str, employee_name: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Подготовка всех данных с детерминированной логикой маппинга для Langfuse.
-        
-        Args:
-            department: Название департамента
-            position: Название должности
-            employee_name: ФИО сотрудника (опционально)
-            
-        Returns:
-            Словарь переменных для Langfuse промпта
-        """
+        """Prepare variables for Langfuse based on department and position."""
         logger.info(f"Preparing variables for {department} - {position}")
         
         try:
@@ -103,7 +93,7 @@ class DataLoader:
             raise
     
     def _load_company_map_cached(self) -> str:
-        """Загрузка карты компании А101 с кешированием"""
+        """Load the company map with caching."""
         cache_key = "company_map"
         
         if cache_key not in self._cache:
@@ -121,7 +111,7 @@ class DataLoader:
         return self._cache[cache_key]
     
     def _load_architect_examples_cached(self) -> str:
-        """Загрузка примеров профилей архитекторов с кешированием"""
+        """Load architect profile examples with caching."""
         cache_key = "architect_examples"
         
         if cache_key not in self._cache:
@@ -146,7 +136,7 @@ class DataLoader:
         return self._cache[cache_key]
     
     def _load_profile_schema_cached(self) -> str:
-        """Загрузка JSON схемы профиля с кешированием"""
+        """Load the profile JSON schema with caching."""
         cache_key = "profile_schema"
         
         if cache_key not in self._cache:
@@ -165,7 +155,22 @@ class DataLoader:
         return self._cache[cache_key]
     
     def _load_relevant_it_systems(self, department: str) -> str:
-        """Загрузка релевантных IT систем для департамента"""
+        """Load relevant IT systems for a given department.
+        
+        This function searches for Markdown files in the specified IT systems directory
+        that match the department name or related keywords. It first checks for
+        specific files related to the department and, if none are found, looks for
+        general files. The contents of up to three relevant files are then loaded and
+        combined, with a character limit enforced to optimize token usage. If no
+        relevant content is found, an appropriate message is returned.
+        
+        Args:
+            department (str): The name of the department for which to load IT systems.
+        
+        Returns:
+            str: A formatted string containing the relevant IT systems information or a message
+                indicating unavailability.
+        """
         it_systems_dir = self.paths["it_systems_dir"]
         
         if not it_systems_dir.exists():
@@ -221,7 +226,7 @@ class DataLoader:
         return result
     
     def _estimate_tokens(self, variables: Dict[str, Any]) -> int:
-        """Приблизительная оценка количества токенов"""
+        """Estimate the number of tokens based on the provided variables."""
         total_chars = 0
         
         for key, value in variables.items():
@@ -236,15 +241,20 @@ class DataLoader:
         return estimated_tokens
     
     def get_available_departments(self) -> List[str]:
-        """Получение списка всех доступных департаментов"""
+        """Retrieve a list of all available departments."""
         return list(self.org_mapper._department_index.keys()) if self.org_mapper._department_index else []
     
     def get_positions_for_department(self, department: str) -> List[str]:
-        """
-        Получение списка должностей для конкретного департамента.
-        В MVP версии возвращаем типичные должности.
-        """
         # В реальной реализации это будет извлекаться из структуры
+        """def get_positions_for_department(self, department: str) -> List[str]:
+        Retrieve a list of positions for a specific department.  This function returns
+        a list of typical positions associated with a  given department. It starts with
+        a predefined set of common positions  and then appends specialized roles based
+        on the department's focus,  such as IT, sales, or finance. The final list is
+        returned in a sorted  and unique format.
+        
+        Args:
+            department (str): The name of the department for which to retrieve"""
         common_positions = [
             "Руководитель департамента",
             "Заместитель руководителя",
@@ -283,12 +293,12 @@ class DataLoader:
         return sorted(list(set(common_positions)))
     
     def clear_cache(self):
-        """Очистка кеша (полезно для тестирования)"""
+        """Clear the cache."""
         self._cache.clear()
         logger.info("Cache cleared")
     
     def validate_data_sources(self) -> Dict[str, bool]:
-        """Проверка доступности всех источников данных"""
+        """Check the availability of all data sources."""
         validation = {
             "company_map": self.paths["company_map"].exists(),
             "profile_examples": self.paths["profile_examples"].exists(), 
