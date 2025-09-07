@@ -24,7 +24,7 @@ class OrganizationMapper:
         self._department_index = {}
         
     def _load_org_structure(self) -> dict:
-        """Загрузка организационной структуры с кешированием"""
+        """Load the organizational structure with caching."""
         if self._org_data is None:
             try:
                 with open(self.org_structure_path, 'r', encoding='utf-8') as f:
@@ -38,8 +38,27 @@ class OrganizationMapper:
         return self._org_data
     
     def _build_department_index(self):
-        """Построение индекса для быстрого поиска департаментов"""
+        """Build an index for quick department lookup.
+        
+        This function constructs a hierarchical index of departments from the
+        organization structure. It recursively traverses the organization data  to
+        populate the `_department_index` with department names, their paths,  and
+        levels. The function relies on `_load_org_structure` to load the  organization
+        data before indexing begins.
+        """
         def index_node(node: dict, path: str = ""):
+            """def index_node(node: dict, path: str = ""):
+            Indexes a node and its children in a department structure.  This function takes
+            a node represented as a dictionary and recursively  indexes it by extracting
+            its name and constructing a full path. The  indexed information, including the
+            path, node, and level, is stored in  the _department_index. The function also
+            processes any children of the  node, ensuring that the entire hierarchy is
+            indexed correctly.
+            
+            Args:
+                node (dict): The node to be indexed, which may contain children.
+                path (str?): The current path for the node. Defaults to an
+                    empty string."""
             if isinstance(node, dict):
                 name = node.get('name', '')
                 if name:
@@ -61,7 +80,14 @@ class OrganizationMapper:
             index_node(self._org_data)
     
     def find_department_path(self, department_name: str) -> str:
-        """Находит полный путь департамента в иерархии"""
+        """Finds the full path of a department in the hierarchy.
+        
+        This function first checks if the organization data is loaded; if not, it loads
+        the structure.  It then attempts to find an exact match for the given
+        department_name in the department index.  If no exact match is found, it
+        performs a fuzzy search, logging any matches found.  If the department is not
+        found, a warning is logged, and the original department_name is returned.
+        """
         if not self._org_data:
             self._load_org_structure()
         
@@ -79,16 +105,21 @@ class OrganizationMapper:
         return department_name
     
     def extract_relevant_structure(self, department_name: str, levels_up: int = 1, levels_down: int = 2) -> dict:
-        """
-        Извлекает релевантную структуру с контекстом вверх/вниз по иерархии
+        """Extract relevant organizational structure based on department hierarchy.
+        
+        This function retrieves a structured representation of a department and its
+        relevant parent and child nodes within the organizational hierarchy. It first
+        checks if the department exists in the index and attempts a fuzzy search if not
+        found. The extraction is performed recursively, considering specified levels up
+        and down from the target department.
         
         Args:
-            department_name: Название целевого департамента
-            levels_up: Сколько уровней вверх включить (родительские)
-            levels_down: Сколько уровней вниз включить (дочерние)
+            department_name (str): The name of the target department.
+            levels_up (int?): The number of parent levels to include. Defaults to 1.
+            levels_down (int?): The number of child levels to include. Defaults to 2.
         
         Returns:
-            Оптимизированная структура с релевантными подразделениями
+            dict: An optimized structure containing relevant departments.
         """
         if not self._org_data:
             self._load_org_structure()
@@ -111,7 +142,24 @@ class OrganizationMapper:
         target_level = target_info['level']
         
         def extract_node(node: dict, current_path: str = "", current_level: int = 0) -> Optional[dict]:
-            """Рекурсивное извлечение релевантных узлов"""
+            """Extract relevant nodes from a hierarchical structure.
+            
+            This function recursively traverses a tree-like structure represented as a
+            dictionary, extracting nodes that are relevant based on their relationship to a
+            target node. It checks if the current node is the target, a parent, a child, or
+            a sibling of the target node, and constructs a new dictionary containing the
+            relevant information. The function also handles the extraction of child nodes
+            recursively.
+            
+            Args:
+                node (dict): The current node in the hierarchical structure.
+                current_path (str?): The path to the current node. Defaults to an empty string.
+                current_level (int?): The current level in the hierarchy. Defaults to 0.
+            
+            Returns:
+                Optional[dict]: A dictionary representing the extracted node and its relevant children, or None
+                    if the node is not relevant.
+            """
             if not isinstance(node, dict):
                 return None
                 
@@ -219,11 +267,17 @@ class KPIMapper:
         self.fallback_file = "КПЭ 2025_ТОП_финал__structured.md"
     
     def find_kpi_file(self, department: str) -> str:
-        """
-        Детерминированный алгоритм поиска KPI файла:
-        1. Точное соответствие названия
-        2. Нечеткое соответствие по регулярным выражениям  
-        3. Fallback на общие корпоративные KPI
+        """Finds the KPI file associated with a given department.
+        
+        This method attempts to locate the appropriate KPI file by first checking  for
+        an exact match in the `kpi_mapping`. If no exact match is found, it  then
+        searches for a pattern match using regular expressions defined in
+        `kpi_patterns`. If neither method yields a result, it falls back to a
+        predefined `fallback_file`. The function ensures that the department name  is
+        normalized before performing the searches.
+        
+        Args:
+            department (str): The name of the department for which to find the KPI file.
         """
         if not department:
             return self.fallback_file
@@ -247,7 +301,7 @@ class KPIMapper:
         return self.fallback_file
     
     def load_kpi_content(self, department: str) -> str:
-        """Загрузка и автоматическая очистка KPI контента"""
+        """Load and clean KPI content for a given department."""
         kpi_filename = self.find_kpi_file(department)
         kpi_path = self.kpi_dir / kpi_filename
         
@@ -270,8 +324,8 @@ class KPIMapper:
             return f"# KPI данные для {department}\n\nОшибка загрузки KPI данных: {str(e)}"
     
     def _clean_kpi_content(self, content: str) -> str:
-        """Автоматическая очистка KPI контента"""
         # Удаляем избыточные переносы строк (больше 2 подряд)
+        """Cleans and normalizes KPI content."""
         content = re.sub(r'\n{3,}', '\n\n', content)
         
         # Удаляем лишние пробелы в конце строк
@@ -288,14 +342,14 @@ class KPIMapper:
         return content.strip()
     
     def get_available_kpi_files(self) -> List[str]:
-        """Получение списка доступных KPI файлов"""
+        """Retrieve a list of available KPI files."""
         if not self.kpi_dir.exists():
             return []
         
         return [f.name for f in self.kpi_dir.glob("*.md")]
     
     def validate_kpi_mappings(self) -> Dict[str, bool]:
-        """Проверка существования всех маппированных KPI файлов"""
+        """Check the existence of all mapped KPI files."""
         results = {}
         all_files = set(self.kpi_mapping.values())
         all_files.add(self.fallback_file)
