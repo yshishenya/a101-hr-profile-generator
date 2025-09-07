@@ -20,6 +20,10 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import time
 
+# Импорты для аутентификации
+from .api.auth import auth_router
+from .utils.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -119,42 +123,9 @@ app.add_middleware(
 )
 
 
-# Middleware для логирования запросов
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Логирование всех HTTP запросов с метриками производительности"""
-    start_time = time.time()
-    
-    # Логируем входящий запрос
-    logger.info(f"📨 {request.method} {request.url.path} - Client: {request.client.host}")
-    
-    try:
-        # Выполняем запрос
-        response = await call_next(request)
-        
-        # Подсчитываем время выполнения
-        process_time = time.time() - start_time
-        
-        # Логируем результат
-        logger.info(
-            f"✅ {request.method} {request.url.path} - "
-            f"Status: {response.status_code} - "
-            f"Time: {process_time:.3f}s"
-        )
-        
-        # Добавляем заголовок с временем обработки
-        response.headers["X-Process-Time"] = str(process_time)
-        
-        return response
-        
-    except Exception as e:
-        process_time = time.time() - start_time
-        logger.error(
-            f"❌ {request.method} {request.url.path} - "
-            f"Error: {str(e)} - "
-            f"Time: {process_time:.3f}s"
-        )
-        raise
+# Добавление custom middleware
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # Глобальный exception handler
@@ -245,6 +216,10 @@ static_dir = "/home/yan/A101/HR/backend/static"
 os.makedirs(static_dir, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+# Подключение API роутеров
+app.include_router(auth_router)
 
 
 if __name__ == "__main__":
