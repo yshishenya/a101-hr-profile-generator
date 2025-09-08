@@ -117,13 +117,7 @@ app.add_middleware(
 # Trusted Host middleware для безопасности
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=[
-        "localhost",
-        "127.0.0.1",
-        "0.0.0.0",
-        "49.12.122.181",
-        # В production добавить реальный домен
-    ]
+    allowed_hosts=config.TRUSTED_HOSTS
 )
 
 

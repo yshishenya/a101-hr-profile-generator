@@ -116,6 +116,9 @@ class Config:
     # CORS origins
     CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:8033,http://127.0.0.1:8033").split(",")
     
+    # Trusted hosts для middleware
+    TRUSTED_HOSTS: list = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,0.0.0.0,49.12.122.181").split(",")
+    
     # =============================================================================
     # Пути к данным
     # =============================================================================

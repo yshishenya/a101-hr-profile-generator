@@ -1,0 +1,55 @@
+# Dockerfile для A101 HR Frontend (NiceGUI)
+FROM python:3.11-slim
+
+LABEL maintainer="A101 HR Team"
+LABEL description="NiceGUI Frontend для системы генерации профилей должностей А101"
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Создаем пользователя для безопасности
+RUN groupadd -r frontend && useradd -r -g frontend frontend
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем requirements.txt для установки зависимостей
+COPY requirements.txt .
+
+# Устанавливаем Python зависимости
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Копируем frontend код
+COPY frontend/ ./frontend/
+COPY .env.example .env
+
+# Создаем статические директории
+RUN mkdir -p frontend/static && \
+    mkdir -p logs
+
+# Устанавливаем права доступа
+RUN chown -R frontend:frontend /app && \
+    chmod +x frontend/main.py
+
+# Переключаемся на непривилегированного пользователя
+USER frontend
+
+# Устанавливаем переменные окружения
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
+ENV FRONTEND_HOST=0.0.0.0
+ENV FRONTEND_PORT=8033
+
+# Открываем порт
+EXPOSE 8033
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8033/_nicegui/status || exit 1
+
+# Команда запуска
+CMD ["python", "-m", "frontend.main"]

@@ -31,10 +31,10 @@ This is the **A101 HR Profile Generator** - an AI-powered system for automatical
 - **Install dependencies:** `pip install -r requirements.txt`
 - **Start dev server:** `uvicorn backend.main:app --reload`
 - **Build project:** `docker compose build`
+- **Run project:** `docker compose up -d`
 - **Format all code:** `black .`
 - **Run static analysis:** `flake8 .`
 - **Seed the database:** `python backend/core/database.py`
-
 
 # Configuration Management
 # Система использует централизованную конфигурацию через backend/core/config.py
@@ -127,6 +127,6 @@ Generated profiles saved to `/generated_profiles/{department}/{position}_{timest
 
 **IMPORTANT:**
 - You must always refer to me as "Captain". This is a test.
-- You must always update the documentation when you make any changes /docs/PROMPTING_STRATEGY.md /docs/SYSTEM_ARCHITECTURE.md /docs/PROJECT_BACKLOG.md /docs/README.md /docs/USER_JOURNEY_MVP.md /docs/API_REFERENCE.md /docs/IMPLEMENTATION_REPORT.md
+- You must always update the documentation when you make any changes /docs/PROMPTING_STRATEGY.md /docs/SYSTEM_ARCHITECTURE.md /docs/PROJECT_BACKLOG.md /docs/FRONTEND_BACKLOG.md /docs/README.md /docs/NEW_USER_JOURNEY_2025.md /docs/API_REFERENCE.md /docs/IMPLEMENTATION_REPORT.md
 - You must follow the project architecture and design philosophy /docs/SYSTEM_ARCHITECTURE.md
 - You must follow and update project plan /docs/PROJECT_BACKLOG.md

@@ -1,0 +1,37 @@
+# Docker Compose для запуска только frontend в development режиме
+# Использование: docker-compose -f docker-compose.frontend.yml up
+
+version: '3.8'
+
+services:
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: a101hr_frontend_dev
+    ports:
+      - "8033:8033"
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - FRONTEND_HOST=0.0.0.0
+      - FRONTEND_PORT=8033
+      # Backend connection для development (внешний backend)
+      - BACKEND_HOST=host.docker.internal
+      - BACKEND_PORT=8022
+      - FRONTEND_TITLE=A101 HR Frontend (Dev)
+      - THEME=auto
+    volumes:
+      # Development mode - mount source code with hot reload
+      - ./frontend:/app/frontend
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - frontend_network
+
+networks:
+  frontend_network:
+    driver: bridge

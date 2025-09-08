@@ -17,9 +17,8 @@
 ┌─ ЛЕВАЯ ПАНЕЛЬ (30%) ──────────────────────┐
 │ 📋 Генератор профилей А101                │
 │                                           │
-│ Департамент: [Dropdown ▼]                 │
-│ Должность:   [Dropdown ▼] (реактивно)     │
-│ ФИО:         [______________________]     │
+│ Блок:        [Dropdown ▼]                 │
+│ Департамент: [Dropdown ▼] (реактивно)     │
 │                                           │
 │ [🚀 Сгенерировать профиль]               │
 │                                           │
@@ -27,11 +26,14 @@
 └───────────────────────────────────────────┘
 
 ┌─ ПРАВАЯ ПАНЕЛЬ (70%) ─────────────────────┐
-│ 📋 [Основное] 🎯 [Обязанности] 🛠 [Навыки] 📊 [KPI]  │
+│ 📋  │
 │                                           │
-│ [Содержимое активного таба]               │
-│                                           │
-│                                           │
+│ Список должностей                         │
+│ Должность 1   [Весия 1]                              │
+│ Должность 2                                │
+│ Должность 3                                │
+│ Должность N                                │                              │
+                                   │
 │ [📄 JSON] [📊 Excel] [📝 MD]              │
 └───────────────────────────────────────────┘
 ```
@@ -59,80 +61,80 @@ def main_page():
     # Material Design заголовок
     with ui.header(elevated=True).classes('items-center'):
         ui.label('🏢 Генератор профилей должностей А101').classes('text-h5')
-        
+
     # Разделитель панелей (30% / 70%)
     with ui.splitter(value=30).classes('w-full h-full'):
-        
+
         # ========== ЛЕВАЯ ПАНЕЛЬ - ФОРМА ==========
         with ui.splitter().before:
             with ui.card().classes('w-full'):
                 ui.label('Параметры генерации').classes('text-h6 q-mb-md')
-                
+
                 # Реактивные селекты
                 department_select = ui.select(
                     options=get_departments(),
                     label='Департамент',
                     value=None
                 ).classes('w-full q-mb-sm')
-                
+
                 position_select = ui.select(
                     options=[],
-                    label='Должность', 
+                    label='Должность',
                     value=None
                 ).classes('w-full q-mb-sm')
-                
+
                 employee_input = ui.input(
                     label='ФИО сотрудника (опционально)',
                     placeholder='Иванов Иван Иванович'
                 ).classes('w-full q-mb-md')
-                
+
                 # Кнопка генерации
                 generate_btn = ui.button(
                     '🚀 Сгенерировать профиль',
                     color='primary'
                 ).classes('w-full')
-                
+
                 # Прогресс-бар
                 progress = ui.linear_progress(value=0).classes('q-mt-md')
                 progress.visible = False
-        
+
         # ========== ПРАВАЯ ПАНЕЛЬ - РЕЗУЛЬТАТ ==========
         with ui.splitter().after:
             with ui.card().classes('w-full h-full'):
-                
+
                 # Табы результатов
                 with ui.tabs().classes('w-full') as tabs:
                     tab1 = ui.tab('📋 Основное')
-                    tab2 = ui.tab('🎯 Обязанности') 
+                    tab2 = ui.tab('🎯 Обязанности')
                     tab3 = ui.tab('🛠 Навыки')
                     tab4 = ui.tab('📊 KPI')
-                
+
                 with ui.tab_panels(tabs, value=tab1).classes('w-full'):
                     # Основная информация
                     with ui.tab_panel(tab1):
                         basic_info_json = ui.json_editor({}).classes('w-full')
-                    
-                    # Обязанности 
+
+                    # Обязанности
                     with ui.tab_panel(tab2):
                         with ui.scroll_area().classes('w-full h-96'):
                             responsibilities_md = ui.markdown('')
-                    
+
                     # Навыки
                     with ui.tab_panel(tab3):
                         skills_table = ui.table(
                             columns=[
                                 {'name': 'category', 'label': 'Категория'},
-                                {'name': 'skills', 'label': 'Навыки'}, 
+                                {'name': 'skills', 'label': 'Навыки'},
                                 {'name': 'level', 'label': 'Уровень'}
                             ],
                             rows=[]
                         ).classes('w-full')
-                    
+
                     # KPI
                     with ui.tab_panel(tab4):
                         with ui.scroll_area().classes('w-full h-96'):
                             kpi_md = ui.markdown('')
-                
+
                 # Кнопки экспорта
                 with ui.card_actions():
                     with ui.row().classes('w-full justify-end'):
@@ -144,26 +146,26 @@ def main_page():
     async def generate_profile_async():
         progress.visible = True
         progress.value = 0
-        
+
         steps = [
             "💫 Загрузка данных компании...",
-            "🔍 Поиск релевантных KPI...", 
+            "🔍 Поиск релевантных KPI...",
             "🏗️ Анализ примеров профилей...",
             "🤖 Генерация через LLM...",
             "✨ Форматирование результата..."
         ]
-        
+
         for i, step in enumerate(steps):
             ui.notify(step, position='top-right')
             progress.value = (i + 1) / len(steps)
             await asyncio.sleep(0.8)
-        
+
         # Обновление результатов
         await update_all_tabs()
         progress.visible = False
         ui.notify('✅ Профиль готов!', color='positive')
 
-    department_select.on('update:model-value', 
+    department_select.on('update:model-value',
                         lambda e: update_positions(e.args))
     generate_btn.on('click', generate_profile_async)
 
@@ -193,7 +195,7 @@ if __name__ in {"__main__", "__mp_main__"}:
 
 ### **NiceGUI Material Design 3:**
 - ✨ **Elevated cards** с тенями
-- 🎯 **Material селекты** с анимациями  
+- 🎯 **Material селекты** с анимациями
 - 🔄 **Splitter панели** для адаптивности
 - 💫 **Linear progress** с плавной анимацией
 - 🔔 **Toast notifications** в углу экрана
