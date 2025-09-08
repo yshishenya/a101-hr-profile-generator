@@ -29,7 +29,7 @@ http://localhost:8022
 
 ### Документация
 - **Swagger UI:** http://localhost:8022/docs
-- **ReDoc:** http://localhost:8022/redoc  
+- **ReDoc:** http://localhost:8022/redoc
 - **OpenAPI Schema:** http://localhost:8022/openapi.json
 
 ---
@@ -46,19 +46,19 @@ http://localhost:8022
 ENVIRONMENT=development              # development | production
 DATABASE_URL=sqlite:///data/profiles.db
 
-# JWT Authentication  
+# JWT Authentication
 JWT_SECRET_KEY=your-secret-key-here
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 # Учетные данные по умолчанию
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
-HR_USERNAME=hr  
+HR_USERNAME=hr
 HR_PASSWORD=hr123
 ```
 
 **Опциональные переменные:**
-```bash  
+```bash
 # OpenRouter для LLM (только для генерации профилей)
 OPENROUTER_API_KEY=your-openrouter-api-key
 
@@ -94,7 +94,7 @@ python3 -c "from backend.core.config import config; config.print_summary(); conf
 ```json
 {
   "username": "admin",
-  "password": "admin123", 
+  "password": "admin123",
   "remember_me": false
 }
 ```
@@ -278,7 +278,7 @@ curl -X GET "http://localhost:8022/api/catalog/departments?force_refresh=false" 
   "message": "Информация о департаменте 'Блок безопасности' получена",
   "data": {
     "name": "Блок безопасности",
-    "display_name": "Блок безопасности", 
+    "display_name": "Блок безопасности",
     "path": "Блок безопасности",
     "positions_count": 9,
     "last_updated": "2025-09-07T20:13:10.123456",
@@ -332,7 +332,7 @@ curl -X GET "http://localhost:8022/api/catalog/departments/Блок%20безоп
       {
         "name": "Руководитель департамента",
         "department": "Блок безопасности",
-        "display_name": "Руководитель департамента", 
+        "display_name": "Руководитель департамента",
         "level": 1,
         "category": "management",
         "last_updated": "2025-09-07T20:13:10.123456"
@@ -341,7 +341,7 @@ curl -X GET "http://localhost:8022/api/catalog/departments/Блок%20безоп
         "name": "Заместитель руководителя",
         "department": "Блок безопасности",
         "display_name": "Заместитель руководителя",
-        "level": 2, 
+        "level": 2,
         "category": "management",
         "last_updated": "2025-09-07T20:13:10.123456"
       }
@@ -351,14 +351,14 @@ curl -X GET "http://localhost:8022/api/catalog/departments/Блок%20безоп
     "statistics": {
       "levels": {
         "1": 1,  // 1 руководитель
-        "2": 1,  // 1 заместитель  
+        "2": 1,  // 1 заместитель
         "3": 1,  // 1 ведущий специалист
         "4": 1,  // 1 старший специалист
         "5": 5   // 5 специалистов
       },
       "categories": {
         "management": 2,
-        "specialist": 6, 
+        "specialist": 6,
         "analytics": 1
       }
     },
@@ -393,7 +393,7 @@ curl -X GET "http://localhost:8022/api/catalog/positions/Блок%20безопа
       {
         "name": "Блок безопасности",
         "display_name": "Блок безопасности",
-        "path": "Блок безопасности", 
+        "path": "Блок безопасности",
         "positions_count": 9,
         "last_updated": "2025-09-07T20:13:10.123456"
       },
@@ -401,7 +401,7 @@ curl -X GET "http://localhost:8022/api/catalog/positions/Блок%20безопа
         "name": "Служба безопасности",
         "display_name": "Служба безопасности",
         "path": "Блок безопасности/Служба безопасности",
-        "positions_count": 9, 
+        "positions_count": 9,
         "last_updated": "2025-09-07T20:13:10.123456"
       }
       // ... остальные найденные департаменты
@@ -439,7 +439,7 @@ curl -X GET "http://localhost:8022/api/catalog/search?q=безопасность
         "1": 548,   // Руководители
         "2": 510,   // Заместители
         "3": 510,   // Ведущие специалисты
-        "4": 510,   // Старшие специалисты  
+        "4": 510,   // Старшие специалисты
         "5": 3280   // Специалисты
       },
       "categories_distribution": {
@@ -497,7 +497,7 @@ curl -X POST "http://localhost:8022/api/catalog/cache/clear?cache_type=departmen
   "timestamp": "2025-09-07T20:13:10.123456",
   "uptime_seconds": 3600,
   "version": "1.0.0",
-  "environment": "development", 
+  "environment": "development",
   "components": {
     "api": "operational",
     "core_modules": "initialized"
@@ -524,8 +524,8 @@ curl -X POST "http://localhost:8022/api/catalog/cache/clear?cache_type=departmen
 **Response (200):**
 ```json
 {
-  "service": "A101 HR Profile Generator API",
-  "version": "1.0.0", 
+  "service": "HR Profile Generator API",
+  "version": "1.0.0",
   "description": "Система автоматической генерации профилей должностей А101",
   "docs": "/docs",
   "health": "/health",
@@ -547,7 +547,7 @@ curl -X POST "http://localhost:8022/api/catalog/cache/clear?cache_type=departmen
 ```json
 {
   "position": "Senior ML Engineer",
-  "department": "ДИТ", 
+  "department": "ДИТ",
   "employee_name": "Иван Петров"
 }
 ```
@@ -580,7 +580,7 @@ curl -X POST "http://localhost:8022/api/catalog/cache/clear?cache_type=departmen
       "type": "value_error"
     },
     {
-      "loc": ["body", "department"], 
+      "loc": ["body", "department"],
       "msg": "Department is required",
       "type": "value_error"
     }
@@ -596,7 +596,7 @@ curl -X POST "http://localhost:8022/api/generation/start" \
   -d '{
     "position": "Senior ML Engineer",
     "department": "ДИТ",
-    "employee_name": "Иван Петров"  
+    "employee_name": "Иван Петров"
   }'
 ```
 
@@ -686,7 +686,7 @@ curl -X POST "http://localhost:8022/api/generation/start" \
   "success": false,
   "message": "Генерация профиля завершилась с ошибкой",
   "data": {
-    "task_id": "gen_20250907_201500_abc123", 
+    "task_id": "gen_20250907_201500_abc123",
     "status": "failed",
     "error": {
       "error_type": "LLM_API_ERROR",
@@ -702,7 +702,7 @@ curl -X POST "http://localhost:8022/api/generation/start" \
 
 **Task Status Values:**
 - `pending` - Задача в очереди, не начата
-- `in_progress` - Генерация в процессе  
+- `in_progress` - Генерация в процессе
 - `completed` - Успешно завершена
 - `failed` - Ошибка при генерации
 - `cancelled` - Задача отменена пользователем
@@ -753,7 +753,7 @@ curl -X GET "http://localhost:8022/api/generation/gen_20250907_201500_abc123/sta
         "required_skills": {
           "technical_skills": [
             "Python, R (продвинутый уровень)",
-            "TensorFlow, PyTorch, Scikit-learn", 
+            "TensorFlow, PyTorch, Scikit-learn",
             "MLOps tools (MLflow, Kubeflow, Docker)",
             "Cloud platforms (AWS, GCP, Azure)"
           ],
@@ -791,7 +791,7 @@ curl -X GET "http://localhost:8022/api/generation/gen_20250907_201500_abc123/sta
         "generation_time_seconds": 45.2,
         "tokens_used": {
           "input": 8450,
-          "output": 4250, 
+          "output": 4250,
           "total": 12700
         },
         "model_used": "google/gemini-2.5-flash",
@@ -819,7 +819,7 @@ curl -X GET "http://localhost:8022/api/generation/gen_20250907_201500_abc123/res
 ### `DELETE /api/generation/{task_id}`
 Отмена задачи генерации или очистка завершенной задачи.
 
-**Path Parameters:**  
+**Path Parameters:**
 - `task_id` (string, required) - ID задачи генерации
 
 **Headers:** `Authorization: Bearer <token>`
@@ -854,7 +854,7 @@ curl -X DELETE "http://localhost:8022/api/generation/gen_20250907_201500_abc123"
 - `page` (integer, optional) - Номер страницы (default: 1)
 - `per_page` (integer, optional) - Элементов на странице (default: 20, max: 100)
 - `search` (string, optional) - Поиск по позиции, департаменту, имени сотрудника
-- `department` (string, optional) - Фильтр по департаменту  
+- `department` (string, optional) - Фильтр по департаменту
 - `status` (string, optional) - Фильтр по статусу ('active', 'archived')
 - `sort` (string, optional) - Поле сортировки ('created_at', 'updated_at', 'position_title')
 - `order` (string, optional) - Направление сортировки ('asc', 'desc')
@@ -874,7 +874,7 @@ curl -X DELETE "http://localhost:8022/api/generation/gen_20250907_201500_abc123"
         "version": 1,
         "status": "active",
         "created_at": "2025-09-07T20:16:00Z",
-        "updated_at": "2025-09-07T20:16:00Z", 
+        "updated_at": "2025-09-07T20:16:00Z",
         "created_by": "admin",
         "generation_metadata": {
           "tokens_used": 12700,
@@ -918,7 +918,7 @@ curl -X GET "http://localhost:8022/api/profiles?page=1&per_page=10&search=ML&dep
   "message": "Профиль получен",
   "data": {
     "id": "prof_20250907_201600_xyz789",
-    "position_title": "Senior ML Engineer", 
+    "position_title": "Senior ML Engineer",
     "department_path": "ДИТ",
     "employee_name": "Иван Петров",
     "version": 1,
@@ -1057,7 +1057,7 @@ Content-Disposition: attachment; filename="Senior_ML_Engineer_profile.md"
 # Профиль должности: Senior ML Engineer
 
 ## 📋 Основная информация
-- **Должность:** Senior ML Engineer  
+- **Должность:** Senior ML Engineer
 - **Департамент:** ДИТ
 - **Сотрудник:** Иван Петров
 ...
@@ -1093,7 +1093,7 @@ curl -X GET "http://localhost:8022/api/profiles/prof_20250907_201600_xyz789/expo
 }
 ```
 
-### Department  
+### Department
 ```json
 {
   "name": "Блок безопасности",
@@ -1107,7 +1107,7 @@ curl -X GET "http://localhost:8022/api/profiles/prof_20250907_201600_xyz789/expo
 ### Position
 ```json
 {
-  "name": "Руководитель департамента", 
+  "name": "Руководитель департамента",
   "department": "Блок безопасности",
   "display_name": "Руководитель департамента",
   "level": 1,
@@ -1118,7 +1118,7 @@ curl -X GET "http://localhost:8022/api/profiles/prof_20250907_201600_xyz789/expo
 
 ### Position Levels
 - `1` - Руководитель департамента/директор
-- `2` - Заместитель руководителя/зам. директора  
+- `2` - Заместитель руководителя/зам. директора
 - `3` - Ведущий специалист
 - `4` - Старший специалист
 - `5` - Специалист/координатор/аналитик
@@ -1137,7 +1137,7 @@ curl -X GET "http://localhost:8022/api/profiles/prof_20250907_201600_xyz789/expo
 - `401 Unauthorized` - Неверный или отсутствующий токен
 - `403 Forbidden` - Недостаточно прав для операции
 
-### Client Errors  
+### Client Errors
 - `400 Bad Request` - Некорректные параметры запроса
 - `404 Not Found` - Ресурс не найден
 - `422 Unprocessable Entity` - Ошибка валидации данных
@@ -1151,7 +1151,7 @@ curl -X GET "http://localhost:8022/api/profiles/prof_20250907_201600_xyz789/expo
 {
   "success": false,
   "error": "Краткое описание ошибки",
-  "detail": "Подробное описание ошибки", 
+  "detail": "Подробное описание ошибки",
   "timestamp": "2025-09-07T20:13:10.123456",
   "path": "/api/catalog/departments"
 }
@@ -1165,7 +1165,7 @@ curl -X GET "http://localhost:8022/api/profiles/prof_20250907_201600_xyz789/expo
 
 **Планируемые лимиты:**
 - Authentication endpoints: 10 запросов/минуту
-- Catalog endpoints: 100 запросов/минуту  
+- Catalog endpoints: 100 запросов/минуту
 - Search endpoints: 30 запросов/минуту
 
 ---
@@ -1236,7 +1236,7 @@ console.log(`Найдено: ${searchResults.data.total_count} департам�
 
 Для получения помощи:
 1. Проверьте `/health` endpoint для диагностики
-2. Изучите логи сервера 
+2. Изучите логи сервера
 3. Используйте автоматическую документацию `/docs`
 
 ---
@@ -1268,11 +1268,11 @@ console.log(`Найдено: ${searchResults.data.total_count} департам�
 
 ---
 
-**📈 System Status:** Production Ready  
-**🔧 Backend Completion:** 15/15 tasks ✅  
-**📊 Overall Progress:** 19/50 tasks (38%)  
-**🚀 Next Phase:** Frontend NiceGUI Implementation  
+**📈 System Status:** Production Ready
+**🔧 Backend Completion:** 15/15 tasks ✅
+**📊 Overall Progress:** 19/50 tasks (38%)
+**🚀 Next Phase:** Frontend NiceGUI Implementation
 
-**Версия API:** 1.0.0  
-**Документация актуальна на:** 2025-09-08  
+**Версия API:** 1.0.0
+**Документация актуальна на:** 2025-09-08
 **🤖 Generated with [Claude Code](https://claude.ai/code)**

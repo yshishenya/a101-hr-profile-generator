@@ -42,7 +42,7 @@ app_components = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle events для инициализации и очистки компонентов"""
-    logger.info("🚀 Starting A101 HR Profile Generator API...")
+    logger.info("🚀 Starting  HR Profile Generator API...")
 
     # Startup: Инициализация компонентов системы
     try:
@@ -71,13 +71,13 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown: Очистка ресурсов
-    logger.info("🛑 Shutting down A101 HR Profile Generator API...")
+    logger.info("🛑 Shutting down HR Profile Generator API...")
     app_components.clear()
 
 
 # Создание FastAPI приложения
 app = FastAPI(
-    title="A101 HR Profile Generator API",
+    title="HR Profile Generator API",
     description="""
     🏢 **Система автоматической генерации профилей должностей для компании А101**
 
@@ -185,7 +185,7 @@ async def root() -> Dict[str, Any]:
     Корневой endpoint с основной информацией о системе.
     """
     return {
-        "service": "A101 HR Profile Generator API",
+        "service": "HR Profile Generator API",
         "version": "1.0.0",
         "description": "Система автоматической генерации профилей должностей А101",
         "docs": "/docs",
