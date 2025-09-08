@@ -15,8 +15,9 @@ python-multipart>=0.0.6
 pandas>=2.1.0
 openpyxl>=3.1.0
 
-# LLM monitoring (optional)
+# LLM monitoring and OpenAI client
 langfuse
+openai>=1.0.0
 
 # Development and testing
 pytest>=7.4.0

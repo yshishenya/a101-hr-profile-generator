@@ -34,10 +34,10 @@ class DataLoader:
         
         # Пути к статическим файлам
         self.paths = {
-            "company_map": self.base_path / "data" / "anonymized_digitization_map.md",
-            "profile_examples": self.base_path / "templates" / "profile_examples.xlsx",
-            "json_schema": self.base_path / "templates" / "job_profile_schema.json",
-            "it_systems_dir": self.base_path / "data" / "it_systems"
+            "company_map": self.base_path / "data" / "Карта Компании А101.md",
+            "org_structure": self.base_path / "data" / "structure.json",
+            "it_systems": self.base_path / "data" / "anonymized_digitization_map.md",
+            "json_schema": self.base_path / "templates" / "job_profile_schema.json"
         }
     
     def prepare_langfuse_variables(self, department: str, position: str, employee_name: Optional[str] = None) -> Dict[str, Any]:
@@ -56,7 +56,7 @@ class DataLoader:
         
         try:
             # 🎯 ДЕТЕРМИНИРОВАННОЕ ИЗВЛЕЧЕНИЕ СТРУКТУРЫ
-            org_structure = self.org_mapper.extract_relevant_structure(department)
+            org_structure = self._load_org_structure_for_department(department)
             department_path = org_structure.get("department_path", department)
             
             # 🎯 ДЕТЕРМИНИРОВАННЫЙ ВЫБОР KPI ФАЙЛА  
@@ -65,9 +65,8 @@ class DataLoader:
             # Подготовка всех переменных
             variables = {
                 # ОСНОВНОЙ КОНТЕКСТ (кешируется)
-                "company_map": self._load_company_map_cached(),           # ~47K токенов
-                "profile_examples": self._load_architect_examples_cached(), # ~30K токенов
-                "json_schema": self._load_profile_schema_cached(),        # ~1K токенов
+                "company_map": self._load_company_map_cached(),           # ~110K символов
+                "json_schema": self._load_profile_schema_cached(),        # ~1K токенов (нужна для промпта)
                 
                 # РЕЛЕВАНТНАЯ СТРУКТУРА (детерминированно извлеченная)
                 "org_structure": json.dumps(org_structure, ensure_ascii=False, indent=2), # ~5K токенов
@@ -80,7 +79,7 @@ class DataLoader:
                 
                 # ДИНАМИЧЕСКИЙ КОНТЕКСТ (детерминированно найденный)
                 "kpi_data": kpi_content,                                 # 0-15K токенов
-                "it_systems": self._load_relevant_it_systems(department), # 5-20K токенов
+                "it_systems": self._load_it_systems_cached(),            # ~15K токенов
                 
                 # МЕТАДАННЫЕ
                 "generation_timestamp": datetime.now().isoformat(),
@@ -113,6 +112,75 @@ class DataLoader:
             except Exception as e:
                 logger.error(f"Error loading company map: {e}")
                 self._cache[cache_key] = "# Карта компании недоступна\n\nОшибка загрузки данных."
+        
+        return self._cache[cache_key]
+    
+    def _load_org_structure_for_department(self, department: str) -> dict:
+        """Загрузка организационной структуры для департамента"""
+        try:
+            with open(self.paths["org_structure"], 'r', encoding='utf-8') as f:
+                full_structure = json.load(f)
+            
+            # Ищем департамент в структуре
+            org_structure = full_structure.get("organization", {})
+            department_data = self._find_department_in_structure(org_structure, department)
+            
+            if department_data:
+                return {
+                    "department_path": department,
+                    "structure": department_data,
+                    "found": True
+                }
+            else:
+                return {
+                    "department_path": department,
+                    "structure": {"name": department, "positions": []},
+                    "found": False
+                }
+                
+        except Exception as e:
+            logger.error(f"Error loading organization structure: {e}")
+            return {
+                "department_path": department,
+                "structure": {"name": department, "positions": []},
+                "found": False,
+                "error": str(e)
+            }
+    
+    def _find_department_in_structure(self, structure: dict, department: str) -> dict:
+        """Рекурсивный поиск департамента в структуре"""
+        for name, data in structure.items():
+            if name == department:
+                return {
+                    "name": name,
+                    "number": data.get("number"),
+                    "positions": data.get("positions", []),
+                    "children": data.get("children", {})
+                }
+            
+            # Рекурсивный поиск в дочерних элементах
+            if "children" in data:
+                found = self._find_department_in_structure(data["children"], department)
+                if found:
+                    return found
+        
+        return None
+    
+    def _load_it_systems_cached(self) -> str:
+        """Загрузка IT систем из anonymized_digitization_map.md с кешированием"""
+        cache_key = "it_systems"
+        
+        if cache_key not in self._cache:
+            try:
+                with open(self.paths["it_systems"], 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self._cache[cache_key] = content
+                logger.info(f"IT systems loaded: {len(content)} chars")
+                
+            except Exception as e:
+                logger.error(f"Error loading IT systems: {e}")
+                self._cache[cache_key] = "# IT системы недоступны\n\nОшибка загрузки данных об IT системах."
         
         return self._cache[cache_key]
     
@@ -423,10 +491,9 @@ class DataLoader:
         """Проверка доступности всех источников данных"""
         validation = {
             "company_map": self.paths["company_map"].exists(),
-            "profile_examples": self.paths["profile_examples"].exists(), 
             "json_schema": self.paths["json_schema"].exists(),
-            "it_systems_dir": self.paths["it_systems_dir"].exists(),
-            "org_structure": (self.base_path / "data" / "structure.json").exists(),
+            "it_systems": self.paths["it_systems"].exists(),
+            "org_structure": self.paths["org_structure"].exists(),
             "kpi_file": (self.base_path / "data" / "KPI" / "KPI_DIT.md").exists()
         }
         

@@ -5,17 +5,14 @@ services:
     container_name: a101hr_app
     ports:
       - "8022:8022"
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=development
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
-      # JWT Secret для Docker
-      - JWT_SECRET_KEY=docker-dev-secret-key-a101hr-system
-      # OpenRouter API для LLM (добавить в .env файл)
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      # Langfuse для мониторинга (опционально)
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      # Docker specific overrides
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-docker-dev-secret-key-a101hr-system}
     volumes:
       # Монтируем код для разработки с hot-reload
       - ./backend:/app/backend

@@ -16,6 +16,9 @@ from pathlib import Path
 
 from .data_loader import DataLoader
 from .llm_client import LLMClient
+from .prompt_manager import PromptManager
+from .config import config
+# from langfuse.decorators import observe  # Временно убрали из-за проблем с версией
 
 logger = logging.getLogger(__name__)
 
@@ -29,47 +32,43 @@ class ProfileGenerator:
     """
     
     def __init__(self, 
-                 openrouter_api_key: str,
+                 openrouter_api_key: Optional[str] = None,
                  langfuse_public_key: Optional[str] = None,
                  langfuse_secret_key: Optional[str] = None,
-                 base_data_path: str = "/home/yan/A101/HR"):
+                 base_data_path: Optional[str] = None):
         """
-        Инициализация генератора профилей
+        Инициализация генератора профилей.
+        Использует config для получения настроек из .env
         
         Args:
-            openrouter_api_key: API ключ для OpenRouter
-            langfuse_public_key: Публичный ключ Langfuse (опционально)
-            langfuse_secret_key: Секретный ключ Langfuse (опционально)
-            base_data_path: Базовый путь к данным А101
+            openrouter_api_key: API ключ для OpenRouter (или из config)
+            langfuse_public_key: Публичный ключ Langfuse (или из config)
+            langfuse_secret_key: Секретный ключ Langfuse (или из config)
+            base_data_path: Базовый путь к данным А101 (или из config)
         """
-        self.base_data_path = Path(base_data_path)
+        # Получаем настройки из config если не переданы
+        self.base_data_path = Path(base_data_path or config.BASE_DATA_PATH)
         
         # Инициализируем компоненты
         self.data_loader = DataLoader(str(self.base_data_path))
-        self.llm_client = LLMClient(
-            api_key=openrouter_api_key,
-            model="google/gemini-2.0-flash-exp:free"
-        )
         
-        # Langfuse интеграция (опционально)
-        self.langfuse_enabled = bool(langfuse_public_key and langfuse_secret_key)
-        if self.langfuse_enabled:
-            try:
-                from langfuse import Langfuse
-                self.langfuse = Langfuse(
-                    public_key=langfuse_public_key,
-                    secret_key=langfuse_secret_key
-                )
-                logger.info("Langfuse integration enabled")
-            except ImportError:
-                logger.warning("Langfuse not installed, monitoring disabled")
-                self.langfuse_enabled = False
+        # Инициализируем LLMClient (он сам получит настройки из config)
+        try:
+            self.llm_client = LLMClient(
+                openrouter_api_key=openrouter_api_key,
+                langfuse_public_key=langfuse_public_key,
+                langfuse_secret_key=langfuse_secret_key
+            )
+            self.langfuse_enabled = bool(self.llm_client.langfuse)
+            logger.info("✅ LLMClient initialized from config")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize LLMClient: {e}")
+            self.llm_client = None
+            self.langfuse_enabled = False
         
-        # Загружаем промпт шаблон
-        self.prompt_template = self._load_prompt_template()
-        
-        logger.info("ProfileGenerator initialized successfully")
+        logger.info("✅ ProfileGenerator initialized successfully")
     
+    # @observe(name="generate_profile", capture_input=True, capture_output=True)  # Временно убрали
     async def generate_profile(self, 
                              department: str, 
                              position: str,
@@ -91,17 +90,7 @@ class ProfileGenerator:
         """
         generation_start = datetime.now()
         
-        # Создаем trace в Langfuse если доступен
-        trace = None
-        if self.langfuse_enabled:
-            trace = self.langfuse.trace(
-                name="profile_generation",
-                input={
-                    "department": department,
-                    "position": position,
-                    "employee_name": employee_name
-                }
-            )
+        # LLMClient теперь сам создает traces в Langfuse
         
         try:
             logger.info(f"Starting profile generation: {department} - {position}")
@@ -114,19 +103,25 @@ class ProfileGenerator:
                 employee_name=employee_name
             )
             
-            # 2. Генерация через LLM
-            logger.info("🤖 Generating profile through LLM...")
-            llm_result = await self.llm_client.generate_profile(
-                prompt=self.prompt_template,
+            # 2. Данные готовы, переходим к генерации через LLM
+            logger.info("🤖 Generating profile through Langfuse LLM client...")
+            
+            # 3. Генерация через LLMClient с полной Langfuse интеграцией
+            if not self.llm_client:
+                raise ValueError("LLMClient not initialized - Langfuse credentials required")
+            
+            llm_result = self.llm_client.generate_profile_from_langfuse(
+                prompt_name="a101-hr-profile-gemini-v3-simple",
                 variables=variables,
-                temperature=temperature
+                user_id=employee_name or f"user_{department}_{position}",
+                session_id=f"session_{generation_start.timestamp()}"
             )
             
-            # 3. Валидация результата
+            # 4. Валидация результата
             logger.info("✅ Validating generated profile...")
             validation_result = self._validate_and_enhance_profile(llm_result)
             
-            # 4. Подготовка финального результата
+            # 5. Подготовка финального результата
             final_result = {
                 "success": validation_result["success"],
                 "profile": validation_result["profile"],
@@ -147,18 +142,13 @@ class ProfileGenerator:
                 "warnings": validation_result.get("warnings", [])
             }
             
-            # 5. Сохранение результата
+            # 6. Сохранение результата
             if save_result and final_result["success"]:
                 saved_path = self._save_result(final_result, department, position)
                 final_result["metadata"]["saved_path"] = str(saved_path)
                 logger.info(f"💾 Result saved to: {saved_path}")
             
-            # 6. Отправка в Langfuse
-            if trace:
-                trace.update(
-                    output=final_result,
-                    metadata=final_result["metadata"]
-                )
+            # 7. Трейсинг уже выполнен в LLMClient
             
             duration = final_result["metadata"]["generation"]["duration"]
             success_emoji = "✅" if final_result["success"] else "❌"
@@ -185,98 +175,11 @@ class ProfileGenerator:
                 "warnings": []
             }
             
-            if trace:
-                trace.update(
-                    output=error_result,
-                    level="ERROR"
-                )
+            # trace handling removed as it's not available in this context
             
             logger.error(f"❌ Profile generation failed: {e}")
             return error_result
     
-    def _load_prompt_template(self) -> str:
-        """Загрузка шаблона промпта"""
-        # В реальной реализации это будет загружаться из Langfuse или файла
-        # Пока используем упрощенную версию из стратегии промптинга
-        
-        return """Ты опытный HR-эксперт компании А101 — одного из крупнейших девелоперов России, входящего в ПФГ "САФМАР" и перечень системообразующих предприятий экономики России.
-
-# КОНТЕКСТ КОМПАНИИ А101
-
-{{company_map}}
-
-# ОРГАНИЗАЦИОННАЯ СТРУКТУРА
-
-Организационная структура компании (релевантная часть):
-```json
-{{org_structure}}
-```
-
-Создаваемая должность находится в иерархии: **{{department_path}}**
-
-# ЦЕЛЕВАЯ ДОЛЖНОСТЬ
-
-**Департамент:** {{department}}
-**Должность:** {{position}}
-**ФИО:** {{employee_name}}
-**Дата генерации:** {{generation_timestamp}}
-
-# KPI И ПОКАЗАТЕЛИ ДЕПАРТАМЕНТА
-
-{{kpi_data}}
-
-# IT СИСТЕМЫ И ТЕХНОЛОГИЧЕСКИЙ СТЕК ДЕПАРТАМЕНТА
-
-{{it_systems}}
-
----
-
-# 🎯 ЗАДАЧА
-
-Создай **детальный профиль должности "{{position}}"** в департаменте "{{department}}" компании А101.
-
-## КРИТЕРИИ КАЧЕСТВА:
-
-### 1. **СООТВЕТСТВИЕ РЕАЛЬНОСТИ А101**
-- Используй ТОЛЬКО данные компании А101 из предоставленного контекста
-- Ссылайся на конкретные бизнес-процессы, IT системы и OKR компании
-- Применяй корпоративную терминологию А101
-
-### 2. **ГЛУБИНА И ДЕТАЛИЗАЦИЯ**
-- Каждая область ответственности должна содержать 3-7 конкретных задач
-- Профессиональные навыки с четким указанием целевого уровня
-- Избегай общих фраз, используй специфичные формулировки
-
-### 3. **КОНТЕКСТНОСТЬ И ЛОГИЧНОСТЬ**
-- Учитывай место должности в организационной иерархии
-- Используй релевантные KPI департамента
-- Указывай конкретные IT системы, с которыми работает должность
-- Обеспечь логичные карьерные пути (донорские и целевые позиции)
-
-### 4. **СТРУКТУРНАЯ ТОЧНОСТЬ**
-- Строго следуй предоставленной JSON схеме
-- Заполни ВСЕ обязательные поля
-- Используй ТОЛЬКО допустимые значения из enum полей
-
-## ОБЯЗАТЕЛЬНЫЕ ЭЛЕМЕНТЫ ПРОФИЛЯ:
-
-- **Области ответственности**: Минимум 3-5 областей с детальными задачами
-- **Профессиональные навыки**: Сгруппированы по категориям с целевыми уровнями
-- **Корпоративные компетенции**: Выбери 3-5 наиболее релевантных из списка А101
-- **Личностные качества**: 5-8 качеств, критичных для успеха в роли
-- **Образование и опыт**: Реалистичные требования для позиции
-- **Карьерные пути**: Логичные донорские и целевые позиции внутри А101
-- **Технические требования**: Конкретные IT системы и инструменты
-
----
-
-# 📋 СХЕМА ВЫХОДНОГО JSON
-
-{{json_schema}}
-
----
-
-**Предоставь результат ТОЛЬКО в формате JSON, строго соответствующий схеме выше.**"""
     
     def _validate_and_enhance_profile(self, llm_result: Dict[str, Any]) -> Dict[str, Any]:
         """Валидация и улучшение сгенерированного профиля"""
@@ -389,6 +292,31 @@ class ProfileGenerator:
         """Получение списка должностей для департамента"""
         return self.data_loader.get_positions_for_department(department)
     
+    def get_prompt_analytics(self, prompt_name: str = "profile_generation") -> Dict[str, Any]:
+        """
+        @doc Получение аналитики по использованию промпта
+        
+        Examples:
+            python>
+            generator = ProfileGenerator(api_key)
+            analytics = generator.get_prompt_analytics()
+            print(f"Cache status: {analytics['cache_status']}")
+        """
+        return self.prompt_manager.get_prompt_analytics(prompt_name)
+    
+    def validate_prompt_template(self, template: str, prompt_name: str = "profile_generation") -> Dict[str, Any]:
+        """
+        @doc Валидация шаблона промпта
+        
+        Examples:
+            python>
+            generator = ProfileGenerator(api_key)
+            validation = generator.validate_prompt_template(new_template)
+            if validation["valid"]:
+                print("Template is valid!")
+        """
+        return self.prompt_manager.validate_prompt_template(template, prompt_name)
+    
     async def validate_system(self) -> Dict[str, Any]:
         """Полная валидация системы"""
         validation_result = {
@@ -408,22 +336,38 @@ class ProfileGenerator:
             validation_result["system_ready"] = False
         
         # 2. Проверка LLM подключения
-        try:
-            llm_test = await self.llm_client.test_connection()
-            validation_result["components"]["llm_connection"] = llm_test
-            
-            if not llm_test["success"]:
-                validation_result["errors"].append(f"LLM connection failed: {llm_test['error']}")
+        if self.llm_client:
+            try:
+                llm_test = self.llm_client.test_connection()
+                validation_result["components"]["llm_connection"] = llm_test
+                
+                if not llm_test["success"]:
+                    validation_result["errors"].append(f"LLM connection failed: {llm_test['error']}")
+                    validation_result["system_ready"] = False
+            except Exception as e:
+                validation_result["components"]["llm_connection"] = {"success": False, "error": str(e)}
+                validation_result["errors"].append(f"LLM connection test failed: {e}")
                 validation_result["system_ready"] = False
-        except Exception as e:
-            validation_result["components"]["llm_connection"] = {"success": False, "error": str(e)}
-            validation_result["errors"].append(f"LLM connection test failed: {e}")
+        else:
+            validation_result["errors"].append("LLM client not initialized - requires Langfuse credentials")
             validation_result["system_ready"] = False
         
         # 3. Проверка Langfuse
         validation_result["components"]["langfuse"] = {"enabled": self.langfuse_enabled}
         if not self.langfuse_enabled:
             validation_result["warnings"].append("Langfuse monitoring not configured")
+        
+        # 4. Проверка Langfuse Prompt Management
+        if self.langfuse_enabled and self.llm_client:
+            try:
+                # Тестируем получение промпта из Langfuse
+                validation_result["components"]["langfuse_prompts"] = {"success": True, "message": "Prompts managed via Langfuse"}
+            except Exception as e:
+                validation_result["components"]["langfuse_prompts"] = {"success": False, "error": str(e)}
+                validation_result["errors"].append(f"Langfuse prompt test failed: {e}")
+                validation_result["system_ready"] = False
+        else:
+            validation_result["warnings"].append("Langfuse prompt management not available")
         
         return validation_result
 

@@ -1,0 +1,394 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Universal Corporate Job Profile Schema",
+  "description": "Universal job profile schema for any position in a large corporation, based on comprehensive analysis of corporate job structure patterns. Optimized for Gemini API structured output generation.",
+  "type": "object",
+  "propertyOrdering": [
+    "position_title",
+    "department_broad",
+    "department_specific",
+    "position_category",
+    "direct_manager",
+    "subordinates",
+    "primary_activity_type",
+    "responsibility_areas",
+    "professional_skills",
+    "personal_qualities",
+    "education_requirements",
+    "career_development",
+    "technical_requirements",
+    "performance_metrics",
+    "additional_information",
+    "metadata"
+  ],
+  "properties": {
+    "position_title": {
+      "type": "string",
+      "description": "Название должности"
+    },
+    "department_broad": {
+      "type": "string",
+      "description": "Подразделение укрупненно (например: Блок исполнительного директора, Финансовый блок, IT-блок)"
+    },
+    "department_specific": {
+      "type": "string",
+      "description": "Конкретное подразделение (например: Отдел кадров, Департамент информационных технологий)"
+    },
+    "position_category": {
+      "type": "string",
+      "description": "Категория должности в корпоративной иерархии",
+      "enum": [
+        "Специалист",
+        "Ведущий специалист",
+        "Главный специалист",
+        "Линейный руководитель (группа, направление)",
+        "Руководитель среднего уровня (отдел, управление)",
+        "Руководитель высшего уровня (департамент, блок)",
+        "Топ-менеджмент"
+      ]
+    },
+    "direct_manager": {
+      "type": "string",
+      "description": "Должность непосредственного руководителя"
+    },
+    "subordinates": {
+      "type": "object",
+      "description": "Информация о подчиненных",
+      "properties": {
+        "departments": {
+          "type": "integer",
+          "description": "Количество подразделений в подчинении",
+          "minimum": 0
+        },
+        "direct_reports": {
+          "type": "integer",
+          "description": "Количество человек в прямом подчинении",
+          "minimum": 0
+        }
+      }
+    },
+    "primary_activity_type": {
+      "type": "string",
+      "description": "Тип основной деятельности",
+      "enum": [
+        "Профильная деятельность",
+        "Обеспечивающая деятельность",
+        "Управленческая деятельность",
+        "Экспертная деятельность"
+      ]
+    },
+    "responsibility_areas": {
+      "type": "array",
+      "description": "Области ответственности и должностные обязанности",
+      "items": {
+        "type": "string",
+        "properties": {
+          "area": {
+            "type": "array",
+            "description": "Область ответственности",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "tasks": {
+            "type": "array",
+            "description": "Конкретные задачи в рамках области ответственности",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        },
+        "required": ["area", "tasks"]
+      },
+      "minItems": 1
+    },
+    "professional_skills": {
+      "type": "array",
+      "description": "Профессиональные знания и умения",
+      "items": {
+        "type": "object",
+        "properties": {
+          "skill_category": {
+            "type": "string",
+            "description": "Категория профессиональных навыков",
+            "enum": [
+              "Профильная экспертиза и знания",
+              "Технические системы и инструменты",
+              "Коммуникация и сотрудничество",
+              "Аналитические навыки и решение проблем",
+              "Управление проектами и процессами",
+              "Руководство и управление командой",
+              "Нормативные требования и соответствие",
+              "Стратегическое мышление и планирование"
+            ]
+          },
+          "specific_skills": {
+            "type": "array",
+            "description": "Конкретные навыки и знания в данной категории",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "proficiency_level": {
+            "type": "string",
+            "description": "Требуемый уровень владения",
+            "enum": ["Базовый", "Продвинутый", "Экспертный"]
+          }
+        },
+        "required": ["skill_category", "specific_skills"]
+      },
+      "minItems": 1
+    },
+    "personal_qualities": {
+      "type": "array",
+      "description": "Личностные качества и soft skills",
+      "items": {
+        "type": "string",
+        "enum": [
+          "аналитическое мышление",
+          "внимательность к деталям",
+          "коммуникабельность",
+          "критическое мышление",
+          "лидерские качества",
+          "многозадачность",
+          "организованность",
+          "ответственность",
+          "проактивность",
+          "решительность",
+          "системное мышление",
+          "стрессоустойчивость",
+          "тайм-менеджмент",
+          "творческий подход",
+          "инициативность",
+          "адаптивность",
+          "исполнительность",
+          "настойчивость",
+          "публичные выступления",
+          "эмоциональный интеллект",
+          "клиентоориентированность"
+        ]
+      },
+      "minItems": 1
+    },
+    "education_requirements": {
+      "type": "object",
+      "description": "Требования к образованию и опыту работы",
+      "properties": {
+        "education_level": {
+          "type": "string",
+          "description": "Минимальный требуемый уровень образования",
+          "enum": [
+            "Среднее общее образование",
+            "Среднее профессиональное образование",
+            "Высшее образование (бакалавриат)",
+            "Высшее образование (магистратура)",
+            "Высшее образование (специалитет)",
+            "Послевузовское профессиональное образование"
+          ]
+        },
+        "preferred_specializations": {
+          "type": "array",
+          "description": "Предпочтительные специализации/направления подготовки",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total_experience": {
+          "type": "string",
+          "description": "Требуемый общий опыт работы"
+        },
+        "relevant_experience": {
+          "type": "string",
+          "description": "Опыт работы в релевантной области/на аналогичных позициях"
+        },
+        "additional_certifications": {
+          "type": "array",
+          "description": "Дополнительные сертификации и курсы повышения квалификации",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "career_development": {
+      "type": "object",
+      "description": "Карьерные траектории и развитие",
+      "properties": {
+        "career_entry_positions": {
+          "type": "array",
+          "description": "Позиции, с которых можно прийти на эту должность",
+          "items": {
+            "type": "string"
+          }
+        },
+        "career_growth_positions": {
+          "type": "array",
+          "description": "Возможные позиции карьерного роста",
+          "items": {
+            "type": "string"
+          }
+        },
+        "development_priorities": {
+          "type": "array",
+          "description": "Приоритетные направления профессионального развития",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mentoring_opportunities": {
+          "type": "string",
+          "description": "Возможности наставничества и обучения других"
+        }
+      }
+    },
+    "technical_requirements": {
+      "type": "object",
+      "description": "Технические требования к рабочему месту",
+      "properties": {
+        "software_systems": {
+          "type": "array",
+          "description": "Корпоративные и специализированные программные системы",
+          "items": {
+            "type": "string"
+          }
+        },
+        "equipment_tools": {
+          "type": "array",
+          "description": "Специальное оборудование и инструменты",
+          "items": {
+            "type": "string"
+          }
+        },
+        "access_permissions": {
+          "type": "array",
+          "description": "Необходимые уровни доступа к системам и данным",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "performance_metrics": {
+      "type": "object",
+      "description": "Ключевые показатели эффективности",
+      "properties": {
+        "quantitative_kpis": {
+          "type": "array",
+          "description": "Количественные показатели эффективности",
+          "items": {
+            "type": "string"
+          }
+        },
+        "qualitative_indicators": {
+          "type": "array",
+          "description": "Качественные индикаторы результативности",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evaluation_frequency": {
+          "type": "string",
+          "description": "Периодичность оценки результативности",
+          "enum": ["Ежемесячно", "Ежеквартально", "Раз в полгода", "Ежегодно"]
+        }
+      }
+    },
+    "additional_information": {
+      "type": "object",
+      "description": "Дополнительная информация о должности",
+      "properties": {
+        "working_conditions": {
+          "type": "object",
+          "description": "Условия работы",
+          "properties": {
+            "work_schedule": {
+              "type": "string",
+              "description": "График работы"
+            },
+            "remote_work_options": {
+              "type": "string",
+              "description": "Возможности удаленной работы"
+            },
+            "business_travel": {
+              "type": "string",
+              "description": "Командировки и служебные поездки"
+            }
+          }
+        },
+        "special_requirements": {
+          "type": "array",
+          "description": "Особые требования к кандидату",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risk_factors": {
+          "type": "array",
+          "description": "Профессиональные риски и ограничения",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Служебная информация о профиле должности",
+      "properties": {
+        "profile_author": {
+          "type": "string",
+          "description": "ФИО специалиста, подготовившего профиль"
+        },
+        "creation_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата создания профиля"
+        },
+        "last_review_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Дата последнего пересмотра"
+        },
+        "next_review_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Плановая дата следующего пересмотра"
+        },
+        "version": {
+          "type": "string",
+          "description": "Версия профиля должности",
+          "default": "1.0"
+        },
+        "approval_status": {
+          "type": "string",
+          "description": "Статус утверждения профиля",
+          "enum": ["Черновик", "На согласовании", "Утверждено", "Требует пересмотра"]
+        },
+        "approved_by": {
+          "type": "string",
+          "description": "Утверждающий руководитель"
+        },
+        "data_sources": {
+          "type": "array",
+          "description": "Источники данных для составления профиля",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "position_title",
+    "department_broad",
+    "department_specific",
+    "position_category",
+    "primary_activity_type",
+    "responsibility_areas",
+    "professional_skills",
+    "personal_qualities"
+  ]
+}

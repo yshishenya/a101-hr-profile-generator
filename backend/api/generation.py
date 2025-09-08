@@ -72,12 +72,8 @@ async def get_profile_generator() -> ProfileGenerator:
             detail="OpenRouter API не сконфигурирован. Добавьте OPENROUTER_API_KEY в .env"
         )
     
-    generator = ProfileGenerator(
-        openrouter_api_key=config.OPENROUTER_API_KEY,
-        langfuse_public_key=config.LANGFUSE_PUBLIC_KEY if config.langfuse_configured else None,
-        langfuse_secret_key=config.LANGFUSE_SECRET_KEY if config.langfuse_configured else None,
-        base_data_path=config.BASE_DATA_PATH
-    )
+    # ProfileGenerator теперь сам получает настройки из config
+    generator = ProfileGenerator()
     
     return generator
 
@@ -232,7 +228,7 @@ async def start_generation(
         "estimated_duration": estimated_duration,
         "current_step": "В очереди на обработку",
         "request": request.dict(),
-        "user_id": current_user["id"]
+        "user_id": current_user["user_id"]
     }
     
     # Запускаем background task
@@ -240,7 +236,7 @@ async def start_generation(
         background_generate_profile,
         task_id,
         request,
-        current_user["id"]
+        current_user["user_id"]
     )
     
     logger.info(f"🚀 Started generation task {task_id} for user {current_user['username']}")
@@ -273,7 +269,7 @@ async def get_task_status(
     task_data = _active_tasks[task_id]
     
     # Проверяем права доступа
-    if task_data["user_id"] != current_user["id"]:
+    if task_data["user_id"] != current_user["user_id"]:
         raise HTTPException(status_code=403, detail="Нет доступа к этой задаче")
     
     # Формируем ответ
@@ -303,7 +299,7 @@ async def get_task_result(
     task_data = _active_tasks[task_id]
     
     # Проверяем права доступа
-    if task_data["user_id"] != current_user["id"]:
+    if task_data["user_id"] != current_user["user_id"]:
         raise HTTPException(status_code=403, detail="Нет доступа к этой задаче")
     
     # Проверяем статус задачи
@@ -336,7 +332,7 @@ async def cancel_task(
     task_data = _active_tasks[task_id]
     
     # Проверяем права доступа
-    if task_data["user_id"] != current_user["id"]:
+    if task_data["user_id"] != current_user["user_id"]:
         raise HTTPException(status_code=403, detail="Нет доступа к этой задаче")
     
     # Отменяем только если задача еще не завершена
@@ -371,7 +367,7 @@ async def get_active_tasks(
     user_tasks = []
     
     for task_data in _active_tasks.values():
-        if task_data["user_id"] == current_user["id"]:
+        if task_data["user_id"] == current_user["user_id"]:
             # Исключаем завершенные задачи старше 1 часа
             if task_data["status"] in ["completed", "failed", "cancelled"]:
                 completed_at = task_data.get("completed_at")
