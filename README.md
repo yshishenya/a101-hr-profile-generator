@@ -5,19 +5,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
-[![NiceGUI](https://img.shields.io/badge/NiceGUI-Material%20Design-purple.svg)](https://nicegui.io)
+[![Langfuse](https://img.shields.io/badge/Langfuse-Observability-orange.svg)](https://langfuse.com)
 
 ## 🎯 Описание проекта
 
-A101 HR Profile Generator - это AI-powered система для автоматического создания детальных профилей должностей на основе данных компании А101. Система использует **детерминированную логику для маппинга данных** и **Gemini 2.5 Flash для творческой генерации контента**.
+A101 HR Profile Generator - это AI-powered система для автоматического создания детальных профилей должностей на основе данных компании А101. Система использует **детерминированную логику для маппинга данных**, **Gemini 2.5 Flash через OpenRouter**, и **полную интеграцию с Langfuse** для observability.
 
 ### ✨ Ключевые особенности
 
-- 🤖 **AI-генерация профилей** с использованием Gemini 2.5 Flash
-- 📊 **Детерминированная обработка данных** - 100% точность маппинга
-- 🎨 **Material Design интерфейс** на NiceGUI
-- ⚡ **Асинхронная генерация** для сложных профилей
-- 📈 **Интеграция с Langfuse** для мониторинга качества
+- 🤖 **AI-генерация профилей** с использованием Google Gemini 2.5 Flash Lite
+- 🔗 **Langfuse Prompt Management** - централизованное управление промптами и трейсинг
+- 📊 **Детерминированная обработка данных** - 100% точность маппинга департаментов и KPI
+- ⚡ **Оптимизированная производительность** - 75x ускорение загрузки каталога (3ms с кешем)
+- 📈 **Comprehensive Observability** - полный трейсинг генераций с метаданными
+- 🎯 **Structured Output** - JSON Schema валидация для консистентных результатов
 - 📄 **Множественные форматы экспорта** (JSON, Markdown, Excel)
 
 ## 🏗️ Архитектура системы
@@ -46,65 +47,94 @@ A101 HR Profile Generator - это AI-powered система для автома
 ## 📊 Прогресс проекта
 
 ### **Фазы разработки:**
-- **ФАЗА 1:** Backend API Implementation **[2/12 задач]** ✅✅⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜
+- **ФАЗА 1:** Backend API Implementation **[14/15 задач]** ✅✅✅✅✅✅✅✅✅✅✅✅✅✅⬜
 - **ФАЗА 2:** Frontend NiceGUI Implementation **[0/15 задач]** ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜
 - **ФАЗА 3:** Testing & Quality Assurance **[0/8 задач]** ⬜⬜⬜⬜⬜⬜⬜⬜
-- **ФАЗА 4:** Deployment & DevOps **[0/7 задач]** ⬜⬜⬜⬜⬜⬜⬜
+- **ФАЗА 4:** Deployment & DevOps **[1/7 задач]** ✅⬜⬜⬜⬜⬜⬜
 - **ФАЗА 5:** Documentation & Polish **[0/5 задач]** ⬜⬜⬜⬜⬜
 
-**Общий прогресс:** **2/47 задач (4%)**
+**Общий прогресс:** **15/50 задач (30%)**
 
-### ✅ **Выполнено:**
-- **Task 1.1:** FastAPI Application Setup - Базовое приложение с CORS, middleware, health check
-- **Task 1.2:** Database Models & Schema - SQLite схема + 20+ Pydantic моделей
+### ✅ **Выполнено (ФАЗА 1 - Backend):**
+- **Core Infrastructure:** FastAPI приложение, SQLite схема, authentication
+- **Data Processing:** Детерминированные мапперы для организации и KPI 
+- **AI Integration:** Полная интеграция с Langfuse + OpenRouter + Gemini 2.5 Flash
+- **Performance:** 75x оптимизация загрузки каталога с кешированием
+- **API Endpoints:** Полный CRUD профилей, async генерация, export
+- **Observability:** Комплексный трейсинг с enriched metadata
+
+### ✅ **Выполнено (ФАЗА 4 - DevOps):**
+- **Docker Environment:** Контейнеризация с environment management
 
 ### 🔄 **В работе:**
-- **Task 1.3:** Authentication API - JWT токены, session management
+- **Frontend Development:** NiceGUI интерфейс (планируется)
 
 ## 🚀 Быстрый старт
 
 ### Предварительные требования
 
 - Python 3.9+
-- OpenRouter API ключ для Gemini 2.5 Flash
-- Langfuse ключи (опционально)
+- Docker & Docker Compose (рекомендуется)
+- **OpenRouter API ключ** для Gemini 2.5 Flash
+- **Langfuse ключи** (public + secret) - обязательно для работы системы
 
-### Установка
+### 🐳 Быстрый старт с Docker (Рекомендуется)
 
 ```bash
-# Клонируем репозиторий
+# 1. Клонируем репозиторий
 git clone https://github.com/your-username/a101-hr-profile-generator.git
 cd a101-hr-profile-generator
 
-# Устанавливаем зависимости
+# 2. Копируем пример конфигурации
+cp .env.example .env
+
+# 3. Настраиваем переменные окружения в .env
+OPENROUTER_API_KEY="your-openrouter-api-key"
+LANGFUSE_PUBLIC_KEY="pk-lf-your-public-key"
+LANGFUSE_SECRET_KEY="sk-lf-your-secret-key"
+LANGFUSE_HOST="https://cloud.langfuse.com"
+BASE_DATA_PATH="/app"
+JWT_SECRET_KEY="your-jwt-secret-for-auth"
+ADMIN_PASSWORD="your-admin-password"
+
+# 4. Запускаем систему
+docker compose up --build
+
+# Backend API доступен на:
+# http://localhost:8000/docs (Swagger)
+# http://localhost:8000/health (Health Check)
+```
+
+### 🔧 Локальная разработка
+
+```bash
+# 1. Установка зависимостей
 pip install -r requirements.txt
 
-# Настраиваем переменные окружения
-export OPENROUTER_API_KEY="your-openrouter-api-key"
-export LANGFUSE_PUBLIC_KEY="your-langfuse-key"    # Опционально
-export LANGFUSE_SECRET_KEY="your-langfuse-secret" # Опционально
+# 2. Настройка переменных окружения (как выше)
+export OPENROUTER_API_KEY="your-key"
+export LANGFUSE_PUBLIC_KEY="your-key"
+export LANGFUSE_SECRET_KEY="your-key"
+export BASE_DATA_PATH="/home/yan/A101/HR"
+
+# 3. Инициализация базы данных
+python backend/core/database.py
+
+# 4. Запуск сервера
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Запуск Backend API
+### 🧪 Тестирование интеграции
 
 ```bash
-# Запуск FastAPI сервера
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8022
+# Проверка полного пайплайна
+python test_fixed_prompt_linking.py
 
-# API документация будет доступна на:
-# http://localhost:8022/docs (Swagger)
-# http://localhost:8022/redoc (Redoc)
-```
+# Тестирование подключений
+python check_langfuse_api.py
 
-### Инициализация базы данных
-
-```bash
-# Создание схемы и начальных данных
-python backend/models/database.py
-
-# Пользователи по умолчанию:
-# admin / admin123
-# hr / hr123
+# Создание промптов в Langfuse
+python create_langfuse_prompt.py
 ```
 
 ## 📁 Структура проекта
@@ -115,34 +145,52 @@ a101-hr-profile-generator/
 │   ├── 🚀 main.py                # Основное приложение
 │   ├── 📊 api/                   # API endpoints
 │   ├── 🧠 core/                  # Бизнес логика
-│   │   ├── data_mapper.py        # Детерминированное маппинг
-│   │   ├── data_loader.py        # Загрузка и подготовка данных
-│   │   ├── llm_client.py         # Gemini 2.5 Flash client
-│   │   └── profile_generator.py  # Главный генератор
-│   ├── 🗄️ models/               # Модели данных
-│   │   ├── database.py           # SQLite схема
-│   │   └── schemas.py            # Pydantic модели
-│   └── 🔧 utils/                 # Утилиты
+│   │   ├── config.py             # Централизованная конфигурация (.env)
+│   │   ├── data_loader.py        # Детерминированная загрузка данных
+│   │   ├── llm_client.py         # Langfuse OpenAI интеграция
+│   │   ├── profile_generator.py  # Главный генератор профилей
+│   │   ├── prompt_manager.py     # Langfuse Prompt Management
+│   │   └── database.py           # SQLite операции
+│   ├── 🔧 tools/                 # Утилиты и инструменты
+│   │   └── xlsx_dump.py          # Экспорт в Excel
+│   └── 🗄️ models/               # Модели данных (legacy)
 ├── 🎨 frontend/                  # NiceGUI Frontend (планируется)
-├── 📚 docs/                      # Документация
+├── 📚 docs/                      # Документация + данные компании
 │   ├── PROJECT_BACKLOG.md        # Детальный план проекта
 │   ├── SYSTEM_ARCHITECTURE.md    # Архитектура системы
-│   └── USER_JOURNEY_MVP.md       # UX дизайн
-├── 📄 templates/                 # Шаблоны и схемы
-└── 🗂️ data/                     # Данные компании
+│   ├── org_structure/            # Организационная структура
+│   └── IT systems/               # IT системы и потоки данных
+├── 📄 templates/                 # JSON схемы и промпты
+│   ├── job_profile_schema.json   # Основная схема профиля
+│   ├── universal_job_profile_schema.json
+│   └── generation_prompt.txt     # Базовый промпт
+├── 🗂️ data/                     # Исходные данные компании
+│   └── Карта Компании А101.md    # Основная карта компании
+└── 🧪 test_*.py                  # Тесты интеграции с Langfuse
 ```
 
 ## 🔧 Конфигурация
 
-### Environment Variables
+### Environment Variables (.env файл)
 
 ```bash
-# Обязательные
+# 🔑 OpenRouter (Обязательно)
 OPENROUTER_API_KEY="your-openrouter-api-key"
+OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
+OPENROUTER_MODEL="google/gemini-2.5-flash-lite"
 
-# Опциональные  
-LANGFUSE_PUBLIC_KEY="your-langfuse-key"
-LANGFUSE_SECRET_KEY="your-langfuse-secret"
+# 📊 Langfuse (Обязательно для работы системы)
+LANGFUSE_PUBLIC_KEY="pk-lf-your-public-key"
+LANGFUSE_SECRET_KEY="sk-lf-your-secret-key"
+LANGFUSE_HOST="https://cloud.langfuse.com"
+
+# 🔐 Аутентификация
+JWT_SECRET_KEY="your-jwt-secret-key-for-auth"
+ADMIN_PASSWORD="your-admin-password"
+
+# 📁 Пути и конфигурация
+BASE_DATA_PATH="/app"  # или локальный путь для разработки
+DATABASE_URL="sqlite:///./database.db"
 ENVIRONMENT="development"  # development, staging, production
 ```
 
@@ -160,23 +208,51 @@ ENVIRONMENT="development"  # development, staging, production
 ```
 GET  /health                           # Проверка состояния системы
 POST /api/auth/login                   # Аутентификация
-GET  /api/catalog/departments          # Список департаментов
+GET  /api/catalog/departments          # Список департаментов (⚡ кешируется)
 GET  /api/catalog/positions/{dept}     # Должности департамента
-POST /api/profiles/generate            # Генерация профиля (sync)
-POST /api/profiles/generate-async      # Генерация профиля (async)
-GET  /api/profiles/{id}               # Получение профиля
+POST /api/generate                     # 🤖 Генерация профиля (Langfuse integration)
+GET  /api/profiles/{id}               # Получение сохраненного профиля
 GET  /api/profiles/export/{id}        # Экспорт профиля
+```
+
+### 🧪 Тестовые endpoints
+
+```bash
+# Тестирование интеграции с Langfuse
+curl -X POST "http://localhost:8000/api/generate" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer test" \
+  -d '{
+    "position": "Senior ML Engineer",
+    "department": "ДИТ",
+    "employee_name": "Test User"
+  }'
 ```
 
 Полная документация доступна в `/docs` после запуска сервера.
 
 ## 🧪 Тестирование
 
+### 🔗 Langfuse Integration Tests
+
+```bash
+# Полный пайплайн с prompt linking
+python test_fixed_prompt_linking.py
+
+# Детальное исследование OpenRouter responses
+python test_openrouter_response_details.py
+
+# Трейсинг и observability
+python test_full_trace_pipeline.py
+```
+
+### 🔬 Unit тесты (планируется)
+
 ```bash
 # Unit тесты
 pytest backend/tests/unit/
 
-# Integration тесты
+# Integration тесты  
 pytest backend/tests/integration/
 
 # Все тесты

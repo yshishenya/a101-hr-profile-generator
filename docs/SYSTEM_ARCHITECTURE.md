@@ -5,12 +5,13 @@
 **Цель:** Автоматическая генерация профилей должностей для компании А101 с использованием AI
 
 **Технологический стек:**
-- 🎨 **Frontend:** NiceGUI (Material Design)
+- 🎨 **Frontend:** NiceGUI (Material Design) - планируется
 - ⚡ **Backend:** FastAPI (REST API)
-- 🤖 **LLM:** Gemini 2.5 Flash через OpenRouter API
-- 🗄️ **Database:** SQLite
-- 📊 **Monitoring:** Langfuse
-- 🏠 **Deployment:** VPS (до 10 пользователей)
+- 🤖 **LLM:** Google Gemini 2.5 Flash Lite через OpenRouter API
+- 🔗 **AI Integration:** Langfuse OpenAI SDK с полным prompt management
+- 📊 **Observability:** Langfuse для трейсинга, метрик и prompt versioning
+- 🗄️ **Database:** SQLite с оптимизированным кешированием
+- 🏠 **Deployment:** Docker Compose (VPS ready)
 
 ## 🏛️ **ВЫСОКОУРОВНЕВАЯ АРХИТЕКТУРА**
 
@@ -80,29 +81,35 @@
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### **🔄 Поток данных:**
+### **🔄 Поток данных (ОБНОВЛЕНО для Langfuse Integration):**
 
 ```
-[Пользователь] →[Nginx:80] → [NiceGUI:8033] → [FastAPI:8022]
-                                                        ↓
-                                                   [Config.py] ← [.env file]
-                                                        ↓
-[DataLoader] ← [ProfileGenerator] → [LangfuseService] → [OpenRouter]
-     ↓              ↑                     ↓                 ↓
-[Company Data] → [Config Settings] → [Langfuse Variables] → [Prompt+Context] → [Gemini 2.5]
-     ↓              ↓                     ↓                      ↓
-[SQLite] ← [Auth Service] ← [JWT Config] ← [Profile Validation] ← [JSON Parsing] ← [LLM Response]
-    ↓              ↓
-[File Storage] → [JSON/MD Export] → [Frontend Display]
+[API Request] → [FastAPI:8000] → [Auth Middleware]
+                      ↓
+              [Config.py] ← [.env file]
+                      ↓
+[ProfileGenerator] → [DataLoader] → [Company Data Files]
+        ↓                 ↓
+[LLMClient] ← [Variables] ← [Deterministic Mapping]
+    ↓
+[langfuse.openai] → [Langfuse Prompt Management]
+    ↓                        ↓
+[OpenRouter API] ← [Compiled Prompt + Variables]
+    ↓                        ↓
+[Gemini 2.5 Flash] → [JSON Response] → [Langfuse Trace]
+    ↓                        ↓              ↓
+[Profile Validation] → [SQLite Storage] → [Enhanced Metadata]
+    ↓
+[JSON/MD Export] → [API Response]
 ```
 
-**Ключевые изменения в потоке данных:**
-- ✅ **Config.py** теперь центральная точка всех настроек
-- ✅ **.env file** загружается автоматически при старте
-- ✅ **Auth Service** получает JWT настройки из Config
-- ✅ **ProfileGenerator** использует API ключи из Config
-- ✅ **DataLoader** использует пути к данным из Config
-- 🚀 **НОВОЕ: Performance Optimization** - пакетная загрузка с кешированием
+**🚀 АРХИТЕКТУРНЫЕ УЛУЧШЕНИЯ (v2.0):**
+- ✅ **Langfuse OpenAI Pattern** - правильная интеграция вместо прямых HTTP вызовов
+- ✅ **Centralized Prompt Management** - все промпты в Langfuse с versioning
+- ✅ **Enhanced Observability** - полный трейсинг с enriched metadata
+- ✅ **Optimized Performance** - 75x ускорение каталога департаментов
+- ✅ **Structured Output** - JSON Schema validation для консистентности
+- ✅ **Proper Error Handling** - graceful fallbacks и retry logic
 
 ### **⚡ Оптимизированный поток загрузки каталога:**
 
@@ -286,42 +293,69 @@ GET /api/health                        # Health check
 GET /api/stats                         # Статистика системы
 ```
 
-## 🤖 **LLM ИНТЕГРАЦИЯ**
+## 🤖 **LLM ИНТЕГРАЦИЯ (v2.0 - Langfuse OpenAI SDK)**
 
-### **OpenRouter API Client:**
+### **Langfuse OpenAI Client:**
 ```python
 # backend/core/llm_client.py
-class OpenRouterClient:
+class LLMClient:
     def __init__(self):
-        self.api_key = settings.OPENROUTER_API_KEY
-        self.base_url = едпоит хзранится в .env
-        self.model = модель хранится в langfuse.
+        self.openrouter_api_key = config.OPENROUTER_API_KEY
+        self.langfuse = Langfuse(
+            public_key=config.LANGFUSE_PUBLIC_KEY,
+            secret_key=config.LANGFUSE_SECRET_KEY
+        )
+        
+        # OpenAI клиент через Langfuse для автоматического трейсинга
+        self.client = OpenAI(
+            api_key=self.openrouter_api_key,
+            base_url=config.OPENROUTER_BASE_URL
+        )
 
-    async def generate_profile(self, prompt: str, context: dict) -> dict:
-        # Интеграция с OpenRouter API
-        # Langfuse трейсинг
-        # в langfuse сохраняется трейс и метрики
-        # в langfusу хранится промпт
-        pass
+    def generate_profile_from_langfuse(self, prompt_name: str, variables: Dict) -> Dict:
+        # 1. Получаем промпт и конфигурацию из Langfuse
+        prompt = self.langfuse.get_prompt(prompt_name, label="production")
+        
+        # 2. Автоматическая связка промпта с generation
+        response = self.client.chat.completions.create(
+            model=prompt.config.get("model"),
+            messages=[{"role": "user", "content": prompt.compile(**variables)}],
+            langfuse_prompt=prompt,  # 🔗 Ключевая связка!
+            **prompt.config
+        )
+        
+        # 3. Автоматический трейсинг в Langfuse + enriched metadata
+        return self._process_response(response)
 ```
 
-### **Промпты (JSON конфигурация):**
-```json
-// backend/config/prompts/profile_generation.json
+### **Langfuse Prompt Management (v2.0):**
+```python
+# Промпты хранятся в Langfuse (не в JSON файлах)
+# Пример конфигурации промпта "a101-hr-profile-gemini-v3-simple":
+
 {
-  "profile_generation": {
-    "version": "1.0",
-    "model": "google/gemini-2.5-flash",
-    "temperature": 0.3,
-    "max_tokens": 4000,
-    "system_prompt": "Ты HR эксперт компании А101...",
-    "user_prompt_template": "Создай профиль должности {position} в {department}...",
-    "parameters": {
-      "structured_output": true,
-      "json_schema": "job_profile_schema.json"
+  "name": "a101-hr-profile-gemini-v3-simple",
+  "version": 3,
+  "config": {
+    "model": "google/gemini-2.5-flash-lite",
+    "temperature": 0.1,
+    "max_tokens": 10000,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "Universal Corporate Job Profile Schema",
+        "strict": true,
+        "schema": { /* JSON Schema для structured output */ }
+      }
     }
-  }
+  },
+  "prompt": "Создай детальный профиль должности \"{{position}}\" в департаменте \"{{department}}\"...",
+  "labels": ["production"]
 }
+
+# Использование в коде:
+prompt = langfuse.get_prompt("a101-hr-profile-gemini-v3-simple", label="production")
+compiled = prompt.compile(position="ML Engineer", department="ДИТ", ...)
 ```
 
 ## 📊 **LANGFUSE ИНТЕГРАЦИЯ**

@@ -43,33 +43,33 @@ app_components = {}
 async def lifespan(app: FastAPI):
     """Lifecycle events для инициализации и очистки компонентов"""
     logger.info("🚀 Starting A101 HR Profile Generator API...")
-    
+
     # Startup: Инициализация компонентов системы
     try:
         # Проверяем наличие необходимых environment variables через конфигурацию
         if not config.openrouter_configured:
             logger.warning("⚠️ OpenRouter API не настроен - LLM генерация недоступна")
-        
+
         if not config.langfuse_configured:
             logger.info("ℹ️ Langfuse мониторинг не настроен - работаем без трекинга")
         else:
             logger.info("✅ Langfuse мониторинг настроен")
-        
+
         # Инициализируем компоненты (lazy loading при первом запросе)
         app_components["initialized"] = True
         app_components["startup_time"] = datetime.now()
-        
+
         logger.info("✅ Система инициализирована успешно")
-        
+
         # Инициализируем систему генерации профилей
         initialize_generation_system()
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации системы: {e}")
         raise
-    
+
     yield
-    
+
     # Shutdown: Очистка ресурсов
     logger.info("🛑 Shutting down A101 HR Profile Generator API...")
     app_components.clear()
@@ -80,10 +80,10 @@ app = FastAPI(
     title="A101 HR Profile Generator API",
     description="""
     🏢 **Система автоматической генерации профилей должностей для компании А101**
-    
-    Использует детерминированную логику для маппинга данных компании и 
+
+    Использует детерминированную логику для маппинга данных компании и
     Gemini 2.5 Flash для создания детальных профилей должностей.
-    
+
     ## Основные возможности:
     - 🎯 Генерация профилей должностей с использованием AI
     - 📊 Детерминированное извлечение данных организационной структуры
@@ -91,10 +91,10 @@ app = FastAPI(
     - 📈 Интеграция с Langfuse для мониторинга качества
     - 🚀 Асинхронная генерация для сложных профилей
     - 📄 Экспорт в различных форматах (JSON, Markdown, Excel)
-    
+
     ## Технологический стек:
     - **Backend:** FastAPI + Python 3.9+
-    - **LLM:** Gemini 2.5 Flash через OpenRouter API  
+    - **LLM:** Gemini 2.5 Flash через OpenRouter API
     - **Database:** SQLite
     - **Frontend:** NiceGUI (Material Design)
     - **Monitoring:** Langfuse (опционально)
@@ -119,7 +119,7 @@ app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
         "localhost",
-        "127.0.0.1", 
+        "127.0.0.1",
         "0.0.0.0",
         # В production добавить реальный домен
     ]
@@ -139,12 +139,12 @@ setup_exception_handlers(app)
 async def health_check() -> Dict[str, Any]:
     """
     Базовая проверка состояния системы.
-    
+
     Возвращает информацию о состоянии API и основных компонентов.
     """
     try:
         uptime = datetime.now() - app_components.get("startup_time", datetime.now())
-        
+
         health_status = {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
@@ -160,17 +160,17 @@ async def health_check() -> Dict[str, Any]:
                 "langfuse_configured": config.langfuse_configured,
             }
         }
-        
+
         logger.info("💚 Health check successful")
         return health_status
-        
+
     except Exception as e:
         logger.error(f"💔 Health check failed: {e}")
-        
+
         return JSONResponse(
             status_code=503,
             content={
-                "status": "unhealthy", 
+                "status": "unhealthy",
                 "timestamp": datetime.now().isoformat(),
                 "error": str(e)
             }
@@ -198,7 +198,7 @@ async def root() -> Dict[str, Any]:
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Создаем папку static если не существует  
+# Создаем папку static если не существует
 static_dir = "backend/static"
 os.makedirs(static_dir, exist_ok=True)
 
