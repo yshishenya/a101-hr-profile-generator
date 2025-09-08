@@ -51,18 +51,8 @@ class AuthComponent:
     self.is_loading = False
   
   async def create(self) -> None:
-    """
-    @doc
-    Создание UI компонента формы авторизации.
     
-    Создает форму входа с полями логина/пароля и кнопкой входа.
-    Настраивает обработчики событий и валидацию.
-    
-    Examples:
-      python> await auth_component.create()
-      python> # Форма отображается в текущем UI контексте
-    """
-    
+    """Creates a login form UI component with username and password fields."""
     with ui.column().classes('w-full gap-4'):
       # Поле логина
       self.username_input = ui.input(
@@ -106,18 +96,14 @@ class AuthComponent:
         )
   
   async def _handle_login(self) -> None:
+    
+    """Handle the login button press event.
+    
+    This asynchronous function validates user credentials, sends an authorization
+    request,  and processes the result with appropriate notifications. It manages
+    loading states and  handles both expected and unexpected errors, ensuring a
+    smooth user experience during  the login process.
     """
-    @doc
-    Обработчик нажатия кнопки входа.
-    
-    Выполняет валидацию данных, отправляет запрос авторизации
-    и обрабатывает результат с соответствующими уведомлениями.
-    
-    Examples:
-      python> # Вызывается автоматически при нажатии кнопки "Войти"
-      python> await auth._handle_login()
-    """
-    
     if self.is_loading:
       return
     
@@ -191,18 +177,15 @@ class AuthComponent:
       await self._set_loading(False)
   
   def _validate_credentials(self, username: str, password: str) -> Optional[str]:
+    
+    """Validate user credentials before submission.
+    
+    This function checks the completeness of the username and password fields  and
+    enforces basic requirements. It returns an error message if validation  fails,
+    or None if the validation is successful. The username must be at  least 3
+    characters long, and the password must also meet a minimum length  requirement,
+    albeit with a softer constraint for demonstration purposes.
     """
-    @doc
-    Валидация учетных данных перед отправкой.
-    
-    Проверяет заполненность полей и базовые требования.
-    Возвращает сообщение об ошибке или None если валидация прошла.
-    
-    Examples:
-      python> error = auth._validate_credentials("", "pass")
-      python> if error: print(error)  # "Введите логин"
-    """
-    
     if not username:
       return 'Введите логин'
     
@@ -218,32 +201,19 @@ class AuthComponent:
     return None
   
   async def _handle_enter_key(self, _) -> None:
-    """
-    @doc
-    Обработчик нажатия клавиши Enter в полях ввода.
-    
-    Автоматически запускает процесс авторизации при нажатии Enter
-    в любом поле формы.
-    
-    Examples:
-      python> # Автоматически вызывается при нажатии Enter
-      python> # в полях логина или пароля
-    """
+    """Handles the Enter key press in input fields."""
     await self._handle_login()
   
   async def _set_loading(self, loading: bool) -> None:
+    
+    """Manage the loading state of the form.
+    
+    This function shows or hides the loading indicator and enables or disables form
+    elements during the execution of a request. It updates the properties of the
+    username input, password input, remember checkbox, and login button based on
+    the loading state. Additionally, it manages the visibility of the loading
+    spinner to provide feedback to the user.
     """
-    @doc
-    Управление состоянием загрузки формы.
-    
-    Показывает/скрывает индикатор загрузки и блокирует/разблокирует
-    элементы формы во время выполнения запроса.
-    
-    Examples:
-      python> await auth._set_loading(True)   # Показать загрузку
-      python> await auth._set_loading(False)  # Скрыть загрузку
-    """
-    
     self.is_loading = loading
     
     # Управление состоянием элементов формы
@@ -272,17 +242,8 @@ class AuthComponent:
         self.loading_spinner.classes(add='hidden')
   
   def clear_form(self) -> None:
-    """
-    @doc
-    Очистка формы авторизации.
     
-    Сбрасывает все поля формы к начальному состоянию.
-    
-    Examples:
-      python> auth.clear_form()
-      python> # Все поля формы очищены
-    """
-    
+    """Clears the authorization form fields."""
     if self.username_input:
       self.username_input.value = ''
     
@@ -293,17 +254,8 @@ class AuthComponent:
       self.remember_checkbox.value = False
   
   def focus_username(self) -> None:
-    """
-    @doc
-    Установка фокуса на поле логина.
     
-    Полезно после ошибок авторизации или инициализации формы.
-    
-    Examples:
-      python> auth.focus_username()
-      python> # Курсор установлен в поле логина
-    """
-    
+    """Set focus on the username input field."""
     if self.username_input:
       self.username_input.run_method('focus')
 
@@ -330,8 +282,8 @@ class AuthCard:
     self.redirect_to = redirect_to
   
   async def create(self) -> None:
-    """Создание карточки авторизации"""
     
+    """Creates an authorization card."""
     with ui.column().classes('w-full h-screen justify-center items-center bg-grey-1'):
       with ui.card().classes('w-96 p-6 elevation-8'):
         # Заголовок с иконкой
