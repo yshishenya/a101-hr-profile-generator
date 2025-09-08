@@ -41,7 +41,7 @@ app_components = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle events для инициализации и очистки компонентов"""
+    """Manages the lifecycle events for initializing and cleaning up components."""
     logger.info("🚀 Starting  HR Profile Generator API...")
 
     # Startup: Инициализация компонентов системы
@@ -181,9 +181,7 @@ async def health_check() -> Dict[str, Any]:
 # Root endpoint с информацией о API
 @app.get("/", tags=["Root"])
 async def root() -> Dict[str, Any]:
-    """
-    Корневой endpoint с основной информацией о системе.
-    """
+    """Root endpoint providing basic information about the API."""
     return {
         "service": "HR Profile Generator API",
         "version": "1.0.0",
