@@ -201,15 +201,20 @@ class CatalogService:
             return []
     
     def search_positions(self, query: str, department_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Поиск должностей по запросу с опциональной фильтрацией по департаменту.
+        """Search for job positions based on a query with optional department filtering.
+        
+        This function retrieves all departments and their associated positions,
+        allowing for an optional filter by department name. It then filters the
+        positions based on the provided query, which can match against the position
+        name, department, level, or category. If no query is provided, all positions
+        from the selected departments are returned.
         
         Args:
-            query: Поисковой запрос
-            department_filter: Фильтр по департаменту (опционально)
-            
+            query (str): The search query for job positions.
+            department_filter (Optional[str]): An optional filter for specific departments.
+        
         Returns:
-            List[Dict] с отфильтрованными должностями
+            List[Dict[str, Any]]: A list of filtered job positions based on the search criteria.
         """
         try:
             # Получаем все департаменты для поиска должностей
@@ -255,14 +260,17 @@ class CatalogService:
             return []
     
     def get_department_details(self, department_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Получение детальной информации о департаменте.
+        """Retrieve detailed information about a department.
+        
+        This function fetches the basic information of a department using  the
+        `get_departments` method. It then checks if the specified  `department_name`
+        exists and, if found, enriches the department  details with additional
+        information such as positions and  organizational structure. The function
+        handles exceptions and  logs warnings if the department is not found or if an
+        error occurs  during the process.
         
         Args:
-            department_name: Название департамента
-            
-        Returns:
-            Dict с детальной информацией или None
+            department_name: The name of the department to retrieve details for.
         """
         try:
             # Получаем базовую информацию

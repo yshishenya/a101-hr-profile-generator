@@ -86,14 +86,18 @@ class OrganizationMapper:
         return department_name
     
     def get_positions_for_department(self, department_name: str) -> List[str]:
-        """
-        Извлекает список должностей для указанного департамента из реальной структуры.
+        """Retrieves a list of positions for the specified department from the
+        organizational structure.
+        
+        This function first checks if the organizational data is loaded; if not, it
+        loads the data.  It then attempts to find an exact match for the department
+        name in the department index.  If no exact match is found, it performs a fuzzy
+        search to find similar department names.  The function returns the list of
+        positions associated with the matched department or logs a warning if no
+        positions are found.
         
         Args:
-            department_name: Название департамента
-            
-        Returns:
-            List[str]: Список должностей из structure.json
+            department_name: The name of the department to retrieve positions for.
         """
         if not self._org_data:
             self._load_org_structure()
@@ -119,16 +123,21 @@ class OrganizationMapper:
         return []
     
     def extract_relevant_structure(self, department_name: str, levels_up: int = 1, levels_down: int = 2) -> dict:
-        """
-        Извлекает релевантную структуру с контекстом вверх/вниз по иерархии
+        """Extract relevant organizational structure based on department hierarchy.
+        
+        This function retrieves a structured representation of a department and its
+        relevant parent and child nodes within a specified hierarchy. It first checks
+        if the department exists in the index, attempting a fuzzy search if not found.
+        The extraction is performed recursively, considering the specified levels up
+        and down from the target department, and includes relevant sibling nodes.
         
         Args:
-            department_name: Название целевого департамента
-            levels_up: Сколько уровней вверх включить (родительские)
-            levels_down: Сколько уровней вниз включить (дочерние)
+            department_name (str): The name of the target department.
+            levels_up (int?): The number of levels to include upwards (parent nodes). Defaults to 1.
+            levels_down (int?): The number of levels to include downwards (child nodes). Defaults to 2.
         
         Returns:
-            Оптимизированная структура с релевантными подразделениями
+            dict: An optimized structure containing relevant departments.
         """
         if not self._org_data:
             self._load_org_structure()
