@@ -86,7 +86,7 @@ class A101ProfileGenerator:
         asyncio.create_task(self._load_hierarchical_suggestions())
 
     def _format_position_level(self, level):
-        """Форматирование уровня должности для отображения"""
+        """Format the position level for display."""
         if isinstance(level, str):
             # Строковые уровни
             level_mapping = {
@@ -107,12 +107,13 @@ class A101ProfileGenerator:
             return {"text": "Не определен", "color": "grey"}
 
     async def _load_hierarchical_suggestions(self):
-        """
-        Загрузка иерархических предложений автокомплита из backend данных.
-
-        Создает предложения в формате:
-        "Блок безопасности → Служба безопасности → Специалист"
-        "IT Департамент → Разработка → Ведущий разработчик"
+        """Load hierarchical suggestions for autocomplete from backend data.
+        
+        This function checks user authentication and retrieves the organizational
+        structure via an API call. If the user is not authenticated or if the  API call
+        fails, it falls back to default suggestions. Upon successful  retrieval, it
+        generates hierarchical suggestions and updates the search  input dropdown
+        options if applicable.
         """
         try:
             logger.info("Loading hierarchical suggestions from backend...")
@@ -167,11 +168,17 @@ class A101ProfileGenerator:
             self._use_fallback_suggestions()
 
     async def _generate_hierarchical_from_backend(self) -> List[str]:
-        """
-        Генерация иерархических предложений из backend данных.
-
+        """Generate hierarchical suggestions from backend data.
+        
+        This asynchronous function retrieves a list of departments from the backend
+        and, for each department, fetches its associated positions. It constructs
+        hierarchical paths for these positions and collects them into a suggestions
+        list. The function handles potential errors during API requests and path
+        generation, logging warnings as necessary. Finally, it sorts the suggestions
+        alphabetically and limits the output to the top 500 most relevant suggestions.
+        
         Returns:
-            List[str]: Список иерархических предложений для автокомплита
+            List[str]: A list of hierarchical suggestions for autocompletion.
         """
         suggestions = []
 
@@ -266,17 +273,17 @@ class A101ProfileGenerator:
             return []
 
     def _build_hierarchical_path(self, department: str, position: dict) -> str:
-        """
-        Построение иерархического пути для позиции.
-
-        Args:
-            department: Название департамента
-            position: Данные позиции
-
-        Returns:
-            str: Иерархический путь типа "Департамент → Позиция"
-        """
         # Безопасное извлечение названия позиции
+        """def _build_hierarchical_path(self, department: str, position: dict) -> str:
+        Builds a hierarchical path for a position.  This function constructs a
+        hierarchical path string that represents  the relationship between a department
+        and a position. It safely  extracts the position name from the provided
+        `position` argument,  determines the nesting level based on the `department`
+        string,  and formats the final path using the appropriate separators.
+        
+        Args:
+            department: The name of the department.
+            position: The data of the position."""
         if isinstance(position, dict):
             position_name = position.get("name", str(position))
         elif isinstance(position, str):
@@ -315,8 +322,8 @@ class A101ProfileGenerator:
         return hierarchical_path
 
     def _use_fallback_suggestions(self):
-        """Использование fallback предложений при недоступности backend"""
         # Только реальные должности из оргструктуры А101 - без вымышленных
+        """Use fallback suggestions when the backend is unavailable."""
         fallback_suggestions = [
             "Руководитель отдела",
             "Ведущий специалист",
@@ -451,8 +458,8 @@ class A101ProfileGenerator:
                     ui.label("Система").classes("text-caption text-grey-6")
 
     async def _render_unified_main_generator(self):
-        """Main generator with unified dashboard styling"""
         # Search section
+        """Main generator with unified dashboard styling."""
         with ui.card().classes("w-full mb-6"):
             ui.label("🔍 Поиск должности").classes("text-h6 q-mb-md")
 
@@ -511,8 +518,8 @@ class A101ProfileGenerator:
         self.search_loading = ui.spinner(size="sm").classes("self-center hidden")
 
     def _add_clean_nicegui_styles(self):
-        """Clean NiceGUI styling - Following login page philosophy"""
         # No custom CSS - using pure NiceGUI components like login page
+        """Apply clean NiceGUI styles using default components."""
         pass
 
     async def _render_corporate_header(self):
@@ -569,7 +576,7 @@ class A101ProfileGenerator:
                 ui.label("Система").classes("text-gray-600 text-sm font-medium")
 
     async def _render_main_generator(self):
-        """Основной генератор профилей"""
+        """Render the main profile generator UI."""
         with ui.card().classes("w-full max-w-4xl mx-auto px-4"):
 
             # Заголовок генератора
@@ -611,7 +618,7 @@ class A101ProfileGenerator:
                     ).classes("text-xs text-muted mt-3")
 
     async def _render_search_section(self):
-        """Секция поиска должностей"""
+        """Render the job search section in the UI."""
         with ui.column().classes("w-full gap-6"):
 
             # Заголовок поиска
@@ -658,7 +665,7 @@ class A101ProfileGenerator:
             )
 
     async def _load_system_stats(self):
-        """Загрузка системной статистики"""
+        """Load system statistics."""
         try:
             # Проверяем авторизацию
             from nicegui import app
@@ -697,7 +704,17 @@ class A101ProfileGenerator:
             self.positions_label.text = pos_text
 
     async def _on_search_select(self, event=None):
-        """Обработчик выбора варианта из dropdown - сразу подготавливаем к генерации"""
+        """Handle the selection of an option from a dropdown menu.
+        
+        This function processes the selection event, retrieves the selected value, and
+        handles hierarchical selection to set the appropriate department and position.
+        It updates the UI state based on the selection and provides notifications to
+        the user. If the event is not provided, it falls back to using the search input
+        value to perform the selection.
+        
+        Args:
+            event (Optional): The event object containing the selected value from the dropdown.
+        """
         if event and hasattr(event, "value") and event.value:
             # Получаем выбранное значение из dropdown
             selected_value = event.value.strip()
@@ -772,14 +789,8 @@ class A101ProfileGenerator:
         return "", ""
 
     async def _set_selected_position(self, position: str, department: str):
-        """
-        Установка выбранной позиции для генерации профиля.
-
-        Args:
-            position: Название позиции
-            department: Название департамента
-        """
         # Сохраняем выбранные данные
+        """Sets the selected position and department for profile generation."""
         self.selected_position = position
         self.selected_department = department
 
@@ -796,12 +807,18 @@ class A101ProfileGenerator:
         await self._display_detailed_position_info()
 
     async def _load_position_details(self, position: str, department: str):
-        """
-        Загрузка детальной информации о позиции включая статус профилей.
-
+        """Load detailed information about a position, including profile statuses.
+        
+        This asynchronous function retrieves detailed information about a specified
+        position and its associated department from the catalog. It first fetches the
+        position details and then retrieves the department hierarchy. Finally, it
+        gathers existing profiles related to the position, logging the number of
+        profiles loaded. In case of any errors during the process, it handles
+        exceptions gracefully and resets the relevant attributes.
+        
         Args:
-            position: Название позиции
-            department: Название департамента
+            position (str): The name of the position.
+            department (str): The name of the department.
         """
         try:
             # Получаем детальную информацию о позиции из каталога
@@ -853,7 +870,15 @@ class A101ProfileGenerator:
             self.position_profiles = []
 
     async def _display_detailed_position_info(self):
-        """Отображение детальной информации о выбранной позиции"""
+        """Display detailed information about the selected position.
+        
+        This asynchronous function checks if a selected position card exists and is
+        valid.  If so, it clears the card and populates it with detailed information,
+        including  the position's hierarchy, level, category, and profile status. It
+        utilizes helper  methods like _display_hierarchy_chips and
+        _format_position_level to format and  display the relevant data in a structured
+        UI layout.
+        """
         if (
             not hasattr(self, "selected_position_card")
             or not self.selected_position_card
@@ -970,7 +995,15 @@ class A101ProfileGenerator:
                                 ).classes("q-ml-sm")
 
     def _display_hierarchy_chips(self):
-        """Отображение иерархии сотрудника красивыми чипсами"""
+        """Display the employee hierarchy using visually appealing chips.
+        
+        This function constructs a visual representation of the employee hierarchy by
+        breaking down the department path into its components. It handles both the full
+        hierarchy and a fallback to the selected department name. Each part of the
+        hierarchy is displayed as a chip with appropriate styling based on its level,
+        and arrows are used to indicate the relationship between the elements. In case
+        of an error, it logs the issue and falls back to a simple text representation.
+        """
         try:
             hierarchy_parts = []
             
@@ -1032,7 +1065,15 @@ class A101ProfileGenerator:
             )
 
     def _get_full_hierarchy(self) -> str:
-        """Получение полной иерархии сотрудника"""
+        """Retrieve the full hierarchy of an employee.
+        
+        This function constructs a string representing the full hierarchy  of an
+        employee based on their department and position. It first  checks for the
+        presence of department details and a selected  position. If both are available,
+        it combines the department path  with the selected position. If not, it falls
+        back to a simpler  representation using just the department and position. Any
+        errors  encountered during this process are logged.
+        """
         try:
             if (
                 hasattr(self, "department_details")
@@ -1051,7 +1092,7 @@ class A101ProfileGenerator:
             return f"{self.selected_department} → {self.selected_position}"
 
     def _format_datetime(self, datetime_str: str) -> str:
-        """Форматирование даты и времени для отображения"""
+        """Format a datetime string for display."""
         if not datetime_str:
             return "Неизвестно"
         try:
@@ -1063,7 +1104,13 @@ class A101ProfileGenerator:
             return datetime_str
 
     def _update_generation_ui_state(self):
-        """Обновление состояния UI для генерации профиля"""
+        """def _update_generation_ui_state(self):
+        Update the UI state for profile generation.  This method updates the UI
+        elements related to the profile generation process.  It checks for the presence
+        of a generate button and updates its properties to indicate  that generation is
+        possible. Additionally, it hides the search loading indicator if it exists.
+        Any exceptions encountered during the update process are logged for debugging
+        purposes."""
         try:
             # Показать что можно генерировать (если есть соответствующие элементы UI)
             if hasattr(self, "generate_button") and self.generate_button:
@@ -1269,7 +1316,15 @@ class A101ProfileGenerator:
                     ui.label(error_message).classes("text-sm text-muted mt-2")
 
     async def _start_generation(self):
-        """Запуск генерации профиля"""
+        """Initiates the profile generation process.
+        
+        This method checks if a position is selected and if a generation process is
+        already ongoing.  If conditions are met, it prepares the necessary data and
+        calls the API to start the profile  generation. It handles success and error
+        notifications, updates the UI accordingly, and  manages the loading state of
+        the generate button. Additionally, it shows the generation  progress and logs
+        any exceptions that may occur during the process.
+        """
         if not self.selected_position or self.is_generating:
             return
 
@@ -1479,7 +1534,7 @@ class A101ProfileGenerator:
         asyncio.create_task(self._start_generation())
 
     def _reset_generator(self):
-        """Сброс генератора - упрощенная версия"""
+        """Resets the generator and clears the current task."""
         self._clear_selection()
         self.current_task_id = None
         ui.notify("🔄 Генератор сброшен", type="info")
