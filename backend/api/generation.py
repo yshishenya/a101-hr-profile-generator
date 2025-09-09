@@ -117,22 +117,26 @@ async def background_generate_profile(
             {"current_step": "Генерация профиля через LLM", "progress": 30}
         )
 
-        # Генерация профиля
+        # Создаем profile_id заранее
+        profile_id = str(uuid.uuid4())
+        
+        # Генерация профиля с передачей profile_id
         result = await generator.generate_profile(
             department=request.department,
             position=request.position,
             employee_name=request.employee_name,
             temperature=request.temperature,
             save_result=request.save_result,
+            profile_id=profile_id  # Передаем UUID в генератор
         )
 
         _active_tasks[task_id].update(
             {"current_step": "Сохранение результата", "progress": 90}
         )
 
-        # Сохраняем в БД
+        # Сохраняем в БД с уже известным profile_id
         if result["success"]:
-            await save_generation_to_db(result, user_id, task_id)
+            await save_generation_to_db(result, user_id, task_id, profile_id)
 
         # Завершаем задачу
         _active_tasks[task_id].update(
@@ -168,14 +172,11 @@ async def background_generate_profile(
         )
 
 
-async def save_generation_to_db(result: Dict[str, Any], user_id: int, task_id: str):
+async def save_generation_to_db(result: Dict[str, Any], user_id: int, task_id: str, profile_id: str):
     """Сохранение результата генерации в базу данных"""
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor()
-
-        # Создаем уникальный ID для профиля
-        profile_id = str(uuid.uuid4())
 
         # Сохраняем профиль с правильной схемой
         cursor.execute(
@@ -183,9 +184,10 @@ async def save_generation_to_db(result: Dict[str, Any], user_id: int, task_id: s
             INSERT INTO profiles (
                 id, department, position, employee_name,
                 profile_data, metadata_json,
-                generation_duration_ms, tokens_used, langfuse_trace_id,
-                created_by, created_at, updated_at, generation_task_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                generation_time_seconds, input_tokens, output_tokens, total_tokens,
+                validation_score, completeness_score,
+                created_by, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 profile_id,
@@ -194,13 +196,15 @@ async def save_generation_to_db(result: Dict[str, Any], user_id: int, task_id: s
                 result["metadata"]["generation"].get("employee_name"),
                 json.dumps(result["profile"], ensure_ascii=False),
                 json.dumps(result["metadata"], ensure_ascii=False),
-                int(result["metadata"]["generation"]["duration"] * 1000),
+                result["metadata"]["generation"]["duration"],
+                result["metadata"]["llm"].get("input_tokens", 0),
+                result["metadata"]["llm"].get("output_tokens", 0),
                 result["metadata"]["llm"].get("tokens_used", 0),
-                result["metadata"].get("langfuse_trace_id"),
+                result["metadata"]["validation"].get("validation_score", 0.0),
+                result["metadata"]["validation"].get("completeness_score", 0.0),
                 user_id,
                 datetime.now().isoformat(),
                 datetime.now().isoformat(),
-                task_id,
             ),
         )
 

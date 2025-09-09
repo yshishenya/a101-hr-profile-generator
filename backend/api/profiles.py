@@ -13,6 +13,7 @@ Examples:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from typing import List, Dict, Any, Optional
 import json
 import sqlite3
@@ -30,9 +31,11 @@ from ..utils.validators import (
     validate_profile_update_request,
 )
 from ..utils.exceptions import NotFoundError, ValidationError, DatabaseError
+from ..services.profile_storage_service import ProfileStorageService
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile Management"])
 db_manager = DatabaseManager()
+storage_service = ProfileStorageService()
 
 
 @router.get("/", response_model=ProfileListResponse)
@@ -75,9 +78,9 @@ async def get_profiles(
 
         # Базовый запрос
         base_query = """
-            SELECT p.id, p.department, p.position, p.employee_name,
+            SELECT p.id as profile_id, p.department, p.position, p.employee_name,
                    p.created_at, p.updated_at, p.status, p.validation_score,
-                   p.completeness_score, u.full_name as created_by_name
+                   p.completeness_score, u.full_name as created_by_name, u.username as created_by_username
             FROM profiles p
             LEFT JOIN users u ON p.created_by = u.id
             WHERE 1=1
@@ -117,7 +120,8 @@ async def get_profiles(
 
         # Считаем общее количество
         cursor.execute(count_query, params)
-        total_count = cursor.fetchone()[0]
+        count_result = cursor.fetchone()
+        total_count = count_result[0] if count_result else 0
 
         # Добавляем пагинацию
         offset = (page - 1) * limit
@@ -135,7 +139,7 @@ async def get_profiles(
         profiles = []
         for row in rows:
             profile = {
-                "id": row["id"],
+                "profile_id": row["profile_id"],
                 "department": row["department"],
                 "position": row["position"],
                 "employee_name": row["employee_name"],
@@ -143,8 +147,11 @@ async def get_profiles(
                 "validation_score": row["validation_score"],
                 "completeness_score": row["completeness_score"],
                 "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-                "created_by_name": row["created_by_name"],
+                "created_by_username": row["created_by_username"],
+                "actions": {
+                    "download_json": f"/api/profiles/{row['profile_id']}/download/json",
+                    "download_md": f"/api/profiles/{row['profile_id']}/download/md"
+                }
             }
             profiles.append(profile)
 
@@ -181,7 +188,7 @@ async def get_profiles(
         )
 
 
-@router.get("/{profile_id}", response_model=ProfileResponse)
+@router.get("/{profile_id}")
 async def get_profile(profile_id: str, current_user: dict = Depends(get_current_user)):
     """
     @doc Получить конкретный профиль по ID
@@ -219,24 +226,15 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
         metadata = json.loads(row["metadata_json"])
 
         return {
-            "id": row["id"],
-            "department": row["department"],
-            "position": row["position"],
-            "employee_name": row["employee_name"],
-            "profile_data": profile_data,
+            "profile_id": row["id"],
+            "profile": profile_data.get("profile", profile_data), 
             "metadata": metadata,
-            "generation_metrics": {
-                "generation_time_seconds": row["generation_time_seconds"],
-                "input_tokens": row["input_tokens"],
-                "output_tokens": row["output_tokens"],
-                "total_tokens": row["total_tokens"],
-                "validation_score": row["validation_score"],
-                "completeness_score": row["completeness_score"],
-            },
-            "status": row["status"],
             "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-            "created_by_name": row["created_by_name"],
+            "created_by_username": row["created_by_name"],
+            "actions": {
+                "download_json": f"/api/profiles/{row['id']}/download/json",
+                "download_md": f"/api/profiles/{row['id']}/download/md"
+            }
         }
 
     except json.JSONDecodeError as e:
@@ -474,5 +472,157 @@ async def restore_profile(
         raise DatabaseError(
             f"Unexpected error restoring profile {profile_id}: {str(e)}",
             operation="UPDATE",
+            table="profiles",
+        )
+
+
+@router.get("/{profile_id}/download/json")
+async def download_profile_json(
+    profile_id: str, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Скачать JSON файл профиля
+
+    Examples:
+        python>
+        # Скачать JSON файл профиля
+        GET /api/profiles/123e4567-e89b-12d3-a456-426614174000/download/json
+    """
+    # Валидация profile_id
+    profile_id = validate_profile_id(profile_id)
+
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+
+        # Получаем информацию о профиле из БД
+        cursor.execute(
+            """
+            SELECT id, department, position, created_at
+            FROM profiles
+            WHERE id = ?
+        """,
+            (profile_id,),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        # Вычисляем путь к JSON файлу детерминистически
+        created_at = datetime.fromisoformat(row["created_at"])
+        json_path, _ = storage_service.get_profile_paths(
+            profile_id=row["id"],
+            department=row["department"],
+            position=row["position"],
+            created_at=created_at,
+        )
+
+        # Проверяем существование файла
+        if not json_path.exists():
+            raise NotFoundError(
+                f"Profile JSON file not found at {json_path}",
+                resource="file",
+                resource_id=str(json_path),
+            )
+
+        # Возвращаем файл для скачивания
+        return FileResponse(
+            path=str(json_path),
+            filename=f"profile_{row['position']}_{profile_id[:8]}.json",
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment"},
+        )
+
+    except (NotFoundError, ValidationError):
+        raise
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to fetch profile {profile_id}: {str(e)}",
+            operation="SELECT",
+            table="profiles",
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error downloading profile {profile_id}: {str(e)}",
+            operation="FILE_ACCESS",
+            table="profiles",
+        )
+
+
+@router.get("/{profile_id}/download/md")
+async def download_profile_md(
+    profile_id: str, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Скачать MD файл профиля
+
+    Examples:
+        python>
+        # Скачать MD файл профиля
+        GET /api/profiles/123e4567-e89b-12d3-a456-426614174000/download/md
+    """
+    # Валидация profile_id
+    profile_id = validate_profile_id(profile_id)
+
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+
+        # Получаем информацию о профиле из БД
+        cursor.execute(
+            """
+            SELECT id, department, position, created_at
+            FROM profiles
+            WHERE id = ?
+        """,
+            (profile_id,),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        # Вычисляем путь к MD файлу детерминистически
+        created_at = datetime.fromisoformat(row["created_at"])
+        _, md_path = storage_service.get_profile_paths(
+            profile_id=row["id"],
+            department=row["department"],
+            position=row["position"],
+            created_at=created_at,
+        )
+
+        # Проверяем существование файла
+        if not md_path.exists():
+            raise NotFoundError(
+                f"Profile MD file not found at {md_path}",
+                resource="file",
+                resource_id=str(md_path),
+            )
+
+        # Возвращаем файл для скачивания
+        return FileResponse(
+            path=str(md_path),
+            filename=f"profile_{row['position']}_{profile_id[:8]}.md",
+            media_type="text/markdown",
+            headers={"Content-Disposition": "attachment"},
+        )
+
+    except (NotFoundError, ValidationError):
+        raise
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to fetch profile {profile_id}: {str(e)}",
+            operation="SELECT",
+            table="profiles",
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error downloading profile {profile_id}: {str(e)}",
+            operation="FILE_ACCESS",
             table="profiles",
         )

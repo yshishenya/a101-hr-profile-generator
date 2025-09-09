@@ -10,6 +10,7 @@
 
 import json
 import logging
+import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from pathlib import Path
@@ -18,6 +19,8 @@ from .data_loader import DataLoader
 from .llm_client import LLMClient
 from .prompt_manager import PromptManager
 from .config import config
+from ..services.profile_markdown_generator import ProfileMarkdownGenerator
+from ..services.profile_storage_service import ProfileStorageService
 
 # from langfuse.decorators import observe  # Временно убрали из-за проблем с версией
 
@@ -54,6 +57,8 @@ class ProfileGenerator:
 
         # Инициализируем компоненты
         self.data_loader = DataLoader(str(self.base_data_path))
+        self.md_generator = ProfileMarkdownGenerator()
+        self.storage_service = ProfileStorageService(str(self.base_data_path / "generated_profiles"))
 
         # Инициализируем LLMClient (он сам получит настройки из config)
         try:
@@ -79,6 +84,7 @@ class ProfileGenerator:
         employee_name: Optional[str] = None,
         temperature: float = 0.1,
         save_result: bool = True,
+        profile_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Генерация профиля должности
@@ -149,7 +155,7 @@ class ProfileGenerator:
 
             # 6. Сохранение результата
             if save_result and final_result["success"]:
-                saved_path = self._save_result(final_result, department, position)
+                saved_path = self._save_result(final_result, department, position, profile_id)
                 final_result["metadata"]["saved_path"] = str(saved_path)
                 logger.info(f"💾 Result saved to: {saved_path}")
 
@@ -220,8 +226,7 @@ class ProfileGenerator:
         enhanced_profile = self._enhance_profile_data(profile)
 
         return {
-            "success": validation["is_valid"]
-            and validation["completeness_score"] > 0.7,
+            "success": validation["completeness_score"] >= 0.7,
             "profile": enhanced_profile,
             "validation": validation,
             "errors": validation.get("errors", []),
@@ -263,10 +268,57 @@ class ProfileGenerator:
         return enhanced
 
     def _save_result(
+        self, result: Dict[str, Any], department: str, position: str, profile_id: str
+    ) -> Path:
+        """
+        Сохранение результата генерации в новую иерархическую структуру файлов.
+        
+        Создает полную структуру: Блок/Департамент/Отдел/Группа/Должность/Экземпляр/
+        """
+        generation_timestamp = datetime.now()
+        
+        try:
+            logger.info(f"💾 Creating hierarchical directory structure for: {department} -> {position}")
+            
+            # 1. Создаем иерархическую структуру папок
+            profile_dir = self.storage_service.create_profile_directory(
+                department=department,
+                position=position,
+                timestamp=generation_timestamp,
+                profile_id=profile_id
+            )
+            
+            # 2. Генерируем MD файл
+            logger.info("📝 Auto-generating Markdown profile...")
+            md_content = self.md_generator.generate_from_json(result)
+            
+            # 3. Сохраняем JSON и MD файлы в одну папку
+            json_path, md_path = self.storage_service.save_profile_files(
+                directory=profile_dir,
+                json_content=result,
+                md_content=md_content,
+                profile_id=profile_id
+            )
+            
+            logger.info(f"✅ Profile saved to hierarchical structure:")
+            logger.info(f"  📁 Directory: {profile_dir}")
+            logger.info(f"  📄 JSON: {json_path.name}")
+            logger.info(f"  📝 MD: {md_path.name}")
+            
+            return json_path  # Возвращаем путь к JSON файлу для обратной совместимости
+            
+        except Exception as e:
+            logger.error(f"❌ Error saving profile to hierarchical structure: {e}")
+            
+            # Fallback к старой системе в случае ошибки
+            logger.warning("⚠️ Falling back to legacy file structure...")
+            return self._save_result_legacy(result, department, position)
+    
+    def _save_result_legacy(
         self, result: Dict[str, Any], department: str, position: str
     ) -> Path:
-        """Сохранение результата генерации в файл"""
-
+        """Fallback к старой системе сохранения файлов"""
+        
         # Создаем папку для результатов если не существует
         results_dir = self.base_data_path / "generated_profiles"
         results_dir.mkdir(exist_ok=True)
@@ -284,7 +336,8 @@ class ProfileGenerator:
         # Сохраняем результат
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-
+        
+        logger.info(f"💾 Legacy save completed: {file_path}")
         return file_path
 
     def _sanitize_filename(self, name: str) -> str:

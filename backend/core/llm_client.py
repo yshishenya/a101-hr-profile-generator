@@ -454,11 +454,16 @@ class LLMClient:
             "completeness_score": 0.0,
         }
 
-        # Проверяем обязательные поля (обновлено для упрощенной схемы)
+        # Проверяем обязательные поля (синхронизировано со схемой JSON)
         required_fields = [
+            "position_title",
+            "department_broad", 
+            "department_specific",
+            "category",
+            "primary_activity",
             "responsibility_areas",
             "professional_skills",
-            "corporate_competencies",
+            "personal_qualities"
         ]
 
         missing_fields = []
