@@ -9,11 +9,12 @@
 """
 
 import logging
+import time
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from ..core.data_loader import DataLoader
 from ..models.database import db_manager
+from ..core.organization_cache import organization_cache
 
 logger = logging.getLogger(__name__)
 
@@ -22,51 +23,44 @@ class CatalogService:
     """Сервис для работы с каталогом департаментов и должностей"""
 
     def __init__(self):
-        self.data_loader = DataLoader()
         self.db = db_manager
-
-        # Настройки кеширования
-        self._departments_cache = None
-        self._positions_cache = {}
-        self._cache_ttl = timedelta(hours=1)  # TTL кеша - 1 час
-        self._last_departments_update = None
-        self._positions_last_update = {}
+        self.organization_cache = organization_cache  # Добавляем ссылку для новых endpoints
+        # Removed DataLoader - using organization_cache directly
+        # Removed local caching infrastructure - using centralized cache
 
     def get_departments(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """
-        Получение списка всех доступных департаментов с использованием оптимизированной загрузки.
+        Получение списка всех доступных департаментов из централизованного кеша.
 
         Args:
-            force_refresh: Принудительное обновление кеша
+            force_refresh: Параметр для совместимости (игнорируется)
 
         Returns:
             List[Dict] с информацией о департаментах
         """
         try:
             start_time = datetime.now()
+            logger.info("Loading departments from centralized organization cache")
 
-            # Проверяем кеш
-            if not force_refresh and self._is_departments_cache_valid():
-                logger.info("Using cached departments data")
-                return self._departments_cache
-
-            logger.info("Loading departments using optimized full structure method")
-
-            # Очистить кеш DataLoader если принудительное обновление
-            if force_refresh:
-                self.data_loader.clear_cache()
-
-            # Загружаем полную структуру за один запрос
-            full_structure = self.data_loader.load_full_organization_structure()
-
-            # Преобразуем в формат для API
+            # Получаем все департаменты из централизованного кеша
+            all_departments = organization_cache.get_all_departments()
+            
+            # Преобразуем в API формат
             departments_info = []
-            for dept_name, dept_data in full_structure["departments"].items():
+            for dept_name in all_departments:
+                # Получаем количество позиций для департамента
+                positions = organization_cache.get_department_positions(dept_name)
+                positions_count = len(positions) if positions else 0
+                
+                # Получаем путь департамента
+                path_list = organization_cache.find_department_path(dept_name)
+                path = " → ".join(path_list) if path_list else dept_name
+                
                 dept_info = {
                     "name": dept_name,
                     "display_name": dept_name,
-                    "path": dept_data["path"],
-                    "positions_count": dept_data["positions_count"],
+                    "path": path,
+                    "positions_count": positions_count,
                     "last_updated": datetime.now().isoformat(),
                 }
                 departments_info.append(dept_info)
@@ -74,110 +68,62 @@ class CatalogService:
             # Сортируем по названию для консистентности
             departments_info.sort(key=lambda x: x["name"])
 
-            # Обновляем кеш
-            self._departments_cache = departments_info
-            self._last_departments_update = datetime.now()
-
-            # Сохраняем в БД кеш для персистентности
-            self._save_departments_to_cache(departments_info)
-
             load_time = (datetime.now() - start_time).total_seconds()
-            logger.info(
-                f"✅ Loaded {len(departments_info)} departments in {load_time:.3f}s "
-                f"(total positions: {full_structure['metadata']['total_positions']})"
-            )
+            logger.info(f"✅ Loaded {len(departments_info)} departments in {load_time:.3f}s from centralized cache")
+            
             return departments_info
 
         except Exception as e:
-            logger.error(f"Error getting departments: {e}")
-
-            # Пытаемся вернуть из БД кеша
-            cached_data = self._load_departments_from_cache()
-            if cached_data:
-                logger.warning("Returning cached departments from database")
-                return cached_data
-
-            # Последний fallback - пустой список
+            logger.error(f"Error getting departments from centralized cache: {e}")
             return []
 
     def get_positions(
         self, department: str, force_refresh: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Получение списка должностей для конкретного департамента с использованием оптимизированной загрузки.
+        Получение списка должностей для конкретного департамента из централизованного кеша.
 
         Args:
             department: Название департамента
-            force_refresh: Принудительное обновление кеша
+            force_refresh: Параметр для совместимости (игнорируется)
 
         Returns:
             List[Dict] с информацией о должностях
         """
         try:
             start_time = datetime.now()
+            logger.info(f"Loading positions for {department} from centralized cache")
 
-            # Проверяем кеш для этого департамента
-            cache_key = department
-
-            if not force_refresh and self._is_positions_cache_valid(cache_key):
-                logger.info(f"Using cached positions data for {department}")
-                return self._positions_cache[cache_key]
-
-            logger.info(
-                f"Loading positions for department using optimized method: {department}"
-            )
-
-            # Получаем данные из полной структуры DataLoader (уже оптимизировано)
-            full_structure = self.data_loader.load_full_organization_structure()
-
-            # Получаем позиции для департамента из кешированной структуры
+            # Получаем позиции из централизованного кеша  
+            positions = organization_cache.get_department_positions(department)
+            
+            # Преобразуем в API формат
             positions_info = []
-            if department in full_structure["departments"]:
-                dept_positions = full_structure["departments"][department]["positions"]
+            for position in positions:
+                # Определяем уровень и категорию должности
+                level = self._determine_position_level(position)
+                category = self._determine_position_category(position)
+                
+                pos_info = {
+                    "name": position,
+                    "department": department,
+                    "display_name": position,
+                    "level": level,
+                    "category": category,
+                    "last_updated": datetime.now().isoformat(),
+                }
+                positions_info.append(pos_info)
 
-                for pos_data in dept_positions:
-                    pos_info = {
-                        "name": pos_data["name"],
-                        "department": department,
-                        "display_name": pos_data["name"],
-                        "level": pos_data["level"],
-                        "category": pos_data["category"],
-                        "last_updated": datetime.now().isoformat(),
-                    }
-                    positions_info.append(pos_info)
-
-                # Сортируем должности по уровню и названию
-                positions_info.sort(key=lambda x: (x["level"], x["name"]))
-            else:
-                logger.warning(
-                    f"Department '{department}' not found in organization structure"
-                )
-
-            # Обновляем кеш
-            self._positions_cache[cache_key] = positions_info
-            self._positions_last_update[cache_key] = datetime.now()
-
-            # Сохраняем в БД кеш
-            self._save_positions_to_cache(department, positions_info)
+            # Сортируем должности по уровню и названию
+            positions_info.sort(key=lambda x: (x["level"], x["name"]))
 
             load_time = (datetime.now() - start_time).total_seconds()
-            logger.info(
-                f"✅ Loaded {len(positions_info)} positions for {department} in {load_time:.3f}s"
-            )
+            logger.info(f"✅ Loaded {len(positions_info)} positions for {department} in {load_time:.3f}s from centralized cache")
+            
             return positions_info
 
         except Exception as e:
-            logger.error(f"Error getting positions for {department}: {e}")
-
-            # Пытаемся вернуть из БД кеша
-            cached_data = self._load_positions_from_cache(department)
-            if cached_data:
-                logger.warning(
-                    f"Returning cached positions from database for {department}"
-                )
-                return cached_data
-
-            # Последний fallback - пустой список
+            logger.error(f"Error getting positions for {department} from centralized cache: {e}")
             return []
 
     def search_departments(self, query: str) -> List[Dict[str, Any]]:
@@ -281,7 +227,7 @@ class CatalogService:
 
     def get_department_details(self, department_name: str) -> Optional[Dict[str, Any]]:
         """
-        Получение детальной информации о департаменте.
+        Получение детальной информации о департаменте из централизованного кеша.
 
         Args:
             department_name: Название департамента
@@ -305,11 +251,13 @@ class CatalogService:
 
             # Добавляем расширенную информацию
             positions = self.get_positions(department_name)
-            organization_structure = (
-                self.data_loader.org_mapper.extract_relevant_structure(
-                    department_name, levels_up=1, levels_down=2
-                )
-            )
+            
+            # Получаем организационную структуру из централизованного кеша
+            organization_structure = {
+                "target_department": department_name,
+                "department_path": " → ".join(organization_cache.find_department_path(department_name) or [department_name]),
+                "structure": organization_cache.find_department(department_name)
+            }
 
             department_info.update(
                 {
@@ -359,161 +307,156 @@ class CatalogService:
         else:
             return "specialist"
 
-    def _is_departments_cache_valid(self) -> bool:
-        """Проверка валидности кеша департаментов"""
-        if not self._departments_cache or not self._last_departments_update:
-            return False
-
-        return datetime.now() - self._last_departments_update < self._cache_ttl
-
-    def _is_positions_cache_valid(self, cache_key: str) -> bool:
-        """Проверка валидности кеша должностей"""
-        if (
-            cache_key not in self._positions_cache
-            or cache_key not in self._positions_last_update
-        ):
-            return False
-
-        return datetime.now() - self._positions_last_update[cache_key] < self._cache_ttl
-
-    def _save_departments_to_cache(self, departments: List[Dict]):
-        """Сохранение департаментов в БД кеш"""
-        try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor()
-
-            # Очищаем старый кеш департаментов
-            cursor.execute(
-                "DELETE FROM organization_cache WHERE cache_type = 'departments'"
-            )
-
-            # Сохраняем новые данные
-            cursor.execute(
-                """
-                INSERT INTO organization_cache (cache_type, cache_key, data_json, expires_at)
-                VALUES ('departments', 'all', ?, datetime('now', '+1 hour'))
-            """,
-                (str(departments),),
-            )
-
-            conn.commit()
-
-        except Exception as e:
-            logger.error(f"Error saving departments to cache: {e}")
-
-    def _load_departments_from_cache(self) -> Optional[List[Dict]]:
-        """Загрузка департаментов из БД кеша"""
-        try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT data_json FROM organization_cache 
-                WHERE cache_type = 'departments' AND cache_key = 'all' 
-                AND expires_at > datetime('now')
-            """
-            )
-
-            row = cursor.fetchone()
-            if row:
-                import ast
-
-                return ast.literal_eval(row["data_json"])
-
-        except Exception as e:
-            logger.error(f"Error loading departments from cache: {e}")
-
-        return None
-
-    def _save_positions_to_cache(self, department: str, positions: List[Dict]):
-        """Сохранение должностей в БД кеш"""
-        try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor()
-
-            # Удаляем старый кеш для этого департамента
-            cursor.execute(
-                """
-                DELETE FROM organization_cache 
-                WHERE cache_type = 'positions' AND cache_key = ?
-            """,
-                (department,),
-            )
-
-            # Сохраняем новые данные
-            cursor.execute(
-                """
-                INSERT INTO organization_cache (cache_type, cache_key, data_json, expires_at)
-                VALUES ('positions', ?, ?, datetime('now', '+1 hour'))
-            """,
-                (department, str(positions)),
-            )
-
-            conn.commit()
-
-        except Exception as e:
-            logger.error(f"Error saving positions to cache for {department}: {e}")
-
-    def _load_positions_from_cache(self, department: str) -> Optional[List[Dict]]:
-        """Загрузка должностей из БД кеша"""
-        try:
-            conn = self.db.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT data_json FROM organization_cache 
-                WHERE cache_type = 'positions' AND cache_key = ? 
-                AND expires_at > datetime('now')
-            """,
-                (department,),
-            )
-
-            row = cursor.fetchone()
-            if row:
-                import ast
-
-                return ast.literal_eval(row["data_json"])
-
-        except Exception as e:
-            logger.error(f"Error loading positions from cache for {department}: {e}")
-
-        return None
-
     def clear_cache(self, cache_type: Optional[str] = None):
         """
-        Очистка кеша.
+        Очистка кеша - пустая реализация для совместимости с API.
+        
+        Централизованный кеш управляется напрямую через organization_cache.
 
         Args:
-            cache_type: Тип кеша ('departments', 'positions', или None для всех)
+            cache_type: Параметр для совместимости (игнорируется)
+        """
+        logger.info(f"Cache clear requested: {cache_type or 'all'} - using centralized cache, no action needed")
+
+    # НОВЫЕ методы для path-based поддержки и LLM интеграции
+    def get_searchable_items(self) -> List[Dict[str, Any]]:
+        """
+        @doc
+        Получение всех элементов для frontend поиска с path-based индексацией.
+        
+        Использует новую path-based систему для получения всех 567 бизнес-единиц
+        без потерь данных из-за дублирующихся имен.
+        
+        Returns:
+            List[Dict[str, Any]]: Элементы для dropdown с полной иерархией
+            
+        Examples:
+            python> items = catalog_service.get_searchable_items()
+            python> # [{'display_name': 'ДИТ (Блок ОД)', 'full_path': '...', ...}]
         """
         try:
-            # Очищаем память кеш
-            if cache_type == "departments" or cache_type is None:
-                self._departments_cache = None
-                self._last_departments_update = None
-
-            if cache_type == "positions" or cache_type is None:
-                self._positions_cache.clear()
-                self._positions_last_update.clear()
-
-            # Очищаем БД кеш
-            conn = self.db.get_connection()
-            cursor = conn.cursor()
-
-            if cache_type:
-                cursor.execute(
-                    "DELETE FROM organization_cache WHERE cache_type = ?", (cache_type,)
-                )
-            else:
-                cursor.execute("DELETE FROM organization_cache")
-
-            conn.commit()
-            logger.info(f"Cache cleared: {cache_type or 'all'}")
+            start_time = time.time()
+            
+            # Используем новый path-based метод из organization_cache
+            searchable_items = self.organization_cache.get_searchable_items()
+            
+            execution_time = time.time() - start_time
+            logger.info(
+                f"✅ Retrieved {len(searchable_items)} searchable items in {execution_time:.4f}s (path-based)"
+            )
+            
+            return searchable_items
 
         except Exception as e:
-            logger.error(f"Error clearing cache: {e}")
+            logger.error(f"❌ Error getting searchable items: {e}")
+            return []
+
+    def get_organization_structure_with_target(
+        self, target_path: str
+    ) -> Dict[str, Any]:
+        """
+        @doc
+        Получение полной организационной структуры с выделенной целевой позицией.
+        
+        Для LLM анализа карьерных путей - возвращает всю оргструктуру
+        с подсвеченным целевым элементом и его родительскими узлами.
+        
+        Args:
+            target_path: Полный путь к целевой бизнес-единице
+            
+        Returns:
+            Dict[str, Any]: Полная структура с выделенной целью
+            
+        Examples:
+            python> structure = catalog_service.get_organization_structure_with_target("Блок ОД/ДИТ")
+            python> # Полная оргструктура с ДИТ и родителями помеченными is_target=True
+        """
+        try:
+            start_time = time.time()
+            
+            # Проверяем существование целевого пути
+            target_unit = self.organization_cache.find_unit_by_path(target_path)
+            if not target_unit:
+                logger.warning(f"Target path not found: {target_path}")
+                return {
+                    "error": f"Business unit at path '{target_path}' not found",
+                    "available_paths": list(self.organization_cache.get_all_business_units_with_paths().keys())[:10]  # Первые 10 для примера
+                }
+            
+            # Получаем структуру с подсвеченной целью
+            highlighted_structure = self.organization_cache.get_structure_with_target_highlighted(target_path)
+            
+            # Добавляем метаданные для LLM
+            highlighted_structure["target_unit_info"] = {
+                "name": target_unit["name"],
+                "full_path": target_path,
+                "positions_count": len(target_unit["positions"]),
+                "positions": target_unit["positions"],
+                "hierarchy_level": target_unit["level"]
+            }
+            
+            execution_time = time.time() - start_time
+            logger.info(
+                f"✅ Generated highlighted structure for '{target_path}' in {execution_time:.4f}s"
+            )
+            
+            return highlighted_structure
+
+        except Exception as e:
+            logger.error(f"❌ Error generating highlighted structure for '{target_path}': {e}")
+            return {
+                "error": f"Failed to generate structure: {str(e)}",
+                "target_path": target_path
+            }
+
+    def find_business_unit_by_path(self, full_path: str) -> Optional[Dict[str, Any]]:
+        """
+        @doc
+        Поиск бизнес-единицы по полному пути с дополнительными метаданными.
+        
+        Args:
+            full_path: Полный путь в формате "Блок/Департамент/Управление/Группа"
+            
+        Returns:
+            Optional[Dict[str, Any]]: Расширенные данные бизнес-единицы
+            
+        Examples:
+            python> unit = catalog_service.find_business_unit_by_path("Блок ОД/ДИТ")
+            python> # {'name': 'ДИТ', 'positions': [...], 'hierarchy': [...], ...}
+        """
+        try:
+            unit_data = self.organization_cache.find_unit_by_path(full_path)
+            if not unit_data:
+                return None
+                
+            # Добавляем расширенные метаданные
+            path_parts = full_path.split("/")
+            
+            enhanced_unit = {
+                **unit_data,
+                "hierarchy_path": path_parts,
+                "parent_path": "/".join(path_parts[:-1]) if len(path_parts) > 1 else None,
+                "enriched_positions": []
+            }
+            
+            # Обогащаем информацию о позициях
+            for position in unit_data.get("positions", []):
+                enriched_position = {
+                    "name": position,
+                    "level": self._determine_position_level(position),
+                    "category": self._determine_position_category(position),
+                    "department": unit_data["name"],
+                    "full_path": full_path,
+                    "last_updated": datetime.now().isoformat()
+                }
+                enhanced_unit["enriched_positions"].append(enriched_position)
+            
+            logger.info(f"✅ Found business unit '{full_path}' with {len(enhanced_unit['enriched_positions'])} positions")
+            return enhanced_unit
+            
+        except Exception as e:
+            logger.error(f"❌ Error finding business unit by path '{full_path}': {e}")
+            return None
 
 
 # Глобальный экземпляр сервиса каталога

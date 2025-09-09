@@ -426,14 +426,10 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
                     "categories_distribution": all_categories,
                 },
                 "cache_status": {
-                    "departments_cached": catalog_service._departments_cache
-                    is not None,
-                    "positions_cached_count": len(catalog_service._positions_cache),
-                    "last_departments_update": (
-                        catalog_service._last_departments_update.isoformat()
-                        if catalog_service._last_departments_update
-                        else None
-                    ),
+                    "departments_cached": catalog_service.organization_cache.is_loaded(),
+                    "positions_cached_count": len(catalog_service.organization_cache.get_all_business_units_with_paths()),
+                    "centralized_cache": True,
+                    "cache_type": "organization_cache (path-based)",
                 },
             },
         }
