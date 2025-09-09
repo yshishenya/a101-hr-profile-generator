@@ -373,7 +373,7 @@ class DataLoader:
         return list(full_structure["departments"].keys())
     
     def _get_positions_for_department_internal(self, department: str) -> List[str]:
-        """Внутренний метод для получения позиций департамента из реальной оргструктуры"""
+        """Retrieve positions for a given department from the organizational structure."""
         try:
             # Загружаем позиции из реальной структуры через OrganizationMapper
             real_positions = self.org_mapper.get_positions_for_department(department)
