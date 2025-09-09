@@ -22,11 +22,14 @@ from fastapi.responses import JSONResponse
 # Импорты для аутентификации, каталога, генерации и управления профилями
 from .api.auth import auth_router
 from .api.catalog import catalog_router
+from .api.organization import organization_router
 from .api.generation import router as generation_router, initialize_generation_system
 from .api.profiles import router as profiles_router
+from .api.dashboard import dashboard_router
 from .utils.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from .utils.exception_handlers import setup_exception_handlers
 from .core.config import config
+from .core.organization_cache import organization_cache
 
 # Настройка логирования
 logging.basicConfig(
@@ -53,6 +56,12 @@ async def lifespan(app: FastAPI):
             logger.info("ℹ️ Langfuse мониторинг не настроен - работаем без трекинга")
         else:
             logger.info("✅ Langfuse мониторинг настроен")
+
+        # Инициализируем централизованный кеш организационной структуры
+        if organization_cache.is_loaded():
+            logger.info("✅ Organization cache loaded successfully")
+        else:
+            logger.warning("⚠️ Organization cache failed to load")
 
         # Инициализируем компоненты (lazy loading при первом запросе)
         app_components["initialized"] = True
@@ -201,8 +210,10 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Подключение API роутеров
 app.include_router(auth_router)
 app.include_router(catalog_router)
+app.include_router(organization_router)  # НОВЫЙ: path-based endpoints для LLM
 app.include_router(generation_router)
 app.include_router(profiles_router)
+app.include_router(dashboard_router)
 
 
 if __name__ == "__main__":

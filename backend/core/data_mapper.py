@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import logging
 
+from .organization_cache import organization_cache
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,65 +21,28 @@ class OrganizationMapper:
     """Детерминированное извлечение релевантной организационной структуры"""
 
     def __init__(self, org_structure_path: str = "data/structure.json"):
-        self.org_structure_path = Path(org_structure_path)
-        self._org_data = None
-        self._department_index = {}
+        # Параметр оставляем для обратной совместимости, но не используем
+        # Все данные теперь берем из централизованного кеша
+        pass
 
-    def _load_org_structure(self) -> dict:
-        """Загрузка организационной структуры с кешированием"""
-        if self._org_data is None:
-            try:
-                with open(self.org_structure_path, "r", encoding="utf-8") as f:
-                    self._org_data = json.load(f)
-                self._build_department_index()
-                logger.info(
-                    f"Loaded organization structure: {len(self._department_index)} departments"
-                )
-            except Exception as e:
-                logger.error(f"Error loading org structure: {e}")
-                self._org_data = {}
+    @property
+    def _org_data(self) -> dict:
+        """Получение данных из централизованного кеша"""
+        return organization_cache.get_full_structure()
 
-        return self._org_data
-
-    def _build_department_index(self):
-        """Построение индекса для быстрого поиска департаментов"""
-
-        def index_node(node: dict, path: str = "", parent_name: str = ""):
-            if isinstance(node, dict):
-                # В нашей структуре имена департаментов - это ключи объекта
-                for dept_name, dept_data in node.items():
-                    if isinstance(dept_data, dict) and dept_name not in [
-                        "organization"
-                    ]:
-                        # Создаем полный путь
-                        full_path = f"{path}/{dept_name}" if path else dept_name
-
-                        # Добавляем в индекс
-                        self._department_index[dept_name] = {
-                            "path": full_path,
-                            "node": dept_data,
-                            "level": len([p for p in full_path.split("/") if p]),
-                        }
-
-                        # Рекурсивно обходим детей если есть
-                        children = dept_data.get("children", {})
-                        if isinstance(children, dict) and children:
-                            index_node(children, full_path, dept_name)
-
-        self._load_org_structure()
-        if self._org_data:
-            # Начинаем с organization если он есть
-            if "organization" in self._org_data:
-                index_node(self._org_data["organization"])
-            else:
-                index_node(self._org_data)
+    @property 
+    def _department_index(self) -> Dict[str, Dict[str, any]]:
+        """Получение индекса департаментов из централизованного кеша"""
+        return organization_cache.get_department_index()
 
     def find_department_path(self, department_name: str) -> str:
         """Находит полный путь департамента в иерархии"""
-        if not self._org_data:
-            self._load_org_structure()
+        # Используем централизованный кеш
+        path_list = organization_cache.find_department_path(department_name)
+        if path_list:
+            return " → ".join(path_list)
 
-        # Точное соответствие
+        # Точное соответствие через кеш
         if department_name in self._department_index:
             return self._department_index[department_name]["path"]
 
@@ -95,7 +60,7 @@ class OrganizationMapper:
 
     def get_positions_for_department(self, department_name: str) -> List[str]:
         """
-        Извлекает список должностей для указанного департамента из реальной структуры.
+        Извлекает список должностей для указанного департамента из централизованного кеша.
 
         Args:
             department_name: Название департамента
@@ -103,35 +68,17 @@ class OrganizationMapper:
         Returns:
             List[str]: Список должностей из structure.json
         """
-        if not self._org_data:
-            self._load_org_structure()
-
-        # Точное соответствие
-        if department_name in self._department_index:
-            dept_node = self._department_index[department_name]["node"]
-            positions = dept_node.get("positions", [])
-            if positions:
-                logger.debug(
-                    f"Found {len(positions)} positions in '{department_name}': {positions}"
-                )
-                return positions
-
-        # Нечеткий поиск
-        for indexed_name, info in self._department_index.items():
-            if (
-                department_name.lower() in indexed_name.lower()
-                or indexed_name.lower() in department_name.lower()
-            ):
-                logger.info(
-                    f"Fuzzy match for positions: '{department_name}' -> '{indexed_name}'"
-                )
-                dept_node = info["node"]
-                positions = dept_node.get("positions", [])
-                if positions:
-                    return positions
-
-        logger.warning(f"No positions found for department: {department_name}")
-        return []
+        # Используем централизованный кеш вместо прямого доступа к файлам
+        positions = organization_cache.get_department_positions(department_name)
+        
+        if positions:
+            logger.debug(
+                f"Found {len(positions)} positions in '{department_name}': {positions}"
+            )
+        else:
+            logger.warning(f"No positions found for department: {department_name}")
+        
+        return positions
 
     def extract_relevant_structure(
         self, department_name: str, levels_up: int = 1, levels_down: int = 2
@@ -147,8 +94,6 @@ class OrganizationMapper:
         Returns:
             Оптимизированная структура с релевантными подразделениями
         """
-        if not self._org_data:
-            self._load_org_structure()
 
         if department_name not in self._department_index:
             # Пытаемся найти нечетким поиском

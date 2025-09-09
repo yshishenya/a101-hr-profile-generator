@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List
 import logging
 
 from .data_mapper import OrganizationMapper, KPIMapper
+from .organization_cache import organization_cache
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +33,12 @@ class DataLoader:
         # Кеш для статических данных
         self._cache = {}
 
-        # Пути к статическим файлам
+        # Пути к статическим файлам - все в ./data
         self.paths = {
-            "company_map": self.base_path / "data" / "Карта Компании А101.md",
-            "org_structure": self.base_path / "data" / "structure.json",
-            "it_systems": self.base_path / "data" / "anonymized_digitization_map.md",
-            "json_schema": self.base_path / "templates" / "job_profile_schema.json",
+            "company_map": Path("data") / "Карта Компании А101.md",
+            "org_structure": Path("data") / "structure.json", 
+            "it_systems": Path("data") / "anonymized_digitization_map.md",
+            "json_schema": Path("templates") / "job_profile_schema.json",
         }
 
     def prepare_langfuse_variables(
@@ -120,24 +121,25 @@ class DataLoader:
         return self._cache[cache_key]
 
     def _load_org_structure_for_department(self, department: str) -> dict:
-        """Загрузка организационной структуры для департамента"""
+        """Загрузка организационной структуры для департамента из централизованного кеша"""
         try:
-            with open(self.paths["org_structure"], "r", encoding="utf-8") as f:
-                full_structure = json.load(f)
-
-            # Ищем департамент в структуре
-            org_structure = full_structure.get("organization", {})
-            department_data = self._find_department_in_structure(
-                org_structure, department
-            )
-
-            if department_data:
+            # Используем централизованный кеш вместо прямого чтения файла
+            dept_info = organization_cache.find_department(department)
+            
+            if dept_info:
+                dept_node = dept_info["node"]
                 return {
-                    "department_path": department,
-                    "structure": department_data,
+                    "department_path": dept_info["path"],
+                    "structure": {
+                        "name": department,
+                        "number": dept_node.get("number"),
+                        "positions": dept_node.get("positions", []),
+                        "children": dept_node.get("children", {}),
+                    },
                     "found": True,
                 }
             else:
+                logger.warning(f"Department not found in cache: {department}")
                 return {
                     "department_path": department,
                     "structure": {"name": department, "positions": []},
@@ -145,7 +147,7 @@ class DataLoader:
                 }
 
         except Exception as e:
-            logger.error(f"Error loading organization structure: {e}")
+            logger.error(f"Error loading organization structure from cache: {e}")
             return {
                 "department_path": department,
                 "structure": {"name": department, "positions": []},
@@ -153,24 +155,6 @@ class DataLoader:
                 "error": str(e),
             }
 
-    def _find_department_in_structure(self, structure: dict, department: str) -> dict:
-        """Рекурсивный поиск департамента в структуре"""
-        for name, data in structure.items():
-            if name == department:
-                return {
-                    "name": name,
-                    "number": data.get("number"),
-                    "positions": data.get("positions", []),
-                    "children": data.get("children", {}),
-                }
-
-            # Рекурсивный поиск в дочерних элементах
-            if "children" in data:
-                found = self._find_department_in_structure(data["children"], department)
-                if found:
-                    return found
-
-        return None
 
     def _load_it_systems_cached(self) -> str:
         """Загрузка IT систем из anonymized_digitization_map.md с кешированием"""
@@ -340,9 +324,8 @@ class DataLoader:
             start_time = datetime.now()
             logger.info("Loading full organization structure...")
 
-            # Убеждаемся, что данные загружены
-            if not self.org_mapper._department_index:
-                self.org_mapper._load_org_structure()
+            # Данные теперь всегда доступны через централизованный кеш
+            # Проверка не нужна, так как кеш загружается при старте приложения
 
             # Загружаем всю структуру за один проход
             full_structure = {
@@ -525,7 +508,7 @@ class DataLoader:
             "json_schema": self.paths["json_schema"].exists(),
             "it_systems": self.paths["it_systems"].exists(),
             "org_structure": self.paths["org_structure"].exists(),
-            "kpi_file": (self.base_path / "data" / "KPI" / "KPI_DIT.md").exists(),
+            "kpi_file": Path("data/KPI/KPI_DIT.md").exists(),
         }
 
         # Проверяем KPI файлы
