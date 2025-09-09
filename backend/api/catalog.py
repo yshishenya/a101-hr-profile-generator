@@ -238,22 +238,7 @@ async def search_positions(
     department: Optional[str] = Query(None, description="Фильтр по департаменту (опционально)"),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Поиск должностей по названию, департаменту, уровню или категории.
-    
-    Выполняет нечеткий поиск по:
-    - Названию должности
-    - Названию департамента
-    - Уровню должности (1-5)
-    - Категории должности (management, technical, specialist, etc.)
-    
-    Args:
-        q: Поисковой запрос (минимум 1 символ)
-        department: Фильтр по конкретному департаменту (опционально)
-        
-    Returns:
-        Dict с результатами поиска должностей
-    """
+    """Search for job positions by title, department, level, or category."""
     try:
         logger.info(f"Searching positions with query '{q}' (department filter: {department}) for user {current_user['username']}")
         
