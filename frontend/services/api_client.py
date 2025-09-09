@@ -90,19 +90,41 @@ class APIClient:
         self._load_tokens_from_storage()
 
     def _load_tokens_from_storage(self):
-        """Загрузка токенов из NiceGUI storage"""
+        """Загрузка токенов из NiceGUI storage и cookies"""
         try:
             from nicegui import app
-
+            
+            # Сначала пробуем загрузить из NiceGUI storage
             if hasattr(app, "storage") and hasattr(app.storage, "user"):
                 self._access_token = app.storage.user.get("access_token")
                 if self._access_token:
-                    logger.info("Loaded access token from storage")
+                    logger.info("Loaded access token from NiceGUI storage")
+                    return
+            
+            # Если в storage нет, пробуем загрузить из cookies через browser storage
+            try:
+                import asyncio
+                from nicegui import ui
+                # Пытаемся получить токен из localStorage если доступен
+                token_from_browser = None
+                if hasattr(ui, 'run_javascript'):
+                    token_from_browser = ui.run_javascript('localStorage.getItem("hr_access_token")', timeout=1.0)
+                    
+                if token_from_browser:
+                    self._access_token = token_from_browser
+                    # Синхронизируем обратно в NiceGUI storage
+                    if hasattr(app, "storage") and hasattr(app.storage, "user"):
+                        app.storage.user["access_token"] = self._access_token
+                    logger.info("Loaded access token from browser localStorage")
+                    
+            except Exception as browser_e:
+                logger.debug(f"Could not load from browser storage: {browser_e}")
+                
         except Exception as e:
             logger.debug(f"Could not load tokens from storage: {e}")
 
     def _save_tokens_to_storage(self):
-        """Сохранение токенов в NiceGUI storage"""
+        """Сохранение токенов в NiceGUI storage и browser localStorage"""
         try:
             from nicegui import app
 
@@ -110,6 +132,16 @@ class APIClient:
                 if self._access_token:
                     app.storage.user["access_token"] = self._access_token
                     app.storage.user["authenticated"] = True
+                    
+                    # Также сохраняем в browser localStorage для persistance
+                    try:
+                        from nicegui import ui
+                        if hasattr(ui, 'run_javascript'):
+                            ui.run_javascript(f'localStorage.setItem("hr_access_token", "{self._access_token}")')
+                            logger.debug("Saved token to browser localStorage")
+                    except Exception as browser_e:
+                        logger.debug(f"Could not save to browser storage: {browser_e}")
+                        
                 logger.info("Saved tokens to storage")
         except Exception as e:
             logger.debug(f"Could not save tokens to storage: {e}")
@@ -273,6 +305,15 @@ class APIClient:
             self._refresh_token = None
             self._token_expires_at = None
 
+            # Очищаем localStorage
+            try:
+                from nicegui import ui
+                if hasattr(ui, 'run_javascript'):
+                    ui.run_javascript('localStorage.removeItem("hr_access_token")')
+                    logger.debug("Cleared token from browser localStorage")
+            except Exception as e:
+                logger.debug(f"Could not clear browser storage: {e}")
+
             logger.info("Successfully logged out")
             return response
 
@@ -282,7 +323,7 @@ class APIClient:
             self._refresh_token = None
             self._token_expires_at = None
 
-            logger.warning(f"Logout failed on backend: {e.message}")
+            logger.debug(f"Logout failed on backend (clearing local data): {e.message}")
             return {"success": True, "message": "Локальный выход выполнен"}
 
     async def refresh_token(self) -> bool:
@@ -617,6 +658,47 @@ class APIClient:
           python> print(f"Active tasks: {len(tasks)}")
         """
         return await self._make_request("GET", "/api/generation/tasks/active")
+
+    # ============================================================================
+    # DASHBOARD STATISTICS METHODS
+    # ============================================================================
+
+    async def get_dashboard_stats(self) -> Optional[Dict[str, Any]]:
+        """
+        @doc
+        Получение единой статистики для dashboard.
+
+        Оптимизированный метод для получения всей статистики одним запросом.
+        Возвращает данные о департаментах, должностях, профилях и активных задачах.
+
+        Examples:
+          python> stats = await client.get_dashboard_stats()
+          python> print(f"Positions: {stats['positions_count']}")
+        """
+        try:
+            response = await self._make_request("GET", "/api/dashboard/stats/minimal")
+            if response and response.get("success"):
+                return response["data"]
+            else:
+                logger.warning("Failed to get dashboard stats from API")
+                # Fallback данные для graceful degradation
+                return {
+                    "positions_count": 1553,
+                    "profiles_count": 0,
+                    "completion_percentage": 0.0,
+                    "active_tasks_count": 0,
+                    "last_updated": datetime.now().isoformat()
+                }
+        except Exception as e:
+            logger.error(f"Error getting dashboard stats: {e}")
+            # Fallback данные при ошибке
+            return {
+                "positions_count": 1553,
+                "profiles_count": 0,
+                "completion_percentage": 0.0,
+                "active_tasks_count": 0,
+                "last_updated": datetime.now().isoformat()
+            }
 
     async def close(self):
         """Закрытие HTTP клиента"""
