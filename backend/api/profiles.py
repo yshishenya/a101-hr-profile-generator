@@ -47,21 +47,30 @@ async def get_profiles(
     status: Optional[str] = Query(None, description="Фильтр по статусу"),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    @doc Получить список профилей с пагинацией и фильтрацией
-
-    Examples:
-        python>
-        # Получить первые 20 профилей
-        GET /api/profiles?page=1&limit=20
-
-        # Поиск профилей по департаменту
-        GET /api/profiles?department=IT&page=1&limit=10
-
-        # Текстовый поиск
-        GET /api/profiles?search=developer&page=1&limit=5
-    """
     # Валидация параметров запроса
+    """Retrieve a paginated and filtered list of profiles.
+    
+    This function validates the query parameters for pagination and filtering,
+    constructs a SQL query to fetch profiles from the database, and returns the
+    results along with pagination metadata. It applies filters based on department,
+    position, search terms, and status, and handles potential database errors
+    during the operation.
+    
+    Args:
+        page (int): The page number for pagination, default is 1.
+        limit (int): The number of records per page, default is 20, maximum is 100.
+        department (Optional[str]): Filter for profiles by department.
+        position (Optional[str]): Filter for profiles by position.
+        search (Optional[str]): Search term for employee name, department, or position.
+        status (Optional[str]): Filter for profiles by status.
+        current_user (dict): The current user information, obtained via dependency injection.
+    
+    Returns:
+        dict: A dictionary containing the list of profiles and pagination metadata.
+    
+    Raises:
+        DatabaseError: If there is an error while fetching profiles from the database.
+    """
     page, limit = validate_pagination(page, limit)
     department = validate_optional_string(department, "department", max_length=200)
     position = validate_optional_string(position, "position", max_length=200)
