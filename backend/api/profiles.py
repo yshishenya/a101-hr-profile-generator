@@ -113,7 +113,7 @@ async def get_profiles(
 
         # Собираем финальный запрос с условиями
         where_clause = " AND " + " AND ".join(conditions) if conditions else ""
-        count_query = f"SELECT COUNT(*) FROM profiles p {where_clause}"
+        count_query = f"SELECT COUNT(*) FROM profiles p WHERE 1=1{where_clause}"
 
         # Считаем общее количество
         cursor.execute(count_query, params)

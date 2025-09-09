@@ -48,9 +48,6 @@ class A101ProfileGenerator:
         self.search_input = None
         self.search_results_container = None
         self.selected_position_card = None
-        self.employee_name_input = None
-        self.temperature_slider = None
-        self.profile_type_select = None
         self.generate_button = None
         self.progress_dialog = None
 
@@ -98,7 +95,9 @@ class A101ProfileGenerator:
                 "middle": {"text": "Основной", "color": "green"},
                 "junior": {"text": "Начальный", "color": "blue"},
             }
-            return level_mapping.get(level, {"text": "Не определен", "color": "grey"})
+            return level_mapping.get(
+                level, {"text": "Не определен", "color": "grey"}
+            )
         elif isinstance(level, int):
             # Числовые уровни (1-5)
             level_colors = ["red", "deep-orange", "orange", "green", "blue"]
@@ -124,7 +123,9 @@ class A101ProfileGenerator:
             if not hasattr(app, "storage") or not app.storage.user.get(
                 "authenticated", False
             ):
-                logger.warning("User not authenticated, using fallback suggestions")
+                logger.warning(
+                    "User not authenticated, using fallback suggestions"
+                )
                 self._use_fallback_suggestions()
                 return
 
@@ -135,7 +136,8 @@ class A101ProfileGenerator:
 
             if not stats_response.get("success"):
                 logger.warning(
-                    "Failed to get organization stats, using fallback suggestions"
+                    "Failed to get organization stats, "
+                    "using fallback suggestions"
                 )
                 self._use_fallback_suggestions()
                 return
@@ -156,7 +158,9 @@ class A101ProfileGenerator:
                     for suggestion in self.hierarchical_suggestions
                 }
                 self.search_input.set_options(options_dict)
-                logger.info("✅ Updated search dropdown with hierarchical options")
+                logger.info(
+                    "✅ Updated search dropdown with hierarchical options"
+                )
 
         except Exception as e:
             logger.error(f"Error loading hierarchical suggestions: {e}")
@@ -178,17 +182,18 @@ class A101ProfileGenerator:
             )
 
             if not departments_response.get("success"):
-                logger.warning("Failed to get departments for hierarchical suggestions")
+                logger.warning(
+                    "Failed to get departments for hierarchical suggestions"
+                )
                 return []
 
             # Извлекаем departments из response["data"]["departments"]
             departments = departments_response["data"]["departments"]
 
-            logger.info(
-                f"Processing {len(departments)} departments..."
-            )
+            logger.info(f"Processing {len(departments)} departments...")
 
-            # Для каждого департамента получаем позиции и создаем иерархические пути
+            # Для каждого департамента получаем позиции
+            # и создаем иерархические пути
             for dept in departments:
                 dept_name = dept["name"]
 
@@ -203,41 +208,52 @@ class A101ProfileGenerator:
                         positions_data = positions_response["data"]
                         positions = positions_data["positions"]
 
-                        # Debug: log first few positions to understand structure
+                        # Debug: log first few positions to understand
+                        # structure
                         if positions:
                             logger.debug(
-                                f"First position structure in '{dept_name}': {positions[0] if positions else 'None'}"
+                                f"First position structure in '{dept_name}': "
+                                f"{positions[0] if positions else 'None'}"
                             )
                             if len(positions) > 5:
                                 logger.debug(
-                                    f"Department '{dept_name}' has {len(positions)} positions"
+                                    f"Department '{dept_name}' has "
+                                    f"{len(positions)} positions"
                                 )
                         else:
                             logger.debug(
-                                f"No positions found for department '{dept_name}'"
+                                f"No positions found for department "
+                                f"'{dept_name}'"
                             )
 
                         # Создаем иерархические предложения
                         for position in positions:
                             try:
                                 # Формируем иерархический путь
-                                hierarchical_path = self._build_hierarchical_path(
-                                    dept_name, position
+                                hierarchical_path = (
+                                    self._build_hierarchical_path(
+                                        dept_name, position
+                                    )
                                 )
-                                if hierarchical_path:  # Проверяем что путь не пустой
+                                # Проверяем что путь не пустой
+                                if hierarchical_path:
                                     suggestions.append(hierarchical_path)
                             except Exception as pos_error:
                                 logger.warning(
-                                    f"Failed to build path for position: {pos_error}"
+                                    f"Failed to build path for position: "
+                                    f"{pos_error}"
                                 )
 
                 except Exception as dept_error:
                     logger.warning(
-                        f"Failed to get positions for department '{dept_name}': {dept_error}"
+                        f"Failed to get positions for department "
+                        f"'{dept_name}': {dept_error}"
                     )
                     continue
 
-            logger.info(f"Generated {len(suggestions)} suggestions from backend")
+            logger.info(
+                f"Generated {len(suggestions)} suggestions from backend"
+            )
 
             # Сортируем по алфавиту для консистентности
             suggestions.sort()
@@ -267,7 +283,8 @@ class A101ProfileGenerator:
             position_name = position
         else:
             logger.warning(
-                f"Unexpected position type: {type(position)}, value: {position}"
+                f"Unexpected position type: {type(position)}, "
+                f"value: {position}"
             )
             position_name = str(position)
 
@@ -279,7 +296,11 @@ class A101ProfileGenerator:
             # Департамент уже содержит путь
             path_parts = [
                 part.strip()
-                for part in department.replace("/", "→").replace("\\", "→").split("→")
+                for part in (
+                    department.replace("/", "→")
+                    .replace("\\", "→")
+                    .split("→")
+                )
             ]
         else:
             # Простое название департамента
@@ -317,10 +338,13 @@ class A101ProfileGenerator:
         # Обновляем dropdown options в поисковом поле если оно уже создано
         if hasattr(self, "search_input") and self.search_input:
             options_dict = {
-                suggestion: suggestion for suggestion in self.hierarchical_suggestions
+                suggestion: suggestion
+                for suggestion in self.hierarchical_suggestions
             }
             self.search_input.set_options(options_dict)
-            logger.info("✅ Updated search dropdown with fallback options")
+            logger.info(
+                "✅ Updated search dropdown with fallback options"
+            )
 
     # OLD INPUT STYLES METHOD REMOVED - Use _add_minimal_input_styles() instead
 
@@ -441,16 +465,7 @@ class A101ProfileGenerator:
         ):
             self.selected_position_card = ui.column().classes("w-full")
 
-        # Generation parameters (shown when position is selected)
-        with ui.card().classes("w-full mb-6").bind_visibility_from(
-            self, "has_selected_position"
-        ):
-            ui.label("⚙️ Параметры генерации").classes("text-h6 q-mb-md")
-
-            with ui.card_section():
-                await self._render_unified_generation_params()
-
-        # Generation button (shown when position is selected)
+        # Generation button (shown when position is selected) - Simplified interface
         with ui.card().classes("w-full text-center").bind_visibility_from(
             self, "has_selected_position"
         ):
@@ -494,61 +509,6 @@ class A101ProfileGenerator:
 
         # Simple loading indicator
         self.search_loading = ui.spinner(size="sm").classes("self-center hidden")
-
-    async def _render_unified_generation_params(self):
-        """Clean generation parameters - Following login page philosophy"""
-        with ui.column().classes("w-full gap-4"):
-
-            # Employee name - clean like login page
-            self.employee_name_input = (
-                ui.input(
-                    label="ФИО сотрудника (опционально)",
-                    placeholder="Иванов Иван Иванович"
-                )
-                .props("outlined clearable")
-                .classes("w-full")
-            )
-
-            # Profile type - clean select
-            self.profile_type_select = (
-                ui.select(
-                    options=[
-                        "Полный профиль",
-                        "Краткое описание",
-                        "Только компетенции",
-                    ],
-                    label="Тип профиля",
-                    value="Полный профиль",
-                )
-                .props("outlined")
-                .classes("w-full")
-            )
-
-            # Temperature slider - clean styling
-            with ui.column().classes("w-full gap-2 mt-4"):
-                ui.label("Точность и детализация").classes("text-subtitle2")
-
-                with ui.row().classes("w-full items-center gap-4"):
-                    ui.label("Точная").classes("text-caption text-grey-6")
-
-                    self.temperature_slider = (
-                        ui.slider(min=0.0, max=1.0, step=0.1, value=0.1)
-                        .classes("flex-1")
-                        .props("color=primary")
-                    )
-
-                    ui.label("Творческая").classes("text-caption text-grey-6")
-
-                # Temperature description - clean typography
-                self.temperature_description = ui.label().classes(
-                    "text-caption text-grey-6"
-                )
-
-                # Update description on slider change
-                self.temperature_slider.on(
-                    "update:model-value", self._update_temperature_description
-                )
-                self._update_temperature_description()
 
     def _add_clean_nicegui_styles(self):
         """Clean NiceGUI styling - Following login page philosophy"""
@@ -634,11 +594,7 @@ class A101ProfileGenerator:
                 with ui.column().classes("w-full mt-8"):
                     self.selected_position_card = ui.column().classes("w-full")
 
-                # Параметры генерации (показываем только после выбора)
-                with ui.column().classes("w-full mt-8").bind_visibility_from(
-                    self, "has_selected_position"
-                ):
-                    await self._render_generation_params()
+                # Параметры генерации убраны - упрощенный интерфейс
 
                 # Кнопка генерации
                 with ui.column().classes(
@@ -684,7 +640,9 @@ class A101ProfileGenerator:
                 )
 
                 # Clean placeholder
-                self.search_input.props('placeholder="Начните вводить название должности"')
+                self.search_input.props(
+                    'placeholder="Начните вводить название должности"'
+                )
 
                 # События для обновления результатов при вводе
                 self.search_input.on("input-value", self._on_search_input_value)
@@ -697,86 +655,6 @@ class A101ProfileGenerator:
             # Оставляем только spinner для обратной связи при выборе
             self.search_loading = (
                 ui.spinner(size="sm").classes("self-center").style("display: none")
-            )
-
-    async def _render_generation_params(self):
-        """Параметры генерации"""
-        with ui.column().classes("w-full gap-6"):
-
-            # Заголовок параметров
-            with ui.row().classes("items-center gap-2"):
-                ui.icon("tune", size="1.5rem").classes("text-blue-600")
-                ui.label("Параметры генерации").classes(
-                    "text-lg font-semibold text-primary"
-                )
-
-            # Параметры в сетке
-            with ui.grid(columns="1fr 1fr").classes("w-full gap-6"):
-
-                # Employee name - clean like login page
-                self.employee_name_input = (
-                    ui.input(
-                        label="ФИО сотрудника (опционально)",
-                        placeholder="Иванов Иван Иванович"
-                    )
-                    .props("outlined clearable")
-                    .classes("w-full")
-                )
-
-                # Profile type - clean select
-                self.profile_type_select = (
-                    ui.select(
-                        options=[
-                            "Полный профиль",
-                            "Краткое описание",
-                            "Только компетенции",
-                        ],
-                        label="Тип профиля",
-                        value="Полный профиль",
-                    )
-                    .props("outlined")
-                    .classes("w-full")
-                )
-
-            # Clean temperature slider
-            with ui.column().classes("gap-3 mt-4"):
-                ui.label("Точность и детализация").classes("text-subtitle2")
-
-                with ui.row().classes("w-full items-center gap-4"):
-                    ui.label("Точная").classes("text-caption text-grey-6")
-
-                    self.temperature_slider = (
-                        ui.slider(min=0.0, max=1.0, step=0.1, value=0.1)
-                        .classes("flex-1")
-                        .props("color=primary")
-                    )
-
-                    ui.label("Творческая").classes("text-caption text-grey-6")
-
-                # Clean description
-                self.temperature_description = ui.label().classes(
-                    "text-caption text-grey-6"
-                )
-
-                # Обновляем описание при изменении слайдера
-                self.temperature_slider.on(
-                    "update:model-value", self._update_temperature_description
-                )
-                self._update_temperature_description()  # Начальное значение
-
-    def _update_temperature_description(self):
-        """Обновление описания температуры"""
-        if hasattr(self, "temperature_description") and self.temperature_description:
-            value = self.temperature_slider.value
-            if value <= 0.2:
-                desc = "Строго по данным - максимальная точность"
-            elif value <= 0.6:
-                desc = "Умеренная адаптация - баланс точности и гибкости"
-            else:
-                desc = "Творческий подход - больше интерпретации"
-
-            self.temperature_description.text = (
-                f"Текущая настройка: {desc} ({value:.1f})"
             )
 
     async def _load_system_stats(self):
@@ -818,7 +696,7 @@ class A101ProfileGenerator:
         if hasattr(self, "positions_label") and self.positions_label:
             self.positions_label.text = pos_text
 
-    def _on_search_select(self, event=None):
+    async def _on_search_select(self, event=None):
         """Обработчик выбора варианта из dropdown - сразу подготавливаем к генерации"""
         if event and hasattr(event, "value") and event.value:
             # Получаем выбранное значение из dropdown
@@ -830,7 +708,7 @@ class A101ProfileGenerator:
 
             # Сразу устанавливаем данные для генерации
             if department and position:
-                self._set_selected_position(position, department)
+                await self._set_selected_position(position, department)
                 ui.notify(f"✅ Выбрано: {position} в {department}", type="positive")
 
                 # Показываем что позиция выбрана
@@ -853,7 +731,7 @@ class A101ProfileGenerator:
             if query:
                 department, position = self._process_hierarchical_selection(query)
                 if department and position:
-                    self._set_selected_position(position, department)
+                    await self._set_selected_position(position, department)
 
     def _on_search_input_value(self, event=None):
         """Обработчик ввода в поисковое поле с dropdown (упрощенная версия)"""
@@ -893,7 +771,7 @@ class A101ProfileGenerator:
 
         return "", ""
 
-    def _set_selected_position(self, position: str, department: str):
+    async def _set_selected_position(self, position: str, department: str):
         """
         Установка выбранной позиции для генерации профиля.
 
@@ -910,6 +788,279 @@ class A101ProfileGenerator:
         self.can_generate = True
 
         logger.info(f"Position selected: {position} in {department}")
+
+        # Загружаем детальную информацию о позиции
+        await self._load_position_details(position, department)
+
+        # Отображаем детальную информацию
+        await self._display_detailed_position_info()
+
+    async def _load_position_details(self, position: str, department: str):
+        """
+        Загрузка детальной информации о позиции включая статус профилей.
+
+        Args:
+            position: Название позиции
+            department: Название департамента
+        """
+        try:
+            # Получаем детальную информацию о позиции из каталога
+            positions_response = await self.api_client._make_request(
+                "GET", f"/api/catalog/positions/{department}"
+            )
+
+            # Ищем конкретную позицию в ответе
+            self.position_details = None
+            if positions_response.get("success"):
+                positions = positions_response["data"]["positions"]
+                for pos in positions:
+                    if pos["name"] == position:
+                        self.position_details = pos
+                        break
+
+            # Получаем информацию о департаменте для полной иерархии
+            departments_response = await self.api_client._make_request(
+                "GET", "/api/catalog/departments"
+            )
+            
+            self.department_details = None
+            if departments_response.get("success"):
+                departments = departments_response["data"]["departments"]
+                for dept in departments:
+                    if dept["name"] == department:
+                        self.department_details = dept
+                        break
+
+            # Получаем информацию о существующих профилях для этой позиции
+            profiles_response = await self.api_client.get_profiles_list(
+                department=department,
+                position=position,
+                limit=100,  # Получаем все версии
+            )
+
+            # Сохраняем информацию о профилях
+            self.position_profiles = []
+            if profiles_response and profiles_response.get("profiles"):
+                self.position_profiles = profiles_response["profiles"]
+
+            logger.info(
+                f"Loaded details for {position}: {len(self.position_profiles)} existing profiles"
+            )
+
+        except Exception as e:
+            logger.error(f"Error loading position details: {e}")
+            self.position_details = None
+            self.position_profiles = []
+
+    async def _display_detailed_position_info(self):
+        """Отображение детальной информации о выбранной позиции"""
+        if (
+            not hasattr(self, "selected_position_card")
+            or not self.selected_position_card
+        ):
+            return
+
+        self.selected_position_card.clear()
+
+        with self.selected_position_card:
+            with ui.card().classes("w-full border-l-4 border-primary"):
+                with ui.card_section().classes("py-4"):
+                    # Заголовок с иконкой
+                    with ui.row().classes("w-full items-center gap-3 mb-4"):
+                        ui.icon("check_circle", size="1.5rem").classes("text-primary")
+                        ui.label("Выбранная должность").classes(
+                            "text-h6 text-weight-medium text-primary"
+                        )
+
+                    # Название должности
+                    ui.label(self.selected_position).classes(
+                        "text-h5 text-weight-bold mb-3"
+                    )
+
+                    # Детальная информация в сетке
+                    with ui.grid(columns="1fr 1fr").classes("w-full gap-4"):
+                        # Левая колонка
+                        with ui.column().classes("gap-2"):
+                            # Департамент с полным путем (иерархия)
+                            if (
+                                hasattr(self, "position_details")
+                                and self.position_details
+                            ):
+                                with ui.row().classes("items-center gap-2"):
+                                    ui.icon("account_tree", size="1rem").classes(
+                                        "text-grey-6"
+                                    )
+                                    ui.label("Иерархия:").classes(
+                                        "text-caption text-grey-6"
+                                    )
+                                
+                                # Показываем полную иерархию чипсами
+                                self._display_hierarchy_chips()
+
+                                # Уровень должности
+                                with ui.row().classes("items-center gap-2 mt-2"):
+                                    ui.icon("trending_up", size="1rem").classes(
+                                        "text-grey-6"
+                                    )
+                                    ui.label("Уровень:").classes(
+                                        "text-caption text-grey-6"
+                                    )
+                                level_info = self._format_position_level(
+                                    self.position_details.get("level")
+                                )
+                                ui.chip(
+                                    level_info["text"], color=level_info["color"]
+                                ).props("size=sm").classes("q-ml-sm")
+
+                                # Категория
+                                with ui.row().classes("items-center gap-2 mt-2"):
+                                    ui.icon("category", size="1rem").classes(
+                                        "text-grey-6"
+                                    )
+                                    ui.label("Категория:").classes(
+                                        "text-caption text-grey-6"
+                                    )
+                                ui.label(
+                                    self.position_details.get("category", "Не указана")
+                                ).classes("text-body2 q-ml-lg")
+
+                        # Правая колонка - статус профилей
+                        with ui.column().classes("gap-2"):
+                            # Статус профилей
+                            with ui.row().classes("items-center gap-2"):
+                                ui.icon("description", size="1rem").classes(
+                                    "text-grey-6"
+                                )
+                                ui.label("Профили:").classes("text-caption text-grey-6")
+
+                            profiles_count = (
+                                len(self.position_profiles)
+                                if hasattr(self, "position_profiles")
+                                else 0
+                            )
+                            if profiles_count > 0:
+                                ui.label(f"{profiles_count} версий").classes(
+                                    "text-body2 text-positive q-ml-lg"
+                                )
+
+                                # Последний профиль
+                                if self.position_profiles:
+                                    latest_profile = max(
+                                        self.position_profiles,
+                                        key=lambda x: x.get("created_at", ""),
+                                    )
+                                    with ui.row().classes("items-center gap-2 mt-1"):
+                                        ui.icon("schedule", size="0.8rem").classes(
+                                            "text-grey-7"
+                                        )
+                                        ui.label("Последний:").classes(
+                                            "text-caption text-grey-7"
+                                        )
+                                    ui.label(
+                                        self._format_datetime(
+                                            latest_profile.get("created_at")
+                                        )
+                                    ).classes("text-caption text-grey-7 q-ml-lg")
+                            else:
+                                ui.label("Профилей нет").classes(
+                                    "text-body2 text-grey-6 q-ml-lg"
+                                )
+                                ui.chip("Новая позиция", color="orange").props(
+                                    "size=sm"
+                                ).classes("q-ml-sm")
+
+    def _display_hierarchy_chips(self):
+        """Отображение иерархии сотрудника красивыми чипсами"""
+        try:
+            hierarchy_parts = []
+            
+            # Получаем полную иерархию
+            if (
+                hasattr(self, "department_details")
+                and self.department_details
+                and self.department_details.get("path")
+            ):
+                # Разбиваем путь департамента на части
+                dept_path = self.department_details["path"]
+                hierarchy_parts = [part.strip() for part in dept_path.split("/")]
+            else:
+                # Fallback - используем только название департамента
+                hierarchy_parts = [self.selected_department]
+            
+            # Добавляем позицию как последний элемент
+            if hasattr(self, "selected_position") and self.selected_position:
+                hierarchy_parts.append(self.selected_position)
+            
+            # Создаем контейнер для чипсов с отступом
+            with ui.column().classes("q-ml-lg mt-2"):
+                # Отображаем чипсы с стрелками
+                with ui.row().classes("items-center gap-1 flex-wrap"):
+                    for i, part in enumerate(hierarchy_parts):
+                        # Определяем стиль и цвет для каждого уровня
+                        if i == len(hierarchy_parts) - 1:  # Позиция (последний элемент)
+                            color = "primary"
+                            icon = "person"
+                        elif i == 0:  # Блок (первый элемент)
+                            color = "deep-purple"
+                            icon = "corporate_fare"
+                        elif "департамент" in part.lower():
+                            color = "blue"
+                            icon = "business"
+                        elif "управление" in part.lower():
+                            color = "green"
+                            icon = "manage_accounts"
+                        else:
+                            color = "grey"
+                            icon = "folder"
+                        
+                        # Чипс с иконкой
+                        ui.chip(
+                            part,
+                            icon=icon,
+                            color=color
+                        ).props("size=sm outline").classes("text-weight-medium")
+                        
+                        # Стрелка между элементами (кроме последнего)
+                        if i < len(hierarchy_parts) - 1:
+                            ui.icon("chevron_right", size="1.2rem").classes("text-grey-5")
+                            
+        except Exception as e:
+            logger.error(f"Error displaying hierarchy chips: {e}")
+            # Fallback на простой текст при ошибке
+            ui.label(f"{self.selected_department} → {self.selected_position}").classes(
+                "text-body2 q-ml-lg text-blue-700"
+            )
+
+    def _get_full_hierarchy(self) -> str:
+        """Получение полной иерархии сотрудника"""
+        try:
+            if (
+                hasattr(self, "department_details")
+                and self.department_details
+                and hasattr(self, "selected_position")
+                and self.selected_position
+            ):
+                # Полная иерархия = путь департамента + позиция
+                dept_path = self.department_details.get("path", self.selected_department)
+                return f"{dept_path} → {self.selected_position}"
+            else:
+                # Fallback - просто департамент и позиция
+                return f"{self.selected_department} → {self.selected_position}"
+        except Exception as e:
+            logger.error(f"Error building hierarchy: {e}")
+            return f"{self.selected_department} → {self.selected_position}"
+
+    def _format_datetime(self, datetime_str: str) -> str:
+        """Форматирование даты и времени для отображения"""
+        if not datetime_str:
+            return "Неизвестно"
+        try:
+            from datetime import datetime
+
+            dt = datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+            return dt.strftime("%d.%m.%Y %H:%M")
+        except Exception:
+            return datetime_str
 
     def _update_generation_ui_state(self):
         """Обновление состояния UI для генерации профиля"""
@@ -1126,16 +1277,10 @@ class A101ProfileGenerator:
             self.is_generating = True
             self.generate_button.props(add="loading")
 
-            # Подготовка данных для генерации
+            # Подготовка данных для генерации - упрощенная версия
             generation_data = {
                 "department": self.selected_position["department"],
                 "position": self.selected_position["name"],
-                "employee_name": (
-                    self.employee_name_input.value.strip()
-                    if self.employee_name_input.value
-                    else None
-                ),
-                "temperature": self.temperature_slider.value,
                 "save_result": True,
             }
 
@@ -1334,18 +1479,9 @@ class A101ProfileGenerator:
         asyncio.create_task(self._start_generation())
 
     def _reset_generator(self):
-        """Сброс генератора"""
+        """Сброс генератора - упрощенная версия"""
         self._clear_selection()
         self.current_task_id = None
-
-        if self.employee_name_input:
-            self.employee_name_input.value = ""
-        if self.temperature_slider:
-            self.temperature_slider.value = 0.1
-        if self.profile_type_select:
-            self.profile_type_select.value = "Полный профиль"
-
-        self._update_temperature_description()
         ui.notify("🔄 Генератор сброшен", type="info")
 
 
