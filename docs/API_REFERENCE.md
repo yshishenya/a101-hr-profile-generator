@@ -122,6 +122,19 @@ python3 -c "from backend.core.config import config; config.print_summary(); conf
 - `401 Unauthorized` - Неверные учетные данные
 - `500 Internal Server Error` - Внутренняя ошибка
 
+### 🧪 Тестовый токен для разработки
+
+**⚠️ ТОЛЬКО ДЛЯ РАЗРАБОТКИ! УДАЛИТЬ В ПРОДАКШЕНЕ!**
+
+Для удобства тестирования используйте готовый токен (действует до 2026-09-09):
+
+```bash
+export TEST_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJhZG1pbiIsImZ1bGxfbmFtZSI6Ilx1MDQxMFx1MDQzNFx1MDQzY1x1MDQzOFx1MDQzZFx1MDQzOFx1MDQ0MVx1MDQ0Mlx1MDQ0MFx1MDQzMFx1MDQ0Mlx1MDQzZVx1MDQ0MCBcdTA0NDFcdTA0MzhcdTA0NDFcdTA0NDJcdTA0MzVcdTA0M2NcdTA0NGIiLCJleHAiOjE3ODg5NzcxNTEsImlhdCI6MTc1NzQ0MTE1MSwidHlwZSI6ImFjY2Vzc190b2tlbiJ9.6P0IJ7T6M9NLMmfN1NWsdtNbAyI7cVZul6l9BYyt6Eo"
+
+# Быстрый тест API
+curl -H "Authorization: Bearer $TEST_TOKEN" "http://localhost:8022/api/profiles"
+```
+
 ### Использование токена
 
 **Headers:**
@@ -1017,6 +1030,84 @@ curl -X GET "http://localhost:8022/api/profiles?page=1&per_page=10&search=ML&dep
 }
 ```
 
+### `GET /api/profiles/{profile_id}/download/json`
+Скачать JSON файл профиля напрямую с файловой системы.
+
+**Path Parameters:**
+- `profile_id` (string, required) - ID профиля
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (200):**
+```
+Content-Type: application/json
+Content-Disposition: attachment; filename="profile_Senior_Data_Analyst_e874d4ca.json"
+
+[Binary JSON file content]
+```
+
+**Error Responses:**
+- `404 Not Found` - Профиль или файл не найден
+
+**Example Request:**
+```bash
+curl -H "Authorization: Bearer $TEST_TOKEN" \
+  -o "profile.json" \
+  "http://localhost:8022/api/profiles/e874d4ca-b4bf-4d91-b741-2cc4cbcb36b5/download/json"
+```
+
+### `GET /api/profiles/{profile_id}/download/md`
+Скачать Markdown файл профиля напрямую с файловой системы.
+
+**Path Parameters:**
+- `profile_id` (string, required) - ID профиля
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (200):**
+```
+Content-Type: text/markdown
+Content-Disposition: attachment; filename="profile_Senior_Data_Analyst_e874d4ca.md"
+
+[Markdown file content]
+```
+
+**Error Responses:**
+- `404 Not Found` - Профиль или файл не найден
+
+**Example Request:**
+```bash
+curl -H "Authorization: Bearer $TEST_TOKEN" \
+  -o "profile.md" \
+  "http://localhost:8022/api/profiles/e874d4ca-b4bf-4d91-b741-2cc4cbcb36b5/download/md"
+```
+
+**📁 File Storage Architecture:**
+Файлы профилей хранятся в иерархической структуре:
+```
+generated_profiles/
+└── Блок_операционного_директора/
+    └── Департамент_информационных_технологий/
+        └── Отдел_управления_данными/
+            └── Группа_анализа_данных/
+                └── Senior_Data_Analyst/
+                    └── Senior_Data_Analyst_20250909_171336_e874d4ca/
+                        ├── Senior_Data_Analyst_20250909_171336_e874d4ca.json
+                        └── Senior_Data_Analyst_20250909_171336_e874d4ca.md
+```
+
+**🔧 Path Calculation:**
+Пути к файлам вычисляются детерминистически на основе:
+- UUID профиля из базы данных
+- Названия департамента и должности
+- Времени создания профиля
+- Кешированной организационной структуры
+
+**🚀 Performance:**
+- **Нет файлового сканирования** - пути вычисляются алгоритмически
+- **O(1) доступ** - прямое обращение к файлу по пути
+- **Кешированная оргструктура** - загружается однократно при старте
+
 ---
 
 ## 📤 **EXPORT ENDPOINTS**
@@ -1268,11 +1359,39 @@ console.log(`Найдено: ${searchResults.data.total_count} департам�
 
 ---
 
+---
+
+## 🚨 **PRODUCTION CHECKLIST**
+
+### Перед развертыванием в продакшене:
+
+**🔒 Security:**
+- [ ] **КРИТИЧНО: Удалить TEST_JWT_TOKEN из .env файла!**
+- [ ] Изменить пароли пользователей (ADMIN_PASSWORD, HR_PASSWORD)
+- [ ] Сгенерировать новый JWT_SECRET_KEY для продакшена
+- [ ] Настроить CORS_ORIGINS для production домена
+- [ ] Использовать HTTPS (обязательно!)
+
+**🏗️ Infrastructure:**
+- [ ] Настроить реверс-прокси (nginx)
+- [ ] Настроить SSL/TLS сертификаты
+- [ ] Настроить мониторинг и логирование
+- [ ] Настроить backup базы данных
+- [ ] Проверить и настроить все переменные окружения
+
+**🧪 Testing:**
+- [ ] Протестировать все API endpoints
+- [ ] Проверить download функциональность
+- [ ] Проверить производительность с большим количеством профилей
+- [ ] Протестировать обработку ошибок
+
+---
+
 **📈 System Status:** Production Ready
 **🔧 Backend Completion:** 15/15 tasks ✅
-**📊 Overall Progress:** 19/50 tasks (38%)
+**📊 Overall Progress:** 22/50 tasks (44%)
 **🚀 Next Phase:** Frontend NiceGUI Implementation
 
 **Версия API:** 1.0.0
-**Документация актуальна на:** 2025-09-08
+**Документация актуальна на:** 2025-09-09
 **🤖 Generated with [Claude Code](https://claude.ai/code)**

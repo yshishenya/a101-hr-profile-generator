@@ -16,6 +16,7 @@ COPY backend/ ./backend/
 COPY data/ ./data/
 COPY templates/ ./templates/
 COPY docs/ ./docs/
+COPY scripts/ ./scripts/
 
 # Создание необходимых директорий
 RUN mkdir -p backend/static \

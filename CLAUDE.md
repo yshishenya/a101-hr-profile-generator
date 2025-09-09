@@ -23,6 +23,16 @@ This is the **A101 HR Profile Generator** - an AI-powered system for automatical
 ## 3. Core System Architecture
 @/docs/SYSTEM_ARCHITECTURE.md
 
+## 4. API Documentation
+@/docs/API_REFERENCE.md
+
+**🔥 Complete API Reference** with all endpoints, authentication, examples:
+- **Base URL:** `http://localhost:8022` (Docker)
+- **Swagger UI:** `http://localhost:8022/docs`
+- **Test Token:** Available in .env file (действует до 2026-09-09)
+- **Download endpoints:** Новые оптимизированные эндпоинты для файлов профилей
+- **File Storage:** Иерархическая структура с детерминистическим вычислением путей
+
 ## Development Commands
 
 
@@ -35,6 +45,7 @@ This is the **A101 HR Profile Generator** - an AI-powered system for automatical
 - **Format all code:** `black .`
 - **Run static analysis:** `flake8 .`
 - **Seed the database:** `python backend/core/database.py`
+- **Generate test token:** `python scripts/create_test_token.py` (creates long-lasting token)
 
 # Configuration Management
 # Система использует централизованную конфигурацию через backend/core/config.py
@@ -130,3 +141,8 @@ Generated profiles saved to `/generated_profiles/{department}/{position}_{timest
 - You must always update the documentation when you make any changes /docs/PROMPTING_STRATEGY.md /docs/SYSTEM_ARCHITECTURE.md /docs/PROJECT_BACKLOG.md /docs/FRONTEND_BACKLOG.md /docs/README.md /docs/NEW_USER_JOURNEY_2025.md /docs/API_REFERENCE.md /docs/IMPLEMENTATION_REPORT.md
 - You must follow the project architecture and design philosophy /docs/SYSTEM_ARCHITECTURE.md
 - You must follow and update project plan /docs/PROJECT_BACKLOG.md
+
+**🚨 PRODUCTION SECURITY:**
+- **CRITICAL:** Always remove TEST_JWT_TOKEN from .env before production deployment!
+- Test token is ONLY for development and expires 2026-09-09
+- Change all default passwords (admin/hr) in production
