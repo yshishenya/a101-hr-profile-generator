@@ -20,11 +20,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 try:
   # Relative imports для запуска как модуль
   from .components.auth_component import AuthComponent
+  from .components.a101_profile_generator import A101ProfileGenerator
   from .services.api_client import APIClient
   from .utils.config import FrontendConfig
 except ImportError:
   # Absolute imports для прямого запуска
   from components.auth_component import AuthComponent
+  from components.a101_profile_generator import A101ProfileGenerator
   from services.api_client import APIClient
   from utils.config import FrontendConfig
 
@@ -139,6 +141,7 @@ async def main_page() -> None:
         
         # Навигационные ссылки
         ui.button('Главная', on_click=lambda: ui.navigate.to('/')).props('flat').classes('text-white')
+        ui.button('🎯 Генератор', on_click=lambda: ui.navigate.to('/generator')).props('flat').classes('text-white')
         ui.button('Профили', on_click=lambda: ui.navigate.to('/profiles')).props('flat').classes('text-white')
         ui.button('История', on_click=lambda: ui.navigate.to('/history')).props('flat').classes('text-white')
       
@@ -181,10 +184,34 @@ async def main_page() -> None:
         - Обратиться к администратору
         
         ### Быстрые ссылки:
-        - [Найти должность](/search)
+        - [Генератор профилей](/generator)
         - [Все профили](/profiles)
         - [Статистика](/analytics)
         """).classes('text-body1')
+
+
+
+@ui.page('/generator')
+async def generator_page() -> None:
+  """
+  @doc
+  Страница генератора профилей должностей с интегрированным поиском.
+  
+  Единый интерфейс для:
+  - Поиска должностей среди 4,376 позиций
+  - Настройки параметров генерации
+  - Запуска и отслеживания процесса генерации
+  
+  Examples:
+    python> # Доступна только авторизованным пользователям
+    python> # URL: /generator
+  """
+  
+  ui.page_title('🎯 Генератор профилей - A101 HR')
+  
+  # Создаем новый профессиональный компонент генератора
+  generator_component = A101ProfileGenerator(api_client)
+  await generator_component.render()
 
 
 async def logout() -> None:

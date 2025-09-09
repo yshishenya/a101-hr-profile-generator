@@ -81,7 +81,33 @@ class APIClient:
         "Accept": "application/json"
       }
     )
+    
+    # Загружаем токены из NiceGUI storage
+    self._load_tokens_from_storage()
   
+  def _load_tokens_from_storage(self):
+    """Загрузка токенов из NiceGUI storage"""
+    try:
+      from nicegui import app
+      if hasattr(app, 'storage') and hasattr(app.storage, 'user'):
+        self._access_token = app.storage.user.get('access_token')
+        if self._access_token:
+          logger.info("Loaded access token from storage")
+    except Exception as e:
+      logger.debug(f"Could not load tokens from storage: {e}")
+
+  def _save_tokens_to_storage(self):
+    """Сохранение токенов в NiceGUI storage"""
+    try:
+      from nicegui import app
+      if hasattr(app, 'storage') and hasattr(app.storage, 'user'):
+        if self._access_token:
+          app.storage.user['access_token'] = self._access_token
+          app.storage.user['authenticated'] = True
+        logger.info("Saved tokens to storage")
+    except Exception as e:
+      logger.debug(f"Could not save tokens to storage: {e}")
+
   def _get_auth_headers(self) -> Dict[str, str]:
     """Получение заголовков авторизации"""
     if self._access_token:
@@ -214,6 +240,9 @@ class APIClient:
         # Рассчитываем время истечения токена (default 24 hours)
         expires_in = response.get("expires_in", 24 * 3600)  # seconds
         self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+        
+        # Сохраняем в NiceGUI storage
+        self._save_tokens_to_storage()
         
         logger.info(f"Successfully logged in user: {username}")
       
@@ -455,6 +484,22 @@ class APIClient:
     """
     params = {"q": query}
     return await self._make_request("GET", "/api/catalog/search", params=params)
+  
+  async def search_positions(self, query: str, department: Optional[str] = None) -> Dict[str, Any]:
+    """
+    @doc
+    Поиск должностей по запросу с опциональной фильтрацией по департаменту.
+    
+    Examples:
+      python> results = await client.search_positions("разработчик")
+      python> print(f"Found {len(results['data']['positions'])} positions")
+      python> it_results = await client.search_positions("разработчик", "ДИТ")
+      python> print(f"Found {len(it_results['data']['positions'])} IT positions")
+    """
+    params = {"q": query}
+    if department:
+      params["department"] = department
+    return await self._make_request("GET", "/api/catalog/search/positions", params=params)
   
   async def get_profiles_list(
     self, 

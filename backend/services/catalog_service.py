@@ -200,6 +200,60 @@ class CatalogService:
             logger.error(f"Error searching departments with query '{query}': {e}")
             return []
     
+    def search_positions(self, query: str, department_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Поиск должностей по запросу с опциональной фильтрацией по департаменту.
+        
+        Args:
+            query: Поисковой запрос
+            department_filter: Фильтр по департаменту (опционально)
+            
+        Returns:
+            List[Dict] с отфильтрованными должностями
+        """
+        try:
+            # Получаем все департаменты для поиска должностей
+            all_departments = self.get_departments()
+            all_positions = []
+            
+            # Определяем список департаментов для поиска
+            departments_to_search = []
+            if department_filter:
+                # Фильтр по конкретному департаменту
+                departments_to_search = [dept for dept in all_departments 
+                                       if department_filter.lower() in dept["name"].lower()]
+            else:
+                # Поиск по всем департаментам
+                departments_to_search = all_departments
+            
+            # Собираем должности из выбранных департаментов
+            for dept in departments_to_search:
+                dept_positions = self.get_positions(dept["name"])
+                all_positions.extend(dept_positions)
+            
+            # Если нет поискового запроса, возвращаем все должности
+            if not query or not query.strip():
+                logger.info(f"Returning all positions: {len(all_positions)} positions")
+                return all_positions
+            
+            query_lower = query.strip().lower()
+            
+            # Фильтруем должности по названию, департаменту, уровню и категории
+            filtered_positions = []
+            for pos in all_positions:
+                if (query_lower in pos["name"].lower() or 
+                    query_lower in pos["department"].lower() or
+                    query_lower in str(pos["level"]).lower() or
+                    query_lower in pos["category"].lower()):
+                    filtered_positions.append(pos)
+            
+            logger.info(f"Position search '{query}' found {len(filtered_positions)} positions")
+            return filtered_positions
+            
+        except Exception as e:
+            logger.error(f"Error searching positions with query '{query}': {e}")
+            return []
+    
     def get_department_details(self, department_name: str) -> Optional[Dict[str, Any]]:
         """
         Получение детальной информации о департаменте.

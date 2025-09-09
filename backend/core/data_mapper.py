@@ -85,6 +85,39 @@ class OrganizationMapper:
         logger.warning(f"Department not found: {department_name}")
         return department_name
     
+    def get_positions_for_department(self, department_name: str) -> List[str]:
+        """
+        Извлекает список должностей для указанного департамента из реальной структуры.
+        
+        Args:
+            department_name: Название департамента
+            
+        Returns:
+            List[str]: Список должностей из structure.json
+        """
+        if not self._org_data:
+            self._load_org_structure()
+        
+        # Точное соответствие
+        if department_name in self._department_index:
+            dept_node = self._department_index[department_name]['node']
+            positions = dept_node.get('positions', [])
+            if positions:
+                logger.debug(f"Found {len(positions)} positions in '{department_name}': {positions}")
+                return positions
+        
+        # Нечеткий поиск
+        for indexed_name, info in self._department_index.items():
+            if department_name.lower() in indexed_name.lower() or indexed_name.lower() in department_name.lower():
+                logger.info(f"Fuzzy match for positions: '{department_name}' -> '{indexed_name}'")
+                dept_node = info['node']
+                positions = dept_node.get('positions', [])
+                if positions:
+                    return positions
+        
+        logger.warning(f"No positions found for department: {department_name}")
+        return []
+    
     def extract_relevant_structure(self, department_name: str, levels_up: int = 1, levels_down: int = 2) -> dict:
         """
         Извлекает релевантную структуру с контекстом вверх/вниз по иерархии

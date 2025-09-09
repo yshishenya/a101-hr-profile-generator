@@ -6,6 +6,7 @@ Endpoints:
 - GET /api/catalog/departments/{department_name} - Детальная информация о департаменте
 - GET /api/catalog/positions/{department} - Получение должностей для департамента
 - GET /api/catalog/search - Поиск департаментов
+- GET /api/catalog/search/positions - Поиск должностей
 """
 
 from fastapi import APIRouter, Query, Path, HTTPException, Depends, status
@@ -228,6 +229,74 @@ async def search_departments(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка поиска департаментов: {str(e)}"
+        )
+
+
+@catalog_router.get("/search/positions", response_model=Dict[str, Any])
+async def search_positions(
+    q: str = Query(..., min_length=1, description="Поисковой запрос для поиска должностей"),
+    department: Optional[str] = Query(None, description="Фильтр по департаменту (опционально)"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Поиск должностей по названию, департаменту, уровню или категории.
+    
+    Выполняет нечеткий поиск по:
+    - Названию должности
+    - Названию департамента
+    - Уровню должности (1-5)
+    - Категории должности (management, technical, specialist, etc.)
+    
+    Args:
+        q: Поисковой запрос (минимум 1 символ)
+        department: Фильтр по конкретному департаменту (опционально)
+        
+    Returns:
+        Dict с результатами поиска должностей
+    """
+    try:
+        logger.info(f"Searching positions with query '{q}' (department filter: {department}) for user {current_user['username']}")
+        
+        search_results = catalog_service.search_positions(q, department_filter=department)
+        
+        # Группировка результатов по департаментам для удобства
+        departments_breakdown = {}
+        levels_breakdown = {}
+        categories_breakdown = {}
+        
+        for position in search_results:
+            dept_name = position["department"]
+            level = position["level"]
+            category = position["category"]
+            
+            departments_breakdown[dept_name] = departments_breakdown.get(dept_name, 0) + 1
+            levels_breakdown[level] = levels_breakdown.get(level, 0) + 1
+            categories_breakdown[category] = categories_breakdown.get(category, 0) + 1
+        
+        response = {
+            "success": True,
+            "message": f"По запросу '{q}' найдено {len(search_results)} должностей",
+            "data": {
+                "query": q,
+                "department_filter": department,
+                "positions": search_results,
+                "total_count": len(search_results),
+                "breakdown": {
+                    "departments": departments_breakdown,
+                    "levels": levels_breakdown,
+                    "categories": categories_breakdown
+                }
+            }
+        }
+        
+        logger.info(f"Position search '{q}' returned {len(search_results)} results")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error searching positions with query '{q}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка поиска должностей: {str(e)}"
         )
 
 

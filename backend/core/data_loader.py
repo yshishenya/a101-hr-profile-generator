@@ -373,58 +373,22 @@ class DataLoader:
         return list(full_structure["departments"].keys())
     
     def _get_positions_for_department_internal(self, department: str) -> List[str]:
-        """Внутренний метод для получения позиций департамента без дополнительной обработки"""
+        """Внутренний метод для получения позиций департамента из реальной оргструктуры"""
         try:
-            # Генерируем типичные должности для департамента на основе его названия
-            base_positions = [
-                "Руководитель департамента",
-                "Заместитель руководителя", 
-                "Ведущий специалист",
-                "Старший специалист",
-                "Специалист",
-                "Аналитик",
-                "Менеджер"
-            ]
+            # Загружаем позиции из реальной структуры через OrganizationMapper
+            real_positions = self.org_mapper.get_positions_for_department(department)
             
-            # Добавляем специализированные должности в зависимости от департамента
-            dept_lower = department.lower()
-            specialized_positions = []
-            
-            if any(keyword in dept_lower for keyword in ['ит', 'информац', 'цифр', 'разработ']):
-                specialized_positions.extend([
-                    "Системный архитектор", 
-                    "Архитектор решений",
-                    "Разработчик",
-                    "DevOps инженер",
-                    "Системный администратор"
-                ])
-            elif any(keyword in dept_lower for keyword in ['коммерч', 'продаж', 'реализац']):
-                specialized_positions.extend([
-                    "Менеджер по продажам",
-                    "Коммерческий директор",
-                    "Менеджер по работе с клиентами",
-                    "Специалист по продажам"
-                ])
-            elif any(keyword in dept_lower for keyword in ['финанс', 'бухгалт', 'экономич']):
-                specialized_positions.extend([
-                    "Финансовый аналитик",
-                    "Контролер", 
-                    "Экономист",
-                    "Бухгалтер"
-                ])
-            elif any(keyword in dept_lower for keyword in ['безопасн', 'охран']):
-                specialized_positions.extend([
-                    "Специалист по безопасности",
-                    "Инженер по охране труда"
-                ])
-            
-            # Объединяем базовые и специализированные должности
-            all_positions = base_positions + specialized_positions
-            return sorted(list(set(all_positions)))
+            if real_positions:
+                logger.debug(f"Found {len(real_positions)} real positions for '{department}' in org structure")
+                return real_positions
+            else:
+                logger.warning(f"No positions found in org structure for '{department}', using fallback")
+                # Только минимальный fallback из общих должностей
+                return ["Специалист", "Ведущий специалист", "Руководитель"]
             
         except Exception as e:
             logger.error(f"Error getting positions for {department}: {e}")
-            return ["Специалист", "Менеджер", "Аналитик"]  # Fallback
+            return ["Специалист"]  # Минимальный fallback
     
     def _determine_position_level(self, position_name: str) -> str:
         """Определение уровня должности по названию"""
