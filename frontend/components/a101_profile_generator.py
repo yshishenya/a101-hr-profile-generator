@@ -20,6 +20,7 @@ from typing import List, Dict
 
 from nicegui import ui
 from ..services.api_client import APIClient
+from .stats_component import StatsComponent
 
 logger = logging.getLogger(__name__)
 
@@ -74,16 +75,38 @@ class A101ProfileGenerator:
         self.selected_position = ""
         self.selected_department = ""
 
-        # Системная статистика
-        self.total_stats = {"departments": 0, "positions": 0}
+        # Единая системная статистика
+        self.stats_component = None
 
         # Убрали search_categories - dropdown заменяет умные категории
 
         # Clean NiceGUI styling like login page
         self._add_clean_nicegui_styles()
 
-        # Загружаем иерархические предложения асинхронно
-        asyncio.create_task(self._load_hierarchical_suggestions())
+        # Данные будут загружены после авторизации пользователя
+
+    async def load_initial_data(self):
+        """
+        @doc
+        Загрузка начальных данных после успешной авторизации.
+        
+        Теперь использует единый UnifiedStatsComponent для статистики.
+        
+        Examples:
+          python> await generator.load_initial_data()
+          python> # Данные загружены и UI обновлен
+        """
+        logger.info("Loading ProfileGenerator initial data...")
+        
+        try:
+            # Загружаем только иерархические предложения
+            # Статистика загружается через UnifiedStatsComponent автоматически
+            await self._load_hierarchical_suggestions()
+            logger.info("✅ ProfileGenerator data loaded successfully")
+        except Exception as e:
+            logger.error(f"Error loading ProfileGenerator data: {e}")
+            # При ошибке используем fallback значения
+            self._use_fallback_suggestions()
 
     def _format_position_level(self, level):
         """Форматирование уровня должности для отображения"""
@@ -108,14 +131,13 @@ class A101ProfileGenerator:
 
     async def _load_hierarchical_suggestions(self):
         """
-        Загрузка иерархических предложений автокомплита из backend данных.
+        Загрузка position-first предложений для contextual search.
 
-        Создает предложения в формате:
-        "Блок безопасности → Служба безопасности → Специалист"
-        "IT Департамент → Разработка → Ведущий разработчик"
+        Преобразует 567 бизнес-единиц в ~1689 позиций с умным контекстом
+        для различения дублированных должностей.
         """
         try:
-            logger.info("Loading hierarchical suggestions from backend...")
+            logger.info("Loading contextual position suggestions from organization API...")
 
             # Проверяем авторизацию
             from nicegui import app
@@ -129,26 +151,31 @@ class A101ProfileGenerator:
                 self._use_fallback_suggestions()
                 return
 
-            # Получаем полную структуру организации через API
-            stats_response = await self.api_client._make_request(
-                "GET", "/api/catalog/stats"
+            # Получаем все элементы для поиска через organization endpoint
+            search_items_response = await self.api_client._make_request(
+                "GET", "/api/organization/search-items"
             )
 
-            if not stats_response.get("success"):
+            if not search_items_response.get("success"):
                 logger.warning(
-                    "Failed to get organization stats, "
+                    "Failed to get search items from organization API, "
                     "using fallback suggestions"
                 )
                 self._use_fallback_suggestions()
                 return
 
-            # Генерируем иерархические предложения
-            self.hierarchical_suggestions = (
-                await self._generate_hierarchical_from_backend()
-            )
+            # Извлекаем элементы и создаем position-first suggestions
+            search_items = search_items_response["data"]["items"]
+            
+            # Создаем contextual position suggestions
+            position_suggestions = self._create_position_suggestions(search_items)
+            
+            # Устанавливаем suggestions для NiceGUI dropdown
+            self.hierarchical_suggestions = [item["display_name"] for item in position_suggestions]
+            self.position_lookup = {item["display_name"]: item for item in position_suggestions}
 
             logger.info(
-                f"✅ Loaded {len(self.hierarchical_suggestions)} suggestions"
+                f"✅ Loaded {len(self.hierarchical_suggestions)} contextual position suggestions from {len(search_items)} business units"
             )
 
             # Обновляем dropdown options в поисковом поле если оно уже создано
@@ -159,181 +186,146 @@ class A101ProfileGenerator:
                 }
                 self.search_input.set_options(options_dict)
                 logger.info(
-                    "✅ Updated search dropdown with hierarchical options"
+                    "✅ Updated search dropdown with contextual position options"
                 )
 
         except Exception as e:
-            logger.error(f"Error loading hierarchical suggestions: {e}")
+            logger.debug(f"Error loading contextual position suggestions (using fallback): {e}")
             self._use_fallback_suggestions()
 
-    async def _generate_hierarchical_from_backend(self) -> List[str]:
+    def _create_position_suggestions(self, search_items):
         """
-        Генерация иерархических предложений из backend данных.
-
-        Returns:
-            List[str]: Список иерархических предложений для автокомплита
-        """
-        suggestions = []
-
-        try:
-            # Получаем список всех департаментов
-            departments_response = await self.api_client._make_request(
-                "GET", "/api/catalog/departments"
-            )
-
-            if not departments_response.get("success"):
-                logger.warning(
-                    "Failed to get departments for hierarchical suggestions"
-                )
-                return []
-
-            # Извлекаем departments из response["data"]["departments"]
-            departments = departments_response["data"]["departments"]
-
-            logger.info(f"Processing {len(departments)} departments...")
-
-            # Для каждого департамента получаем позиции
-            # и создаем иерархические пути
-            for dept in departments:
-                dept_name = dept["name"]
-
-                try:
-                    # Получаем позиции департамента - правильный endpoint
-                    positions_response = await self.api_client._make_request(
-                        "GET", f"/api/catalog/positions/{dept_name}"
-                    )
-
-                    if positions_response.get("success"):
-                        # Извлекаем positions из response["data"]["positions"]
-                        positions_data = positions_response["data"]
-                        positions = positions_data["positions"]
-
-                        # Debug: log first few positions to understand
-                        # structure
-                        if positions:
-                            logger.debug(
-                                f"First position structure in '{dept_name}': "
-                                f"{positions[0] if positions else 'None'}"
-                            )
-                            if len(positions) > 5:
-                                logger.debug(
-                                    f"Department '{dept_name}' has "
-                                    f"{len(positions)} positions"
-                                )
-                        else:
-                            logger.debug(
-                                f"No positions found for department "
-                                f"'{dept_name}'"
-                            )
-
-                        # Создаем иерархические предложения
-                        for position in positions:
-                            try:
-                                # Формируем иерархический путь
-                                hierarchical_path = (
-                                    self._build_hierarchical_path(
-                                        dept_name, position
-                                    )
-                                )
-                                # Проверяем что путь не пустой
-                                if hierarchical_path:
-                                    suggestions.append(hierarchical_path)
-                            except Exception as pos_error:
-                                logger.warning(
-                                    f"Failed to build path for position: "
-                                    f"{pos_error}"
-                                )
-
-                except Exception as dept_error:
-                    logger.warning(
-                        f"Failed to get positions for department "
-                        f"'{dept_name}': {dept_error}"
-                    )
-                    continue
-
-            logger.info(
-                f"Generated {len(suggestions)} suggestions from backend"
-            )
-
-            # Сортируем по алфавиту для консистентности
-            suggestions.sort()
-
-            # Ограничиваем количество предложений для производительности
-            return suggestions[:500]  # Топ 500 наиболее релевантных
-
-        except Exception as e:
-            logger.error(f"Error generating hierarchical suggestions: {e}")
-            return []
-
-    def _build_hierarchical_path(self, department: str, position: dict) -> str:
-        """
-        Построение иерархического пути для позиции.
-
+        Создание contextual position suggestions с умным различением дублей.
+        
+        Преобразует бизнес-единицы в список позиций с контекстом:
+        - "Java-разработчик → ДИТ (Блок ОД)" для уникальных позиций
+        - "Руководитель группы → Группа 1 (Упр. подбора)" для дублированных
+        
         Args:
-            department: Название департамента
-            position: Данные позиции
-
+            search_items: Список бизнес-единиц из API
+            
         Returns:
-            str: Иерархический путь типа "Департамент → Позиция"
+            List[Dict]: Список позиций с contextual display names
         """
-        # Безопасное извлечение названия позиции
-        if isinstance(position, dict):
-            position_name = position.get("name", str(position))
-        elif isinstance(position, str):
-            position_name = position
-        else:
-            logger.warning(
-                f"Unexpected position type: {type(position)}, "
-                f"value: {position}"
-            )
-            position_name = str(position)
-
-        # Определяем уровень вложенности на основе названия департамента
-        path_parts = []
-
-        # Парсим структуру департамента для иерархии
-        if "→" in department or "/" in department or "\\" in department:
-            # Департамент уже содержит путь
-            path_parts = [
-                part.strip()
-                for part in (
-                    department.replace("/", "→")
-                    .replace("\\", "→")
-                    .split("→")
+        # Шаг 1: Создаем map для обнаружения дублирования позиций
+        position_instances = {}
+        
+        for unit in search_items:
+            if unit.get("positions_count", 0) == 0:
+                continue
+                
+            for position in unit.get("positions", []):
+                position_key = position.lower().strip()
+                if position_key not in position_instances:
+                    position_instances[position_key] = []
+                
+                position_instances[position_key].append({
+                    "position_name": position,
+                    "unit": unit
+                })
+        
+        # Шаг 2: Создаем contextual suggestions для каждой позиции
+        position_suggestions = []
+        
+        for position_key, instances in position_instances.items():
+            is_duplicated = len(instances) > 1
+            
+            for instance in instances:
+                position_name = instance["position_name"]
+                unit = instance["unit"]
+                
+                # Создаем contextual display name
+                display_name = self._create_contextual_display_name(
+                    position_name, unit, is_duplicated
                 )
-            ]
+                
+                position_suggestions.append({
+                    "display_name": display_name,
+                    "position_name": position_name,
+                    "unit_name": unit["name"],
+                    "unit_path": unit["full_path"],
+                    "hierarchy": unit["hierarchy"],
+                    "level": unit.get("level", 0),
+                    "unit_data": unit
+                })
+        
+        logger.info(f"Created {len(position_suggestions)} contextual position suggestions")
+        return position_suggestions
+    
+    def _create_contextual_display_name(self, position_name, unit, is_duplicated):
+        """
+        Создание умного contextual display name для позиции.
+        
+        Args:
+            position_name: Название позиции
+            unit: Данные бизнес-единицы
+            is_duplicated: True если позиция дублируется в других единицах
+            
+        Returns:
+            str: Контекстуальное отображаемое имя
+        """
+        if not is_duplicated:
+            # Уникальная позиция - минимальный контекст
+            return f"{position_name} → {unit['display_name']}"
+        
+        # Дублированная позиция - расширенный контекст для различения
+        hierarchy_parts = unit["hierarchy"].split(" → ")
+        
+        if len(hierarchy_parts) <= 3:
+            # Короткая иерархия - показываем полностью
+            return f"{position_name} → {unit['hierarchy']}"
+        
+        # Длинная иерархия - умное сжатие
+        # Показываем: позиция → последние 2 уровня (более специфичный контекст)
+        context = " → ".join(hierarchy_parts[-2:])
+        
+        # Добавляем блок в скобках для дополнительного контекста
+        block = hierarchy_parts[0] if hierarchy_parts else ""
+        if block and block not in context:
+            return f"{position_name} → {context} ({block})"
         else:
-            # Простое название департамента
-            path_parts = [department]
-
-        # Добавляем позицию в конце пути
-        path_parts.append(position_name)
-
-        # Создаем финальный иерархический путь
-        hierarchical_path = " → ".join(path_parts)
-
-        return hierarchical_path
+            return f"{position_name} → {context}"
 
     def _use_fallback_suggestions(self):
         """Использование fallback предложений при недоступности backend"""
-        # Только реальные должности из оргструктуры А101 - без вымышленных
-        fallback_suggestions = [
-            "Руководитель отдела",
-            "Ведущий специалист",
-            "Старший специалист",
-            "Специалист",
-            "Главный специалист",
-            "Заместитель руководителя",
-            "Директор департамента",
-            "Руководитель направления",
-            "Руководитель управления",
-            "Руководитель службы",
-            "Координатор",
-            "Помощник директора",
+        # Создаем fallback suggestions в новом contextual формате
+        fallback_positions = [
+            "Руководитель отдела → Департамент",
+            "Ведущий специалист → Отдел", 
+            "Старший специалист → Управление",
+            "Специалист → Группа",
+            "Главный специалист → Департамент",
+            "Заместитель руководителя → Департамент",
+            "Директор департамента → Блок",
+            "Руководитель направления → Департамент",
+            "Руководитель управления → Департамент",
+            "Руководитель службы → Блок",
+            "Координатор → Управление",
+            "Помощник директора → Департамент",
         ]
 
-        self.hierarchical_suggestions = fallback_suggestions
-        logger.info(f"Using {len(fallback_suggestions)} fallback suggestions")
+        self.hierarchical_suggestions = fallback_positions
+        
+        # Создаем fallback lookup для совместимости
+        self.position_lookup = {}
+        for suggestion in fallback_positions:
+            if " → " in suggestion:
+                parts = suggestion.split(" → ")
+                position_name = parts[0].strip()
+                unit_name = parts[1].strip()
+            else:
+                position_name = suggestion
+                unit_name = "Неизвестно"
+                
+            self.position_lookup[suggestion] = {
+                "display_name": suggestion,
+                "position_name": position_name,
+                "unit_name": unit_name,
+                "unit_path": unit_name,
+                "hierarchy": unit_name
+            }
+        
+        logger.info(f"Using {len(fallback_positions)} contextual fallback suggestions")
 
         # Обновляем dropdown options в поисковом поле если оно уже создано
         if hasattr(self, "search_input") and self.search_input:
@@ -343,7 +335,7 @@ class A101ProfileGenerator:
             }
             self.search_input.set_options(options_dict)
             logger.info(
-                "✅ Updated search dropdown with fallback options"
+                "✅ Updated search dropdown with contextual fallback options"
             )
 
     # OLD INPUT STYLES METHOD REMOVED - Use _add_minimal_input_styles() instead
@@ -366,14 +358,11 @@ class A101ProfileGenerator:
             # Корпоративный заголовок
             await self._render_corporate_header()
 
-            # Системная статистика
-            await self._render_system_stats()
+            # Системная статистика через unified component
+            await self._render_unified_system_stats()
 
             # Главный генератор
             await self._render_main_generator()
-
-            # Загружаем системную статистику
-            await self._load_system_stats()
 
         return container
 
@@ -395,8 +384,7 @@ class A101ProfileGenerator:
             # System stats with dashboard-style cards
             await self._render_unified_system_stats()
 
-            # Load system stats after labels are created
-            await self._load_system_stats()
+            # Статистика будет загружена после авторизации пользователя
 
             # Main generator with unified styling
             await self._render_unified_main_generator()
@@ -419,36 +407,21 @@ class A101ProfileGenerator:
         """Refresh generator data"""
         ui.notify("Обновление данных...", type="info")
         try:
-            await self._load_system_stats()
+            # Обновляем статистику через unified component
+            if self.stats_component:
+                await self.stats_component.manual_refresh()
+            
+            # Обновляем данные поиска
             await self._load_hierarchical_suggestions()
             ui.notify("Данные обновлены", type="positive")
         except Exception as e:
             ui.notify(f"Ошибка обновления: {e}", type="negative")
 
     async def _render_unified_system_stats(self):
-        """System stats with dashboard-consistent styling"""
-        with ui.card().classes("w-full mb-6"):
-            ui.label("📊 Статус системы").classes("text-h6 q-mb-md")
-
-            with ui.row().classes("w-full q-gutter-md"):
-                # Departments
-                with ui.card().classes("flex-1 text-center p-4"):
-                    self.departments_label = ui.label("Загрузка...").classes(
-                        "text-h4 text-weight-bold text-primary"
-                    )
-                    ui.label("Департаментов").classes("text-caption text-grey-6")
-
-                # Positions
-                with ui.card().classes("flex-1 text-center p-4"):
-                    self.positions_label = ui.label("Загрузка...").classes(
-                        "text-h4 text-weight-bold text-green"
-                    )
-                    ui.label("Должностей").classes("text-caption text-grey-6")
-
-                # System status
-                with ui.card().classes("flex-1 text-center p-4"):
-                    ui.label("Готова").classes("text-h4 text-weight-bold text-positive")
-                    ui.label("Система").classes("text-caption text-grey-6")
+        """Отображение системной статистики через упрощенный компонент"""
+        # Создаем компонент статистики в компактном стиле
+        self.stats_component = StatsComponent(self.api_client, style="compact")
+        await self.stats_component.render()
 
     async def _render_unified_main_generator(self):
         """Main generator with unified dashboard styling"""
@@ -542,25 +515,7 @@ class A101ProfileGenerator:
                             )
                             ui.label("Активная сессия").classes("text-blue-100 text-xs")
 
-    async def _render_system_stats(self):
-        """Карточки системной статистики"""
-        with ui.row().classes("w-full gap-6 mb-8 max-w-6xl mx-auto px-4"):
-
-            # Департаменты
-            with ui.card().classes("flex-1 p-4 text-center"):
-                ui.icon("corporate_fare", size="2rem").classes("text-blue-600 mb-2")
-                self.departments_label = ui.label("Загрузка...").classes(
-                    "text-3xl font-bold text-gray-900"
-                )
-                ui.label("Департаментов").classes("text-gray-600 text-sm font-medium")
-
-            # Должности
-            with ui.card().classes("flex-1 p-4 text-center"):
-                ui.icon("groups", size="2rem").classes("text-emerald-600 mb-2")
-                self.positions_label = ui.label("Загрузка...").classes(
-                    "text-3xl font-bold text-gray-900"
-                )
-                ui.label("Должностей").classes("text-gray-600 text-sm font-medium")
+    # Old _render_system_stats method removed - now using unified UnifiedStatsComponent
 
             # Статус системы
             with ui.card().classes("flex-1 p-4 text-center"):
@@ -657,44 +612,8 @@ class A101ProfileGenerator:
                 ui.spinner(size="sm").classes("self-center").style("display: none")
             )
 
-    async def _load_system_stats(self):
-        """Загрузка системной статистики"""
-        try:
-            # Проверяем авторизацию
-            from nicegui import app
-
-            if not app.storage.user.get("authenticated", False):
-                # Fallback значения для неавторизованных пользователей
-                self._update_stats_labels("510", "4,376")
-                return
-
-            stats_response = await self.api_client._make_request(
-                "GET", "/api/catalog/stats"
-            )
-
-            if stats_response.get("success"):
-                stats_data = stats_response["data"]
-
-                # Обновляем счетчики
-                dept_count = stats_data["departments"]["total_count"]
-                pos_count = stats_data["positions"]["total_count"]
-
-                self._update_stats_labels(f"{dept_count:,}", f"{pos_count:,}")
-
-                self.total_stats = {"departments": dept_count, "positions": pos_count}
-
-        except Exception as e:
-            logger.error(f"Error loading system stats: {e}")
-            # Fallback значения
-            self._update_stats_labels("510", "4,376")
-            self.total_stats = {"departments": 510, "positions": 4376}
-
-    def _update_stats_labels(self, dept_text: str, pos_text: str):
-        """Safely update stats labels if they exist"""
-        if hasattr(self, "departments_label") and self.departments_label:
-            self.departments_label.text = dept_text
-        if hasattr(self, "positions_label") and self.positions_label:
-            self.positions_label.text = pos_text
+    # Метод _load_system_stats удален - теперь используется UnifiedStatsComponent
+    # Метод _update_stats_labels удален - теперь UnifiedStatsComponent сам обновляет UI
 
     async def _on_search_select(self, event=None):
         """Обработчик выбора варианта из dropdown - сразу подготавливаем к генерации"""
@@ -747,28 +666,52 @@ class A101ProfileGenerator:
 
     def _process_hierarchical_selection(self, selection: str) -> tuple[str, str]:
         """
-        Обработка выбора из иерархического автокомплита.
+        Обработка выбора из contextual position search.
 
         Args:
-            selection: Выбранная строка (может быть иерархический путь)
+            selection: Выбранная строка (display_name позиции с контекстом)
 
         Returns:
-            tuple[str, str]: (department, position) или ("", "") если не удалось извлечь
+            tuple[str, str]: (unit_name, position_name) или ("", "") если не удалось извлечь
         """
-        if " → " in selection:
-            # Это иерархический путь, извлекаем позицию (последний элемент)
-            parts = [part.strip() for part in selection.split(" → ")]
-            if len(parts) >= 2:
-                department = parts[-2]  # Предпоследний элемент - департамент
-                position = parts[-1]  # Последний элемент - позиция
+        try:
+            # Проверяем есть ли данные о выбранной позиции в lookup
+            if hasattr(self, "position_lookup") and selection in self.position_lookup:
+                position_item = self.position_lookup[selection]
+                
+                position_name = position_item["position_name"]
+                unit_name = position_item["unit_name"]
+                unit_path = position_item["unit_path"]
+                
+                logger.info(f"Contextual position selection: {position_name} in {unit_name} (path: {unit_path})")
+                return unit_name, position_name
+            
+            # Fallback для старого формата или ручного ввода
+            if " → " in selection:
+                parts = [part.strip() for part in selection.split(" → ")]
+                if len(parts) >= 2:
+                    position_name = parts[0]
+                    # Пытаемся извлечь unit name из контекста
+                    context_part = parts[1]
+                    
+                    # Убираем скобки если есть: "Группа 1 (Блок ОД)" -> "Группа 1"
+                    if "(" in context_part:
+                        unit_name = context_part.split("(")[0].strip()
+                    else:
+                        # Берем последнюю часть как unit name
+                        context_parts = context_part.split(" → ")
+                        unit_name = context_parts[-1].strip()
+                    
+                    logger.info(f"Fallback contextual selection: {position_name} in {unit_name}")
+                    return unit_name, position_name
+            else:
+                # Простой ввод без контекста - считаем что это название позиции
+                logger.info(f"Simple position selection: {selection}")
+                return "", selection.strip()
 
-                logger.info(f"Hierarchical selection: {department} → {position}")
-                return department, position
-        else:
-            # Простое название позиции без иерархии
-            logger.info(f"Simple selection: {selection}")
-            return "", selection.strip()
-
+        except Exception as e:
+            logger.error(f"Error processing contextual selection: {e}")
+        
         return "", ""
 
     async def _set_selected_position(self, position: str, department: str):
@@ -1270,33 +1213,39 @@ class A101ProfileGenerator:
 
     async def _start_generation(self):
         """Запуск генерации профиля"""
-        if not self.selected_position or self.is_generating:
+        if not self.selected_position or not self.selected_department or self.is_generating:
+            ui.notify("❌ Выберите позицию для генерации", type="warning")
             return
 
         try:
             self.is_generating = True
             self.generate_button.props(add="loading")
 
-            # Подготовка данных для генерации - упрощенная версия
+            # Подготовка данных для генерации - используем существующие строки
             generation_data = {
-                "department": self.selected_position["department"],
-                "position": self.selected_position["name"],
+                "department": self.selected_department,  # Это строка
+                "position": self.selected_position,      # Это тоже строка
                 "save_result": True,
             }
+
+            logger.info(f"Starting generation with data: {generation_data}")
 
             # Запуск генерации через API
             response = await self.api_client.start_profile_generation(**generation_data)
 
-            if response.get("success"):
+            logger.info(f"Generation API response: {response}")
+
+            if response.get("task_id") and response.get("status") == "queued":
                 self.current_task_id = response["task_id"]
-                ui.notify(
-                    "🚀 Генерация профиля запущена!", type="positive", position="top"
-                )
+                message = response.get("message", "Генерация профиля запущена")
+                ui.notify(f"🚀 {message}", type="positive", position="top")
 
                 # Показываем прогресс
                 await self._show_generation_progress()
             else:
-                ui.notify("❌ Ошибка запуска генерации", type="negative")
+                error_msg = response.get("message", "Неизвестная ошибка")
+                logger.error(f"Generation start failed: {error_msg}")
+                ui.notify(f"❌ Ошибка запуска: {error_msg}", type="negative")
 
         except Exception as e:
             logger.error(f"Error starting generation: {e}")
@@ -1483,6 +1432,308 @@ class A101ProfileGenerator:
         self._clear_selection()
         self.current_task_id = None
         ui.notify("🔄 Генератор сброшен", type="info")
+
+    async def _start_generation(self):
+        """Запуск генерации профиля должности"""
+        if not (self.selected_department and self.selected_position):
+            ui.notify("❌ Необходимо выбрать департамент и должность", type="negative")
+            return
+
+        try:
+            # Показываем диалог с прогрессом
+            await self._show_generation_progress_dialog()
+            
+            # Подготавливаем данные для генерации
+            generation_data = {
+                "department": self.selected_department,
+                "position": self.selected_position,
+                "save_result": True
+            }
+
+            # Отправляем запрос на генерацию
+            response = await self.api_client._make_request(
+                "POST", 
+                "/api/generation/start", 
+                data=generation_data
+            )
+
+            if response.get("task_id"):
+                # Сохраняем ID задачи
+                self.current_task_id = response["task_id"]
+                # Запускаем polling статуса задачи
+                await self._poll_task_status(response["task_id"])
+            else:
+                self._safe_close_dialog('generation_dialog')
+                ui.notify("❌ Ошибка при запуске генерации", type="negative")
+                
+        except Exception as e:
+            logger.error(f"Error starting generation: {e}")
+            self._safe_close_dialog('generation_dialog')
+            ui.notify(f"❌ Ошибка генерации: {str(e)}", type="negative")
+
+    async def _show_generation_progress_dialog(self):
+        """Показ диалога с прогрессом генерации"""
+        self.generation_dialog = ui.dialog()
+        self.progress_value = 0
+        self.progress_step = "Инициализация..."
+        
+        with self.generation_dialog:
+            with ui.card().classes("w-96 p-6"):
+                with ui.column().classes("items-center gap-4"):
+                    # Заголовок
+                    ui.label("🚀 Генерация профиля должности").classes("text-lg font-bold")
+                    
+                    # Информация о задаче
+                    with ui.column().classes("w-full gap-2"):
+                        ui.label(f"Должность: {self.selected_position}").classes("font-medium")
+                        ui.label(f"Департамент: {self.selected_department}").classes("text-sm text-gray-600")
+                    
+                    # Прогресс-бар и спиннер
+                    with ui.row().classes("w-full items-center gap-4"):
+                        ui.spinner(size="md", color="primary")
+                        with ui.column().classes("flex-1"):
+                            self.progress_bar = ui.linear_progress().bind_value_from(self, "progress_value").classes("w-full")
+                            self.progress_label = ui.label().bind_text_from(self, "progress_step").classes("text-sm")
+                    
+                    # Кнопка отмены
+                    ui.button("Отменить", on_click=self._cancel_generation).props("outlined color=grey size=sm")
+
+        self.generation_dialog.open()
+
+    async def _poll_task_status(self, task_id: str):
+        """Polling статуса задачи генерации"""
+        max_attempts = 120  # 2 минуты максимум
+        attempt = 0
+        
+        while attempt < max_attempts:
+            try:
+                # Получаем статус задачи
+                status_response = await self.api_client._make_request(
+                    "GET", 
+                    f"/api/generation/{task_id}/status"
+                )
+                
+                if not status_response:
+                    break
+                    
+                task_data = status_response.get("task", {})
+                status = task_data.get("status", "unknown")
+                progress = task_data.get("progress", 0)
+                current_step = task_data.get("current_step", "Обработка...")
+                
+                # Обновляем прогресс
+                self.progress_value = progress / 100.0  # NiceGUI expects 0-1 range
+                self.progress_step = f"{current_step} ({progress}%)"
+                
+                if status == "completed":
+                    # Получаем результат
+                    result_response = await self.api_client._make_request(
+                        "GET", 
+                        f"/api/generation/{task_id}/result"
+                    )
+                    
+                    self._safe_close_dialog('generation_dialog')
+                    await self._show_generation_success(result_response.get("result"))
+                    return
+                    
+                elif status == "failed":
+                    self._safe_close_dialog('generation_dialog')
+                    error_msg = task_data.get("error_message", "Неизвестная ошибка")
+                    await self._show_generation_error(error_msg)
+                    return
+                
+                # Ждем 1 секунду перед следующим запросом
+                await asyncio.sleep(1)
+                attempt += 1
+                
+            except Exception as e:
+                logger.error(f"Error polling task status: {e}")
+                await asyncio.sleep(2)  # Увеличиваем задержку при ошибке
+                attempt += 1
+        
+        # Превышено время ожидания
+        self._safe_close_dialog('generation_dialog')
+        await self._show_generation_error("Превышено время ожидания генерации")
+
+    async def _show_generation_success(self, result):
+        """Показ успешного результата генерации"""
+        dialog = ui.dialog()
+        
+        with dialog:
+            with ui.card().classes("w-[500px] p-6"):
+                with ui.column().classes("items-center gap-4"):
+                    # Успех
+                    ui.icon("check_circle", size="3rem", color="positive")
+                    ui.label("✅ Профиль успешно создан!").classes("text-xl font-bold text-positive")
+                    
+                    if result and result.get("profile"):
+                        profile = result["profile"]
+                        
+                        # Краткая информация о профиле
+                        with ui.column().classes("w-full gap-2 bg-gray-50 p-4 rounded"):
+                            ui.label(f"Должность: {profile.get('position_title', 'N/A')}").classes("font-medium")
+                            ui.label(f"Департамент: {profile.get('department_specific', 'N/A')}").classes("text-sm")
+                            ui.label(f"Категория: {profile.get('position_category', 'N/A')}").classes("text-sm")
+                            
+                            # Метаданные генерации
+                            if result.get("metadata", {}).get("validation", {}):
+                                validation = result["metadata"]["validation"]
+                                completeness = validation.get("completeness_score", 0) * 100
+                                ui.label(f"Полнота профиля: {completeness:.0f}%").classes("text-sm text-blue-600")
+                    
+                    # Действия
+                    with ui.row().classes("gap-3 justify-center"):
+                        ui.button(
+                            "📄 Просмотреть профиль",
+                            icon="description",
+                            on_click=lambda: self._view_profile_result(result, dialog)
+                        ).props("color=primary")
+                        
+                        ui.button(
+                            "➕ Создать еще один",
+                            icon="add_circle_outline", 
+                            on_click=lambda: self._create_another_profile(dialog)
+                        ).props("outlined")
+                    
+                    ui.button("Закрыть", on_click=dialog.close).props("outlined color=grey")
+        
+        dialog.open()
+
+    async def _show_generation_error(self, error_message: str):
+        """Показ ошибки генерации"""
+        dialog = ui.dialog()
+        
+        with dialog:
+            with ui.card().classes("w-96 p-6"):
+                with ui.column().classes("items-center gap-4"):
+                    # Ошибка
+                    ui.icon("error", size="3rem", color="negative")
+                    ui.label("❌ Ошибка генерации").classes("text-xl font-bold text-negative")
+                    ui.label(error_message).classes("text-center text-gray-600")
+                    
+                    # Действия
+                    with ui.row().classes("gap-3"):
+                        ui.button(
+                            "🔄 Попробовать снова",
+                            icon="refresh",
+                            on_click=lambda: self._retry_generation_from_error(dialog)
+                        ).props("color=primary")
+                        
+                        ui.button("Закрыть", on_click=dialog.close).props("outlined")
+        
+        dialog.open()
+
+    def _cancel_generation(self):
+        """Отмена генерации"""
+        self._safe_close_dialog('generation_dialog')
+        self.current_task_id = None
+        ui.notify("Генерация отменена", type="warning")
+
+    def _view_profile_result(self, result, dialog):
+        """Просмотр результата профиля"""
+        self._safe_close_any_dialog(dialog)
+        # Создаем диалог просмотра профиля
+        self._show_profile_details(result)
+
+    def _show_profile_details(self, result):
+        """Показ детальной информации о профиле"""
+        if not result or not result.get("profile"):
+            ui.notify("❌ Нет данных профиля для отображения", type="negative")
+            return
+            
+        profile = result["profile"]
+        
+        dialog = ui.dialog()
+        with dialog:
+            with ui.card().classes("w-[800px] max-h-[80vh] overflow-y-auto"):
+                with ui.column().classes("gap-4 p-6"):
+                    # Заголовок
+                    ui.label(f"📋 Профиль должности: {profile.get('position_title', 'N/A')}").classes("text-xl font-bold")
+                    
+                    # Основная информация
+                    with ui.expansion("Основная информация", icon="info").classes("w-full"):
+                        with ui.column().classes("gap-2 p-4"):
+                            ui.label(f"Департамент: {profile.get('department_specific', 'N/A')}")
+                            ui.label(f"Категория: {profile.get('position_category', 'N/A')}")
+                            ui.label(f"Тип деятельности: {profile.get('primary_activity_type', 'N/A')}")
+                    
+                    # Области ответственности
+                    if profile.get("responsibility_areas"):
+                        with ui.expansion("Области ответственности", icon="assignment").classes("w-full"):
+                            with ui.column().classes("gap-3 p-4"):
+                                for area in profile["responsibility_areas"]:
+                                    if isinstance(area, dict) and area.get("tasks"):
+                                        area_name = area.get("area", ["Неопределено"])[0] if isinstance(area.get("area"), list) else str(area.get("area", "Неопределено"))
+                                        ui.label(f"🔹 {area_name}").classes("font-medium")
+                                        for task in area["tasks"][:3]:  # Показываем первые 3 задачи
+                                            ui.label(f"• {task}").classes("text-sm ml-4")
+                    
+                    # Навыки
+                    if profile.get("professional_skills"):
+                        with ui.expansion("Профессиональные навыки", icon="psychology").classes("w-full"):
+                            with ui.column().classes("gap-2 p-4"):
+                                for skill_group in profile["professional_skills"][:3]:  # Показываем первые 3 группы
+                                    if isinstance(skill_group, dict):
+                                        category = skill_group.get("skill_category", "Общие навыки")
+                                        ui.label(f"🔸 {category}").classes("font-medium")
+                                        
+                                        skills = skill_group.get("specific_skills", [])
+                                        for skill in skills[:2]:  # Показываем первые 2 навыка в группе
+                                            if isinstance(skill, dict):
+                                                skill_name = skill.get("skill_name", "Неопределено")
+                                                level = skill.get("proficiency_level", 1)
+                                                ui.label(f"• {skill_name} (Уровень: {level})").classes("text-sm ml-4")
+                    
+                    # Кнопка закрытия
+                    with ui.row().classes("justify-center mt-4"):
+                        ui.button("Закрыть", on_click=dialog.close).props("outlined")
+        
+        dialog.open()
+
+    def _create_another_profile(self, dialog):
+        """Создание еще одного профиля"""
+        self._safe_close_any_dialog(dialog)
+        self._clear_selection()
+        ui.notify("✨ Выберите новую должность для создания профиля", type="info")
+
+    def _retry_generation_from_error(self, dialog):
+        """Повторная генерация после ошибки"""
+        self._safe_close_any_dialog(dialog)
+        asyncio.create_task(self._start_generation())
+
+    def _clear_selection(self):
+        """Очистка выбранной позиции"""
+        self.selected_department = None
+        self.selected_position = None
+        self.has_selected_position = False
+        self.can_generate = False
+        self.current_task_id = None
+        
+        # Очищаем поля поиска если есть
+        if hasattr(self, 'search_input'):
+            self.search_input.value = ""
+        
+        ui.notify("🧹 Выбор очищен", type="info")
+
+    def _safe_close_dialog(self, dialog_attr_name: str):
+        """Безопасное закрытие диалога с обработкой ошибок"""
+        try:
+            if hasattr(self, dialog_attr_name):
+                dialog = getattr(self, dialog_attr_name)
+                if dialog and hasattr(dialog, 'close'):
+                    dialog.close()
+                    # Очищаем ссылку на диалог
+                    setattr(self, dialog_attr_name, None)
+        except Exception as e:
+            logger.warning(f"Error closing dialog {dialog_attr_name}: {e}")
+
+    def _safe_close_any_dialog(self, dialog):
+        """Безопасное закрытие любого диалога"""
+        try:
+            if dialog and hasattr(dialog, 'close'):
+                dialog.close()
+        except Exception as e:
+            logger.warning(f"Error closing dialog: {e}")
 
 
 if __name__ == "__main__":
