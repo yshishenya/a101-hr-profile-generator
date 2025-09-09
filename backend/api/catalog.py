@@ -28,20 +28,13 @@ async def get_departments(
     force_refresh: bool = Query(False, description="Принудительное обновление кеша"),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Получение списка всех доступных департаментов.
-
-    Возвращает список департаментов с базовой информацией:
-    - Название департамента
-    - Путь в организационной структуре
-    - Количество доступных должностей
-    - Время последнего обновления
-
+    """Retrieve a list of all available departments.
+    
     Args:
-        force_refresh: Принудительное обновление кеша (по умолчанию False)
-
+        force_refresh (bool): Force cache refresh (default is False).
+    
     Returns:
-        Dict с списком департаментов и метаданными
+        Dict[str, Any]: A dictionary containing the list of departments and metadata.
     """
     try:
         logger.info(
@@ -77,21 +70,7 @@ async def get_department_details(
     department_name: str = Path(..., description="Название департамента"),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Получение детальной информации о конкретном департаменте.
-
-    Включает:
-    - Базовую информацию о департаменте
-    - Список всех должностей
-    - Организационную структуру
-    - Статистику по уровням и категориям должностей
-
-    Args:
-        department_name: Название департамента
-
-    Returns:
-        Dict с детальной информацией о департаменте
-    """
+    """Retrieve detailed information about a specific department."""
     try:
         logger.info(
             f"Getting details for department '{department_name}' for user {current_user['username']}"
@@ -130,21 +109,18 @@ async def get_positions(
     force_refresh: bool = Query(False, description="Принудительное обновление кеша"),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Получение списка должностей для конкретного департамента.
-
-    Возвращает детальную информацию о должностях:
-    - Название должности
-    - Уровень должности (1-5, где 1 - высший)
-    - Категория должности (management, technical, specialist, etc.)
-    - Департамент
-
+    """Retrieve a list of positions for a specific department.
+    
+    This function fetches detailed information about positions within a given
+    department, including the position title, level (1-5, where 1 is the highest),
+    category (management, technical, specialist, etc.), and department name.  It
+    also groups the positions by their levels and categories for analytical
+    purposes. The function can optionally refresh the cache to ensure the latest
+    data is retrieved.
+    
     Args:
-        department: Название департамента
-        force_refresh: Принудительное обновление кеша
-
-    Returns:
-        Dict со списком должностей и метаданными
+        department: Название департамента.
+        force_refresh: Принудительное обновление кеша.
     """
     try:
         logger.info(
@@ -200,18 +176,13 @@ async def search_departments(
     q: str = Query(..., min_length=1, description="Поисковой запрос"),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Поиск департаментов по названию или пути в организационной структуре.
-
-    Выполняет нечеткий поиск по:
-    - Названию департамента
-    - Пути в иерархии организации
-
+    """Search for departments by name or path in the organizational structure.
+    
     Args:
-        q: Поисковой запрос (минимум 1 символ)
-
+        q (str): Search query (minimum 1 character).
+    
     Returns:
-        Dict с результатами поиска
+        Dict[str, Any]: Search results.
     """
     try:
         logger.info(
@@ -251,22 +222,7 @@ async def search_positions(
     ),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Поиск должностей по названию, департаменту, уровню или категории.
-
-    Выполняет нечеткий поиск по:
-    - Названию должности
-    - Названию департамента
-    - Уровню должности (1-5)
-    - Категории должности (management, technical, specialist, etc.)
-
-    Args:
-        q: Поисковой запрос (минимум 1 символ)
-        department: Фильтр по конкретному департаменту (опционально)
-
-    Returns:
-        Dict с результатами поиска должностей
-    """
+    """Search for job positions by title, department, level, or category."""
     try:
         logger.info(
             f"Searching positions with query '{q}' (department filter: {department}) for user {current_user['username']}"
@@ -326,17 +282,10 @@ async def clear_cache(
     ),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Очистка кеша каталога (только для администраторов).
-
-    Позволяет очистить кеш департаментов, должностей или весь кеш полностью.
-    Требует права администратора.
-
+    """Clears the cache for departments, positions, or all caches.
+    
     Args:
-        cache_type: Тип кеша для очистки (departments, positions или None для всех)
-
-    Returns:
-        BaseResponse с результатом операции
+        cache_type: Type of cache to clear (departments, positions, or None for all).
     """
     try:
         # Проверяем права администратора
@@ -372,17 +321,16 @@ async def clear_cache(
 
 @catalog_router.get("/stats", response_model=Dict[str, Any])
 async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
-    """
-    Получение статистики каталога.
-
-    Возвращает общую статистику по:
-    - Количеству департаментов
-    - Общему количеству должностей
-    - Распределению должностей по уровням и категориям
-    - Статусу кеша
-
-    Returns:
-        Dict с общей статистикой каталога
+    """Retrieve statistics for the catalog.
+    
+    This function gathers and returns overall statistics related to the catalog,
+    including the total number of departments, the total number of positions,  and
+    the distribution of positions by levels and categories. It also checks  the
+    cache status for departments and positions, providing insights into  the
+    current state of the catalog data.
+    
+    Args:
+        current_user (dict): The current user information, obtained via
     """
     try:
         logger.info(f"Getting catalog stats for user {current_user['username']}")
