@@ -6,4 +6,4 @@ Frontend utils module.
 
 from .config import FrontendConfig, config, get_version, is_production, is_development
 
-__all__ = ['FrontendConfig', 'config', 'get_version', 'is_production', 'is_development']
+__all__ = ["FrontendConfig", "config", "get_version", "is_production", "is_development"]

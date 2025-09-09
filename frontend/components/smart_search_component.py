@@ -96,12 +96,18 @@ class SmartSearchComponent:
         """Отрисовка заголовка с общей статистикой"""
         with ui.card().classes("w-full"):
             with ui.card_section():
-                ui.label("🔍 Поиск по организационной структуре").classes("text-h5 font-bold text-primary")
+                ui.label("🔍 Поиск по организационной структуре").classes(
+                    "text-h5 font-bold text-primary"
+                )
 
                 with ui.row().classes("items-center space-x-4 mt-2"):
-                    self.stats_display = ui.label("Загрузка статистики...").classes("text-caption text-gray-600")
+                    self.stats_display = ui.label("Загрузка статистики...").classes(
+                        "text-caption text-gray-600"
+                    )
 
-                ui.label("Введите название должности или департамента для быстрого поиска").classes("text-body2 text-gray-500 mt-2")
+                ui.label(
+                    "Введите название должности или департамента для быстрого поиска"
+                ).classes("text-body2 text-gray-500 mt-2")
 
     async def _render_search_input(self):
         """Отрисовка поля поиска с автодополнением"""
@@ -111,31 +117,45 @@ class SmartSearchComponent:
                     # Основное поле поиска
                     self.search_input = ui.input(
                         label="Поиск должностей и департаментов",
-                        placeholder="Например: архитектор, разработчик, ДИТ, менеджер..."
+                        placeholder="Например: архитектор, разработчик, ДИТ, менеджер...",
                     ).classes("flex-1")
 
                     # Настройка обработчиков
-                    self.search_input.on('input', self._on_search_input)
+                    self.search_input.on("input", self._on_search_input)
 
                     # Кнопка очистки
-                    ui.button(
-                        icon="clear",
-                        on_click=self._clear_search
-                    ).props("flat round").classes("text-gray-500")
+                    ui.button(icon="clear", on_click=self._clear_search).props(
+                        "flat round"
+                    ).classes("text-gray-500")
 
                 # Быстрые фильтры
                 with ui.row().classes("mt-3 space-x-2 flex-wrap"):
-                    ui.button("Руководители", on_click=lambda: self._quick_search("руководитель")).props("size=sm outlined").classes("text-xs")
-                    ui.button("Разработчики", on_click=lambda: self._quick_search("разработчик")).props("size=sm outlined").classes("text-xs")
-                    ui.button("Аналитики", on_click=lambda: self._quick_search("аналитик")).props("size=sm outlined").classes("text-xs")
-                    ui.button("ДИТ", on_click=lambda: self._quick_search("ДИТ")).props("size=sm outlined").classes("text-xs")
-                    ui.button("Коммерческий", on_click=lambda: self._quick_search("коммерческий")).props("size=sm outlined").classes("text-xs")
+                    ui.button(
+                        "Руководители",
+                        on_click=lambda: self._quick_search("руководитель"),
+                    ).props("size=sm outlined").classes("text-xs")
+                    ui.button(
+                        "Разработчики",
+                        on_click=lambda: self._quick_search("разработчик"),
+                    ).props("size=sm outlined").classes("text-xs")
+                    ui.button(
+                        "Аналитики", on_click=lambda: self._quick_search("аналитик")
+                    ).props("size=sm outlined").classes("text-xs")
+                    ui.button("ДИТ", on_click=lambda: self._quick_search("ДИТ")).props(
+                        "size=sm outlined"
+                    ).classes("text-xs")
+                    ui.button(
+                        "Коммерческий",
+                        on_click=lambda: self._quick_search("коммерческий"),
+                    ).props("size=sm outlined").classes("text-xs")
 
     async def _load_initial_stats(self):
         """Загрузка начальной статистики для отображения масштаба"""
         try:
             # Получаем статистику каталога
-            stats_response = await self.api_client._make_request("GET", "/api/catalog/stats")
+            stats_response = await self.api_client._make_request(
+                "GET", "/api/catalog/stats"
+            )
 
             if stats_response.get("success"):
                 stats_data = stats_response["data"]
@@ -196,7 +216,9 @@ class SmartSearchComponent:
             dept_task = asyncio.create_task(self.api_client.search_departments(query))
             pos_task = asyncio.create_task(self.api_client.search_positions(query))
 
-            dept_results, pos_results = await asyncio.gather(dept_task, pos_task, return_exceptions=True)
+            dept_results, pos_results = await asyncio.gather(
+                dept_task, pos_task, return_exceptions=True
+            )
 
             # Обработка результатов
             departments = []
@@ -238,7 +260,9 @@ class SmartSearchComponent:
             # Сводка результатов
             with ui.card().classes("w-full"):
                 with ui.card_section():
-                    ui.label(f"🎯 Найдено: {len(positions)} должностей, {len(departments)} департаментов").classes("font-semibold text-primary")
+                    ui.label(
+                        f"🎯 Найдено: {len(positions)} должностей, {len(departments)} департаментов"
+                    ).classes("font-semibold text-primary")
 
             # Результаты по должностям (приоритетные)
             if positions:
@@ -252,7 +276,9 @@ class SmartSearchComponent:
         """Отрисовка результатов поиска должностей"""
         with ui.card().classes("w-full"):
             with ui.card_section():
-                ui.label(f"👥 Должности ({len(positions)})").classes("text-h6 font-bold mb-3")
+                ui.label(f"👥 Должности ({len(positions)})").classes(
+                    "text-h6 font-bold mb-3"
+                )
 
                 # Группировка по департаментам для лучшего UX
                 positions_by_dept = {}
@@ -270,9 +296,13 @@ class SmartSearchComponent:
 
                     with ui.card().classes("w-full border-l-4 border-l-primary"):
                         with ui.card_section():
-                            ui.label(f"📁 {dept_name}").classes("text-subtitle2 font-semibold text-primary mb-2")
+                            ui.label(f"📁 {dept_name}").classes(
+                                "text-subtitle2 font-semibold text-primary mb-2"
+                            )
 
-                            for pos in dept_positions[:3]:  # До 3 позиций на департамент
+                            for pos in dept_positions[
+                                :3
+                            ]:  # До 3 позиций на департамент
                                 if displayed_count >= 20:
                                     break
 
@@ -280,73 +310,103 @@ class SmartSearchComponent:
                                 displayed_count += 1
 
                             if len(dept_positions) > 3:
-                                ui.label(f"... и еще {len(dept_positions) - 3} должностей").classes("text-caption text-gray-500 mt-1")
+                                ui.label(
+                                    f"... и еще {len(dept_positions) - 3} должностей"
+                                ).classes("text-caption text-gray-500 mt-1")
 
                 if len(positions) > 20:
-                    ui.label(f"... и еще {len(positions) - 20} результатов. Уточните запрос для более точного поиска.").classes("text-caption text-gray-500 mt-3")
+                    ui.label(
+                        f"... и еще {len(positions) - 20} результатов. Уточните запрос для более точного поиска."
+                    ).classes("text-caption text-gray-500 mt-3")
 
     async def _render_position_item(self, position: Dict):
         """Отрисовка отдельной должности"""
         level_colors = {1: "red", 2: "orange", 3: "yellow", 4: "green", 5: "blue"}
         level_color = level_colors.get(position["level"], "gray")
 
-        with ui.row().classes("w-full items-center justify-between p-2 hover:bg-gray-50 rounded-lg"):
+        with ui.row().classes(
+            "w-full items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+        ):
             with ui.column().classes("flex-1"):
                 with ui.row().classes("items-center space-x-2"):
                     ui.label(position["name"]).classes("font-medium")
-                    ui.chip(f"Уровень {position['level']}", color=level_color).props("size=sm")
-                    ui.chip(position["category"], color="grey").props("size=sm outlined")
+                    ui.chip(f"Уровень {position['level']}", color=level_color).props(
+                        "size=sm"
+                    )
+                    ui.chip(position["category"], color="grey").props(
+                        "size=sm outlined"
+                    )
 
-                ui.label(f"📁 {position['department']}").classes("text-caption text-gray-500")
+                ui.label(f"📁 {position['department']}").classes(
+                    "text-caption text-gray-500"
+                )
 
             # Кнопки действий
             with ui.row().classes("space-x-1"):
                 ui.button(
                     "Выбрать",
                     icon="check_circle",
-                    on_click=lambda pos=position: self._select_position(pos)
+                    on_click=lambda pos=position: self._select_position(pos),
                 ).props("size=sm color=primary")
 
                 ui.button(
                     "Профиль",
                     icon="description",
-                    on_click=lambda pos=position: self._generate_profile(pos)
+                    on_click=lambda pos=position: self._generate_profile(pos),
                 ).props("size=sm color=secondary outlined")
 
     async def _render_departments_results(self, departments: List[Dict]):
         """Отрисовка результатов поиска департаментов"""
         with ui.card().classes("w-full"):
             with ui.card_section():
-                ui.label(f"🏢 Департаменты ({len(departments)})").classes("text-h6 font-bold mb-3")
+                ui.label(f"🏢 Департаменты ({len(departments)})").classes(
+                    "text-h6 font-bold mb-3"
+                )
 
                 for dept in departments[:10]:  # Лимит для производительности
-                    with ui.row().classes("w-full items-center justify-between p-2 hover:bg-gray-50 rounded-lg"):
+                    with ui.row().classes(
+                        "w-full items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+                    ):
                         with ui.column().classes("flex-1"):
                             ui.label(dept["name"]).classes("font-medium")
-                            ui.label(f"🗂️ {dept['path']}").classes("text-caption text-gray-500")
-                            ui.label(f"👥 {dept['positions_count']} должностей").classes("text-caption text-blue-600")
+                            ui.label(f"🗂️ {dept['path']}").classes(
+                                "text-caption text-gray-500"
+                            )
+                            ui.label(
+                                f"👥 {dept['positions_count']} должностей"
+                            ).classes("text-caption text-blue-600")
 
                         ui.button(
                             "Обзор",
                             icon="folder_open",
-                            on_click=lambda d=dept: self._select_department(d)
+                            on_click=lambda d=dept: self._select_department(d),
                         ).props("size=sm color=primary outlined")
 
                 if len(departments) > 10:
-                    ui.label(f"... и еще {len(departments) - 10} департаментов").classes("text-caption text-gray-500 mt-2")
+                    ui.label(
+                        f"... и еще {len(departments) - 10} департаментов"
+                    ).classes("text-caption text-gray-500 mt-2")
 
     async def _render_no_results(self):
         """Отрисовка сообщения об отсутствии результатов"""
         with ui.card().classes("w-full text-center"):
             with ui.card_section():
                 ui.icon("search_off", size="3rem").classes("text-gray-400 mb-2")
-                ui.label(f"По запросу '{self.current_query}' ничего не найдено").classes("text-h6 text-gray-600 mb-2")
+                ui.label(
+                    f"По запросу '{self.current_query}' ничего не найдено"
+                ).classes("text-h6 text-gray-600 mb-2")
                 ui.label("Попробуйте:").classes("text-body2 text-gray-500 mb-2")
 
                 with ui.column().classes("space-y-1 text-left"):
-                    ui.label("• Изменить поисковый запрос").classes("text-body2 text-gray-500")
-                    ui.label("• Использовать частичные совпадения (например, 'разраб' вместо 'разработчик')").classes("text-body2 text-gray-500")
-                    ui.label("• Попробовать синонимы или сокращения").classes("text-body2 text-gray-500")
+                    ui.label("• Изменить поисковый запрос").classes(
+                        "text-body2 text-gray-500"
+                    )
+                    ui.label(
+                        "• Использовать частичные совпадения (например, 'разраб' вместо 'разработчик')"
+                    ).classes("text-body2 text-gray-500")
+                    ui.label("• Попробовать синонимы или сокращения").classes(
+                        "text-body2 text-gray-500"
+                    )
 
     async def _render_error(self, error_message: str):
         """Отрисовка ошибки поиска"""
@@ -421,8 +481,12 @@ class SmartSearchPage:
             # Заголовок страницы
             with ui.card().classes("w-full"):
                 with ui.card_section():
-                    ui.label("🔍 Умный поиск по организации").classes("text-h4 font-bold text-primary")
-                    ui.label("Найдите нужную должность или департамент для генерации профиля").classes("text-body1 text-gray-600")
+                    ui.label("🔍 Умный поиск по организации").classes(
+                        "text-h4 font-bold text-primary"
+                    )
+                    ui.label(
+                        "Найдите нужную должность или департамент для генерации профиля"
+                    ).classes("text-body1 text-gray-600")
 
             # Компонент поиска
             await self.search_component.render()
@@ -435,19 +499,27 @@ class SmartSearchPage:
                     with ui.grid(columns=3).classes("gap-4"):
                         with ui.column().classes("space-y-2"):
                             ui.label("🎯 Точный поиск").classes("font-semibold")
-                            ui.label("Введите полное название должности или департамента").classes("text-body2 text-gray-600")
+                            ui.label(
+                                "Введите полное название должности или департамента"
+                            ).classes("text-body2 text-gray-600")
 
                         with ui.column().classes("space-y-2"):
                             ui.label("🔍 Частичный поиск").classes("font-semibold")
-                            ui.label("Используйте часть названия: 'архитект', 'разраб', 'менеджер'").classes("text-body2 text-gray-600")
+                            ui.label(
+                                "Используйте часть названия: 'архитект', 'разраб', 'менеджер'"
+                            ).classes("text-body2 text-gray-600")
 
                         with ui.column().classes("space-y-2"):
                             ui.label("⚡ Быстрые фильтры").classes("font-semibold")
-                            ui.label("Используйте кнопки быстрого поиска для популярных категорий").classes("text-body2 text-gray-600")
+                            ui.label(
+                                "Используйте кнопки быстрого поиска для популярных категорий"
+                            ).classes("text-body2 text-gray-600")
 
     def _on_position_selected(self, position: Dict):
         """Обработка выбора должности"""
-        logger.info(f"Position selected: {position['name']} in {position['department']}")
+        logger.info(
+            f"Position selected: {position['name']} in {position['department']}"
+        )
         ui.notify(f"Выбрана должность: {position['name']}", type="positive")
 
         # Здесь можно добавить навигацию к деталям должности или форме генерации
@@ -461,7 +533,9 @@ class SmartSearchPage:
 
     def _on_generate_profile(self, position: Dict):
         """Обработка запуска генерации профиля"""
-        logger.info(f"Profile generation requested for: {position['name']} in {position['department']}")
+        logger.info(
+            f"Profile generation requested for: {position['name']} in {position['department']}"
+        )
         ui.notify(f"Запуск генерации профиля для: {position['name']}", type="info")
 
         # Здесь можно добавить навигацию к форме генерации профиля

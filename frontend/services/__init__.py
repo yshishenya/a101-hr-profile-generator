@@ -6,4 +6,4 @@ Frontend services module.
 
 from .api_client import APIClient, APIError, handle_api_error
 
-__all__ = ['APIClient', 'APIError', 'handle_api_error']
+__all__ = ["APIClient", "APIError", "handle_api_error"]

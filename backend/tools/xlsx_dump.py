@@ -45,20 +45,14 @@ def dump_workbook(input_path: Path, max_rows: int, max_cols: int) -> Dict[str, A
 
     wb = load_workbook(filename=str(input_path), data_only=True, read_only=True)
 
-    result: Dict[str, Any] = {
-        "workbook": str(input_path),
-        "sheets": []
-    }
+    result: Dict[str, Any] = {"workbook": str(input_path), "sheets": []}
 
     for ws in wb.worksheets:
         sheet_info: Dict[str, Any] = {
             "name": ws.title,
-            "dimensions": {
-                "max_row": ws.max_row,
-                "max_column": ws.max_column
-            },
+            "dimensions": {"max_row": ws.max_row, "max_column": ws.max_column},
             "merged": [],
-            "rows": []
+            "rows": [],
         }
 
         # Сведения о merged-ячейках (полезно для заголовков-секций)
@@ -81,10 +75,7 @@ def dump_workbook(input_path: Path, max_rows: int, max_cols: int) -> Dict[str, A
                     non_empty = True
                 row_vals.append(v)
             if non_empty:
-                sheet_info["rows"].append({
-                    "r": r,
-                    "values": row_vals
-                })
+                sheet_info["rows"].append({"r": r, "values": row_vals})
 
         result["sheets"].append(sheet_info)
 
@@ -95,8 +86,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Дамп структуры XLSX в JSON")
     parser.add_argument("--input", required=True, help="Путь к XLSX файлу")
     parser.add_argument("--output", required=True, help="Путь к JSON дампу")
-    parser.add_argument("--max-rows", type=int, default=600, help="Максимум строк на лист")
-    parser.add_argument("--max-cols", type=int, default=40, help="Максимум столбцов на лист")
+    parser.add_argument(
+        "--max-rows", type=int, default=600, help="Максимум строк на лист"
+    )
+    parser.add_argument(
+        "--max-cols", type=int, default=40, help="Максимум столбцов на лист"
+    )
 
     args = parser.parse_args()
 
@@ -104,21 +99,24 @@ def main() -> None:
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    data = dump_workbook(input_path=input_path, max_rows=args.max_rows, max_cols=args.max_cols)
+    data = dump_workbook(
+        input_path=input_path, max_rows=args.max_rows, max_cols=args.max_cols
+    )
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    print(json.dumps({
-        "ok": True,
-        "input": str(input_path),
-        "output": str(output_path),
-        "sheets": [s["name"] for s in data["sheets"]]
-    }, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "input": str(input_path),
+                "output": str(output_path),
+                "sheets": [s["name"] for s in data["sheets"]],
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":
     main()
-
-
-
-

@@ -20,8 +20,10 @@ import uuid
 # БАЗОВЫЕ МОДЕЛИ
 # ================================
 
+
 class BaseResponse(BaseModel):
     """Базовая модель ответа API"""
+
     success: bool = True
     timestamp: datetime = Field(default_factory=datetime.now)
     message: Optional[str] = None
@@ -29,9 +31,12 @@ class BaseResponse(BaseModel):
 
 class PaginationParams(BaseModel):
     """Параметры пагинации"""
+
     page: int = Field(default=1, ge=1, description="Номер страницы")
-    limit: int = Field(default=20, ge=1, le=100, description="Количество элементов на странице")
-    
+    limit: int = Field(
+        default=20, ge=1, le=100, description="Количество элементов на странице"
+    )
+
     @property
     def offset(self) -> int:
         return (self.page - 1) * self.limit
@@ -39,6 +44,7 @@ class PaginationParams(BaseModel):
 
 class PaginatedResponse(BaseResponse):
     """Ответ с пагинацией"""
+
     page: int
     limit: int
     total: int
@@ -51,8 +57,10 @@ class PaginatedResponse(BaseResponse):
 # AUTHENTICATION MODELS
 # ================================
 
+
 class LoginRequest(BaseModel):
     """Запрос на авторизацию"""
+
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6, max_length=100)
     remember_me: bool = False
@@ -60,6 +68,7 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseResponse):
     """Ответ на успешную авторизацию"""
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds
@@ -68,6 +77,7 @@ class LoginResponse(BaseResponse):
 
 class UserInfo(BaseModel):
     """Информация о пользователе"""
+
     id: int
     username: str
     full_name: str
@@ -80,8 +90,10 @@ class UserInfo(BaseModel):
 # PROFILE GENERATION MODELS
 # ================================
 
+
 class GenerationStatus(str, Enum):
     """Статусы генерации профилей"""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -91,14 +103,25 @@ class GenerationStatus(str, Enum):
 
 class ProfileGenerationRequest(BaseModel):
     """Запрос на генерацию профиля должности"""
-    department: str = Field(..., min_length=2, max_length=200, description="Название департамента")
-    position: str = Field(..., min_length=2, max_length=200, description="Название должности")
-    employee_name: Optional[str] = Field(None, max_length=200, description="ФИО сотрудника (опционально)")
-    
+
+    department: str = Field(
+        ..., min_length=2, max_length=200, description="Название департамента"
+    )
+    position: str = Field(
+        ..., min_length=2, max_length=200, description="Название должности"
+    )
+    employee_name: Optional[str] = Field(
+        None, max_length=200, description="ФИО сотрудника (опционально)"
+    )
+
     # Дополнительные параметры генерации
-    temperature: float = Field(default=0.1, ge=0.0, le=1.0, description="Температура LLM генерации")
-    include_examples: bool = Field(default=True, description="Включить примеры профилей архитекторов")
-    
+    temperature: float = Field(
+        default=0.1, ge=0.0, le=1.0, description="Температура LLM генерации"
+    )
+    include_examples: bool = Field(
+        default=True, description="Включить примеры профилей архитекторов"
+    )
+
     @field_validator("department", "position")
     @classmethod
     def validate_text_fields(cls, v):
@@ -109,11 +132,15 @@ class ProfileGenerationRequest(BaseModel):
 
 class AsyncGenerationRequest(ProfileGenerationRequest):
     """Запрос на асинхронную генерацию профиля"""
-    callback_url: Optional[str] = Field(None, description="URL для callback уведомлений")
+
+    callback_url: Optional[str] = Field(
+        None, description="URL для callback уведомлений"
+    )
 
 
 class AsyncGenerationResponse(BaseResponse):
     """Ответ на запрос асинхронной генерации"""
+
     task_id: str
     status: GenerationStatus = GenerationStatus.PENDING
     estimated_completion: Optional[datetime] = None
@@ -121,15 +148,16 @@ class AsyncGenerationResponse(BaseResponse):
 
 class GenerationTaskStatus(BaseModel):
     """Статус выполнения задачи генерации"""
+
     task_id: str
     status: GenerationStatus
     progress: int = Field(ge=0, le=100, description="Прогресс выполнения в %")
     current_step: Optional[str] = None
-    
+
     # Результат или ошибка
     result_profile_id: Optional[str] = None
     error_message: Optional[str] = None
-    
+
     # Временные метки
     created_at: datetime
     started_at: Optional[datetime] = None
@@ -138,6 +166,7 @@ class GenerationTaskStatus(BaseModel):
 
 class ProfileValidation(BaseModel):
     """Результаты валидации профиля"""
+
     is_valid: bool
     completeness_score: float = Field(ge=0.0, le=1.0)
     errors: List[str] = []
@@ -146,8 +175,9 @@ class ProfileValidation(BaseModel):
 
 class ProfileMetadata(BaseModel):
     """Метаданные генерации профиля"""
+
     model_config = ConfigDict(protected_namespaces=())
-    
+
     generation_time_seconds: float
     input_tokens: int
     output_tokens: int
@@ -159,11 +189,12 @@ class ProfileMetadata(BaseModel):
 
 class ProfileData(BaseModel):
     """Основные данные профиля должности"""
+
     # Базовая информация
     position_title: str
     department: str
     employee_name: Optional[str] = None
-    
+
     # Структурированные данные профиля (соответствуют JSON Schema)
     basic_info: Dict[str, Any]
     responsibilities: List[Dict[str, Any]]
@@ -176,6 +207,7 @@ class ProfileData(BaseModel):
 
 class ProfileResponse(BaseResponse):
     """Полный ответ с профилем должности"""
+
     profile_id: str
     profile: ProfileData
     metadata: ProfileMetadata
@@ -185,6 +217,7 @@ class ProfileResponse(BaseResponse):
 
 class ProfileSummary(BaseModel):
     """Краткая информация о профиле для списков"""
+
     profile_id: str
     department: str
     position: str
@@ -200,8 +233,10 @@ class ProfileSummary(BaseModel):
 # CATALOG MODELS
 # ================================
 
+
 class DepartmentInfo(BaseModel):
     """Информация о департаменте"""
+
     name: str
     path: str  # Полный путь в иерархии
     level: int
@@ -211,6 +246,7 @@ class DepartmentInfo(BaseModel):
 
 class CatalogResponse(BaseResponse):
     """Ответ каталога департаментов или должностей"""
+
     items: List[Union[DepartmentInfo, str]]
     total_count: int
 
@@ -219,8 +255,10 @@ class CatalogResponse(BaseResponse):
 # EXPORT MODELS
 # ================================
 
+
 class ExportFormat(str, Enum):
     """Поддерживаемые форматы экспорта"""
+
     JSON = "json"
     MARKDOWN = "md"
     EXCEL = "xlsx"
@@ -228,6 +266,7 @@ class ExportFormat(str, Enum):
 
 class ExportRequest(BaseModel):
     """Запрос на экспорт профиля"""
+
     profile_ids: List[str] = Field(..., min_items=1, max_items=50)
     format: ExportFormat
     include_metadata: bool = True
@@ -236,6 +275,7 @@ class ExportRequest(BaseModel):
 
 class ExportResponse(BaseResponse):
     """Ответ на запрос экспорта"""
+
     download_url: str
     filename: str
     file_size: int  # в байтах
@@ -243,11 +283,13 @@ class ExportResponse(BaseResponse):
 
 
 # ================================
-# SYSTEM MODELS  
+# SYSTEM MODELS
 # ================================
+
 
 class ComponentStatus(BaseModel):
     """Статус компонента системы"""
+
     name: str
     status: str  # operational, degraded, down
     details: Optional[str] = None
@@ -256,15 +298,16 @@ class ComponentStatus(BaseModel):
 
 class SystemHealthResponse(BaseResponse):
     """Ответ проверки здоровья системы"""
+
     status: str  # healthy, degraded, unhealthy
     uptime_seconds: int
     version: str
     environment: str
-    
+
     components: List[ComponentStatus]
-    
+
     external_services: Dict[str, bool]  # openrouter_configured, langfuse_configured
-    
+
     # Статистика
     total_profiles: int = 0
     successful_generations_today: int = 0
@@ -273,6 +316,7 @@ class SystemHealthResponse(BaseResponse):
 
 class SystemStats(BaseModel):
     """Системная статистика"""
+
     total_profiles: int
     total_users: int
     generations_today: int
@@ -286,8 +330,10 @@ class SystemStats(BaseModel):
 # ERROR MODELS
 # ================================
 
+
 class ErrorDetail(BaseModel):
     """Детали ошибки"""
+
     code: str
     message: str
     field: Optional[str] = None
@@ -295,6 +341,7 @@ class ErrorDetail(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Ответ с ошибкой"""
+
     success: bool = False
     timestamp: datetime = Field(default_factory=datetime.now)
     error: str
@@ -307,35 +354,39 @@ class ErrorResponse(BaseModel):
 # SEARCH & FILTER MODELS
 # ================================
 
+
 class ProfileSearchRequest(BaseModel):
     """Запрос поиска профилей"""
+
     query: Optional[str] = Field(None, max_length=200, description="Поисковый запрос")
     department: Optional[str] = None
     position: Optional[str] = None
     status: Optional[GenerationStatus] = None
     created_by: Optional[str] = None
-    
+
     # Фильтры по дате
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
-    
+
     # Фильтры по качеству
     min_validation_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     min_completeness_score: Optional[float] = Field(None, ge=0.0, le=1.0)
-    
-    # Сортировка  
+
+    # Сортировка
     sort_by: str = Field(default="created_at", description="Поле для сортировки")
     sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
 
 class ProfileSearchResponse(PaginatedResponse):
     """Ответ поиска профилей"""
+
     profiles: List[ProfileSummary]
     filters_applied: Dict[str, Any]
 
 
 class ProfileListResponse(BaseModel):
     """Ответ списка профилей с пагинацией"""
+
     profiles: List[ProfileSummary]
     pagination: Dict[str, Any]
     filters_applied: Dict[str, Any]
@@ -343,14 +394,19 @@ class ProfileListResponse(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     """Запрос обновления метаданных профиля"""
-    employee_name: Optional[str] = Field(None, max_length=200, description="Новое ФИО сотрудника")
+
+    employee_name: Optional[str] = Field(
+        None, max_length=200, description="Новое ФИО сотрудника"
+    )
     status: Optional[str] = Field(None, description="Новый статус профиля")
-    
+
     @field_validator("status")
     @classmethod
     def validate_status(cls, v):
         if v is not None and v not in ["completed", "failed", "processing", "archived"]:
-            raise ValueError("Status must be one of: completed, failed, processing, archived")
+            raise ValueError(
+                "Status must be one of: completed, failed, processing, archived"
+            )
         return v
 
 
@@ -358,8 +414,10 @@ class ProfileUpdateRequest(BaseModel):
 # WEBHOOK MODELS (для будущего использования)
 # ================================
 
+
 class WebhookEvent(BaseModel):
     """Событие webhook"""
+
     event_type: str  # generation.completed, generation.failed
     profile_id: Optional[str] = None
     task_id: Optional[str] = None
@@ -374,15 +432,15 @@ LoginResponse.model_rebuild()
 if __name__ == "__main__":
     # Тестирование Pydantic моделей
     print("🔍 Тестирование Pydantic моделей...")
-    
+
     # Тест запроса генерации
     generation_request = ProfileGenerationRequest(
         department="ДИТ",
         position="Системный архитектор",
-        employee_name="Иванов Иван Иванович"
+        employee_name="Иванов Иван Иванович",
     )
     print("✅ ProfileGenerationRequest:", generation_request.dict())
-    
+
     # Тест ответа
     profile_response = ProfileResponse(
         profile_id="test-123",
@@ -395,7 +453,7 @@ if __name__ == "__main__":
             corporate_competencies=[],
             personal_qualities=[],
             education_experience={},
-            career_paths={}
+            career_paths={},
         ),
         metadata=ProfileMetadata(
             generation_time_seconds=15.5,
@@ -403,13 +461,10 @@ if __name__ == "__main__":
             output_tokens=500,
             total_tokens=1500,
             temperature=0.1,
-            validation=ProfileValidation(
-                is_valid=True,
-                completeness_score=0.95
-            )
+            validation=ProfileValidation(is_valid=True, completeness_score=0.95),
         ),
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
-    
+
     print("✅ ProfileResponse создан успешно")
     print("✅ Все Pydantic модели работают корректно!")

@@ -36,7 +36,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/openapi.json",
         "/api/auth/login",
         "/api/auth/validate",
-        "/static"
+        "/static",
     }
 
     async def dispatch(self, request: Request, call_next):
@@ -46,10 +46,12 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Пропускаем неавторизованные пути
-        if (path in self.EXEMPT_PATHS or
-            path.startswith("/static/") or
-            path.startswith("/docs") or
-            path.startswith("/redoc")):
+        if (
+            path in self.EXEMPT_PATHS
+            or path.startswith("/static/")
+            or path.startswith("/docs")
+            or path.startswith("/redoc")
+        ):
             return await call_next(request)
 
         # Извлекаем токен из заголовка Authorization
@@ -62,8 +64,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                     "success": False,
                     "error": "Требуется авторизация",
                     "detail": "Отсутствует токен авторизации",
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
         # Извлекаем токен
@@ -79,8 +81,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                     "success": False,
                     "error": "Недействительный токен",
                     "detail": "Токен авторизации недействителен или истек",
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
         # Добавляем информацию о пользователе в request state
@@ -130,7 +132,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             # Логируем ответ
             status_code = response.status_code
-            status_emoji = "✅" if 200 <= status_code < 300 else "⚠️" if 300 <= status_code < 400 else "❌"
+            status_emoji = (
+                "✅"
+                if 200 <= status_code < 300
+                else "⚠️" if 300 <= status_code < 400 else "❌"
+            )
 
             logger.info(
                 f"📤 {method} {path} - {status_emoji} {status_code} - "
@@ -158,8 +164,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     "error": "Внутренняя ошибка сервера",
                     "detail": "Произошла непредвиденная ошибка",
                     "timestamp": datetime.now().isoformat(),
-                    "path": path
-                }
+                    "path": path,
+                },
             )
 
 
@@ -202,7 +208,7 @@ async def get_request_user(request: Request) -> dict:
 
     Используется в endpoints для получения текущего пользователя.
     """
-    return getattr(request.state, 'user', None)
+    return getattr(request.state, "user", None)
 
 
 if __name__ == "__main__":

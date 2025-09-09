@@ -30,8 +30,7 @@ from .core.config import config
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -102,7 +101,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS middleware для интеграции с NiceGUI frontend
@@ -115,10 +114,7 @@ app.add_middleware(
 )
 
 # Trusted Host middleware для безопасности
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=config.TRUSTED_HOSTS
-)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.TRUSTED_HOSTS)
 
 
 # Добавление custom middleware
@@ -148,12 +144,14 @@ async def health_check() -> Dict[str, Any]:
             "environment": config.ENVIRONMENT,
             "components": {
                 "api": "operational",
-                "core_modules": "initialized" if app_components.get("initialized") else "pending",
+                "core_modules": (
+                    "initialized" if app_components.get("initialized") else "pending"
+                ),
             },
             "external_services": {
                 "openrouter_configured": config.openrouter_configured,
                 "langfuse_configured": config.langfuse_configured,
-            }
+            },
         }
 
         logger.info("💚 Health check successful")
@@ -167,8 +165,8 @@ async def health_check() -> Dict[str, Any]:
             content={
                 "status": "unhealthy",
                 "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            }
+                "error": str(e),
+            },
         )
 
 
@@ -185,7 +183,7 @@ async def root() -> Dict[str, Any]:
         "docs": "/docs",
         "health": "/health",
         "timestamp": datetime.now().isoformat(),
-        "message": "🏢 Добро пожаловать в систему генерации профилей должностей А101!"
+        "message": "🏢 Добро пожаловать в систему генерации профилей должностей А101!",
     }
 
 
@@ -209,10 +207,4 @@ app.include_router(profiles_router)
 
 if __name__ == "__main__":
     # Запуск сервера для разработки
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8022,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8022, reload=True, log_level="info")

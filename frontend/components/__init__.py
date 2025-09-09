@@ -6,4 +6,4 @@ Frontend components module.
 
 from .auth_component import AuthComponent, AuthCard
 
-__all__ = ['AuthComponent', 'AuthCard']
+__all__ = ["AuthComponent", "AuthCard"]
