@@ -199,12 +199,9 @@ class AuthenticationService:
 
     def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Получение пользователя по ID"""
-        import sqlite3
-        
         try:
-            # Создаем fresh connection
-            conn = sqlite3.connect(str(self.db.db_path), timeout=5.0)
-            conn.row_factory = sqlite3.Row
+            # Используем существующий connection manager вместо создания нового
+            conn = self.db.get_connection()
             cursor = conn.cursor()
             
             cursor.execute(
@@ -240,13 +237,6 @@ class AuthenticationService:
         except Exception as e:
             logger.error(f"Error getting user by ID {user_id}: {e}")
             return None
-        finally:
-            # Обязательно закрываем connection
-            try:
-                if 'conn' in locals():
-                    conn.close()
-            except:
-                pass
 
     def create_user_session(
         self, user_id: int, user_agent: str = None, ip_address: str = None
@@ -377,12 +367,9 @@ class AuthenticationService:
 
     def _has_active_sessions(self, user_id: int) -> bool:
         """Проверка наличия активных сессий у пользователя"""
-        import sqlite3
-        
         try:
-            # Создаем fresh connection вместо переиспользования глобального
-            conn = sqlite3.connect(str(self.db.db_path), timeout=5.0)
-            conn.row_factory = sqlite3.Row
+            # Используем существующий connection manager вместо создания нового
+            conn = self.db.get_connection()
             cursor = conn.cursor()
             
             cursor.execute(
@@ -403,13 +390,6 @@ class AuthenticationService:
             logger.error(f"Error checking active sessions for user {user_id}: {e}")
             # В случае ошибки БД, разрешаем доступ (fail-open)
             return True
-        finally:
-            # Обязательно закрываем connection
-            try:
-                if 'conn' in locals():
-                    conn.close()
-            except:
-                pass
 
     def cleanup_expired_sessions(self):
         """Очистка истекших сессий (вызывается периодически)"""
