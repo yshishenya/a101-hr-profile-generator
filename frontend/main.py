@@ -257,8 +257,8 @@ async def generator_page() -> None:
     header = HeaderComponent(api_client)
     await header.render(current_page="generator")
 
-    # Main content with unified styling
-    with ui.column().classes("w-full max-w-7xl mx-auto p-4"):
+    # Main content with unified styling - убираем max-width для более широкого поля поиска
+    with ui.column().classes("w-full mx-auto p-4").style("max-width: none !important;"):
         # Create generator component without duplicate header
         global profile_generator
         profile_generator = A101ProfileGenerator(api_client)

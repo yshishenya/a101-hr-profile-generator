@@ -429,11 +429,10 @@ class A101ProfileGenerator:
 
     async def _render_unified_main_generator(self):
         """Main generator with unified dashboard styling"""
-        # Search section
+        # Search section - полная ширина без ограничений
         with ui.card().classes("w-full mb-6"):
-            ui.label("🔍 Поиск должности").classes("text-h6 q-mb-md")
-
-            with ui.card_section():
+            with ui.column().classes("w-full p-4").style("width: 100% !important; max-width: none !important;"):
+                ui.label("🔍 Поиск должности").classes("text-h6 q-mb-md")
                 await self._render_unified_search_section()
 
         # Selected position (shown when position is selected)
@@ -463,7 +462,7 @@ class A101ProfileGenerator:
 
     async def _render_unified_search_section(self):
         """Clean search section - Following login page styling philosophy"""
-        # Search input with clean NiceGUI styling like login page
+        # Search input with clean NiceGUI styling like login page - максимально широкое поле
         self.search_input = (
             ui.select(
                 options={
@@ -476,6 +475,7 @@ class A101ProfileGenerator:
             )
             .props("outlined clearable use-input")
             .classes("w-full")
+            .style("min-width: 100% !important; width: 100% !important; max-width: none !important;")
         )
 
         # Clean placeholder like login page
@@ -529,7 +529,7 @@ class A101ProfileGenerator:
 
     async def _render_main_generator(self):
         """Основной генератор профилей"""
-        with ui.card().classes("w-full max-w-4xl mx-auto px-4"):
+        with ui.card().classes("w-full mx-auto"):
 
             # Заголовок генератора
             with ui.card_section().classes("bg-grey-2 py-4"):
@@ -544,7 +544,7 @@ class A101ProfileGenerator:
                         ).classes("text-muted")
 
             # Контент генератора
-            with ui.card_section().classes("py-8"):
+            with ui.column().classes("w-full p-8"):
 
                 # Поиск должности
                 await self._render_search_section()
@@ -596,6 +596,7 @@ class A101ProfileGenerator:
                     )
                     .props("outlined clearable use-input")
                     .classes("w-full")
+                    .style("min-width: 100%; width: 100%;")
                 )
 
                 # Clean placeholder
@@ -2008,7 +2009,7 @@ class A101ProfileGenerator:
                 ).props("flat size=sm color=primary")
 
                 ui.button(
-                    icon="article", on_click=lambda p=profile: (print(f"🔍 Button clicked for profile: {p.get('profile_id', 'NO_ID')}"), self._preview_markdown(p))[1]
+                    icon="article", on_click=lambda p=profile: self._preview_markdown(p)
                 ).props("flat round size=sm color=green").tooltip("Предпросмотр MD")
 
                 ui.button(
@@ -2274,85 +2275,78 @@ class A101ProfileGenerator:
         ui.notify("Выберите формат для скачивания", type="info")
 
     def _preview_markdown(self, profile: Dict[str, Any]):
-        """Предпросмотр markdown файла"""
-        print(f"🔍 DEBUG: _preview_markdown called with profile: {profile.get('profile_id', 'NO_ID')}")
-        
+        """Предпросмотр markdown файла - FastAPI best practices"""
         try:
-            logger.info(f"🔍 _preview_markdown called with profile: {profile}")
-            print(f"🔍 DEBUG: Logger available")
-            
             profile_id = profile.get("profile_id")
-            print(f"🔍 DEBUG: profile_id = {profile_id}")
-            
             if not profile_id:
-                print("🔍 DEBUG: No profile_id found!")
-                ui.notify("ID профиля не найден", type="negative")
+                ui.notify("ID профиля не найден", type="negative", position="top")
                 return
-
-            # Сначала загружаем содержимое, затем показываем диалог
-            print(f"🔍 DEBUG: About to show loading notification for {profile_id}")
-            ui.notify("📄 Загрузка предпросмотра...", type="info")
-            print(f"🔍 DEBUG: Notification shown, starting markdown preview")
+                
+            # Показываем loading уведомление
+            ui.notify("📄 Загрузка предпросмотра...", type="info", position="top")
             logger.info(f"Starting markdown preview for profile: {profile_id}")
-            print(f"🔍 DEBUG: Logger info written")
-        
-        except Exception as early_e:
-            print(f"🔍 DEBUG: Early exception: {early_e}")
-            logger.error(f"Early exception in _preview_markdown: {early_e}", exc_info=True)
-            ui.notify(f"Ошибка: {str(early_e)}", type="negative")
-            return
-        
-        try:
             
+            # Загружаем содержимое с proper error handling
             try:
                 import httpx
                 
-                # Получаем содержимое файла синхронно
                 headers = self.api_client._get_auth_headers()
                 download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
                 
-                logger.info(f"Requesting markdown from: {download_url}")
                 response = httpx.get(download_url, headers=headers, timeout=30)
                 
                 if response.status_code != 200:
-                    ui.notify(f"❌ Ошибка загрузки: HTTP {response.status_code}", type="negative")
-                    logger.error(f"Preview failed with status {response.status_code}: {response.text}")
+                    ui.notify(f"Ошибка сервера: HTTP {response.status_code}", 
+                            type="negative", position="top")
+                    logger.error(f"Preview failed: {response.status_code} - {response.text}")
                     return
-                
+                    
                 markdown_content = response.text
-                logger.info(f"Received {len(markdown_content)} characters of markdown content")
-                ui.notify("📄 Предпросмотр загружен", type="positive")
+                logger.info(f"Successfully loaded {len(markdown_content)} characters")
                 
-            except Exception as e:
-                logger.error(f"Error loading markdown content: {e}", exc_info=True)
-                ui.notify(f"❌ Ошибка загрузки: {str(e)}", type="negative")
+            except httpx.TimeoutException:
+                ui.notify("Превышено время ожидания", type="warning", position="top")
                 return
+            except httpx.RequestError as e:
+                ui.notify(f"Ошибка подключения: {str(e)}", type="negative", position="top")
+                logger.error(f"Request error: {e}")
+                return
+            except Exception as e:
+                ui.notify(f"Неожиданная ошибка: {str(e)}", type="negative", position="top")
+                logger.error(f"Unexpected error loading content: {e}", exc_info=True)
+                return
+            
+            # Создаем широкое модальное окно без заголовка
+            with ui.dialog().classes("w-full") as dialog:
+                with ui.card().classes("bg-white dark:bg-gray-800 relative").style(
+                    "width: 95vw; max-width: none; height: 85vh; box-shadow: 0 4px 20px rgba(0,0,0,0.15)"
+                ):
+                    # Кнопка закрытия в правом верхнем углу
+                    ui.button(icon="close", on_click=dialog.close).props(
+                        "flat round"
+                    ).classes("absolute top-2 right-2 z-10 text-gray-500 hover:text-gray-700")
 
-            # Теперь показываем диалог с уже загруженным содержимым
-            dialog = ui.dialog()
-
-            with dialog:
-                with ui.card().classes("w-[80vw] max-w-4xl max-h-[80vh]"):
-                    # Заголовок
-                    with ui.card_section().classes("bg-grey-1"):
-                        with ui.row().classes("w-full justify-between items-center"):
-                            ui.label("📄 Предпросмотр Markdown").classes("text-h6")
-                            ui.button(icon="close", on_click=dialog.close).props(
-                                "flat round"
-                            )
-
-                    # Контент предпросмотра - с уже загруженным содержимым
-                    with ui.scroll_area().classes("flex-1"):
-                        with ui.card_section():
-                            # Отображаем реальное содержимое
-                            ui.markdown(markdown_content).classes("w-full")
-
+                    # Контент на всю область карточки
+                    with ui.scroll_area().classes("w-full h-full p-6"):
+                        # Markdown с правильными цветами текста
+                        ui.markdown(markdown_content).classes(
+                            "w-full text-black dark:text-white bg-white dark:bg-gray-800 prose max-w-none"
+                        ).style(
+                            "line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                        )
+            
+            # Открываем диалог и уведомляем об успехе
             dialog.open()
-            logger.info("Preview dialog opened with content")
-
+            ui.notify("✅ Предпросмотр готов", type="positive", position="top")
+            logger.info("Preview dialog successfully opened")
+            
         except Exception as e:
-            logger.error(f"Error previewing markdown: {e}", exc_info=True)
-            ui.notify(f"Ошибка предпросмотра: {str(e)}", type="negative")
+            # Общий catch-all с полным трейсом
+            ui.notify(f"Критическая ошибка предпросмотра: {str(e)}", 
+                     type="negative", position="top")
+            logger.error(f"Critical error in _preview_markdown: {e}", exc_info=True)
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
 
     def _download_json(self, profile: Dict[str, Any]):
         """Скачивание JSON файла профиля"""
