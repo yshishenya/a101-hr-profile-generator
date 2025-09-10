@@ -34,7 +34,7 @@ services:
 
   # NiceGUI Frontend
   frontend:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: a101hr_frontend

@@ -37,8 +37,15 @@ class DatabaseManager:
         self._connection = None
 
     def get_connection(self) -> sqlite3.Connection:
-        """Получение соединения с базой данных"""
-        if self._connection is None:
+        """Получение соединения с базой данных с проверкой жизнеспособности"""
+        if self._connection is None or self._is_connection_closed():
+            logger.debug("Creating new database connection")
+            if self._connection:
+                try:
+                    self._connection.close()
+                except:
+                    pass  # Ignore errors when closing dead connection
+            
             self._connection = sqlite3.connect(
                 str(self.db_path), check_same_thread=False, timeout=30.0
             )
@@ -46,8 +53,21 @@ class DatabaseManager:
             self._connection.execute(
                 "PRAGMA foreign_keys = ON"
             )  # Включаем foreign keys
+            logger.debug("Database connection created successfully")
 
         return self._connection
+    
+    def _is_connection_closed(self) -> bool:
+        """Проверка, закрыто ли соединение с базой данных"""
+        if self._connection is None:
+            return True
+        try:
+            # Простой запрос для проверки соединения
+            self._connection.execute("SELECT 1").fetchone()
+            return False
+        except sqlite3.Error:
+            logger.warning("Database connection is closed or invalid")
+            return True
 
     def close_connection(self):
         """Закрытие соединения с базой данных"""

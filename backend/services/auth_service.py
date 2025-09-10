@@ -155,12 +155,14 @@ class AuthenticationService:
         }
 
         encoded_jwt = jwt.encode(token_data, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        logger.debug(f"create_access_token: Created token for user {token_data.get('username')}")
         return encoded_jwt
 
     def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Проверка и декодирование JWT token"""
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            logger.debug(f"verify_token: Successfully decoded token for user {payload.get('username')}")
 
             # Проверяем тип токена
             if payload.get("type") != "access_token":
@@ -171,6 +173,7 @@ class AuthenticationService:
             user = self.get_user_by_id(user_id)
 
             if not user or not user["is_active"]:
+                logger.warning(f"Token rejected: user {user_id} not found or inactive")
                 return None
 
             # КРИТИЧНО: Проверяем наличие активных сессий пользователя
@@ -203,7 +206,7 @@ class AuthenticationService:
             # Используем существующий connection manager вместо создания нового
             conn = self.db.get_connection()
             cursor = conn.cursor()
-            
+
             cursor.execute(
                 """
                 SELECT id, username, password_hash, full_name, is_active, created_at, last_login
@@ -371,7 +374,7 @@ class AuthenticationService:
             # Используем существующий connection manager вместо создания нового
             conn = self.db.get_connection()
             cursor = conn.cursor()
-            
+
             cursor.execute(
                 """
                 SELECT COUNT(*) as active_count
@@ -383,7 +386,7 @@ class AuthenticationService:
 
             result = cursor.fetchone()
             active_count = result["active_count"] if result else 0
-            
+
             return active_count > 0
 
         except Exception as e:

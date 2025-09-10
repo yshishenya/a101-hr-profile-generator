@@ -1532,8 +1532,31 @@ class A101ProfileGenerator:
                 attempt += 1
 
             except Exception as e:
-                logger.error(f"Error polling task status: {e}")
-                await asyncio.sleep(2)  # Увеличиваем задержку при ошибке
+                # Детальное логирование ошибок для отладки
+                error_type = type(e).__name__
+                logger.error(
+                    f"Error polling task status (attempt {attempt}): {error_type}: {e}"
+                )
+
+                # Специальная обработка для APIError - это может быть проблема с токенами
+                if hasattr(e, "status_code"):
+                    if e.status_code == 401:
+                        logger.warning(
+                            "Polling failed with 401 - attempting token reload"
+                        )
+                        self.api_client.reload_tokens_from_storage()
+                        # После reload токенов, попробуем еще несколько попыток
+                        await asyncio.sleep(1)  # Короткая задержка после reload
+                    elif e.status_code >= 400:
+                        logger.error(f"HTTP error {e.status_code} during polling: {e}")
+                        await asyncio.sleep(2)  # Увеличиваем задержку при HTTP ошибках
+                    else:
+                        await asyncio.sleep(1)  # Стандартная задержка
+                else:
+                    # Другие типы ошибок (сеть, парсинг JSON и т.д.)
+                    logger.error(f"Non-HTTP error during polling: {error_type}: {e}")
+                    await asyncio.sleep(2)  # Увеличиваем задержку при других ошибках
+
                 attempt += 1
 
         # Превышено время ожидания

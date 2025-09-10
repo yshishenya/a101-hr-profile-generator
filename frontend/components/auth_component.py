@@ -159,6 +159,10 @@ class AuthComponent:
                     }
                 )
 
+                # КРИТИЧЕСКИ ВАЖНО: Обновляем токены в глобальном api_client
+                # После сохранения в storage, заставляем api_client перезагрузить токены
+                self.api_client.reload_tokens_from_storage()
+
                 # Уведомляем об успехе
                 user_info = result.get("user_info", {})
                 welcome_name = user_info.get(

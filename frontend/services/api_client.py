@@ -91,37 +91,75 @@ class APIClient:
 
     def _load_tokens_from_storage(self):
         """Загрузка токенов из NiceGUI storage и cookies"""
+        logger.debug("_load_tokens_from_storage: Starting token loading process")
+
         try:
             from nicegui import app
-            
+
+            logger.debug(
+                f"_load_tokens_from_storage: app object available: {hasattr(app, 'storage')}"
+            )
+
             # Сначала пробуем загрузить из NiceGUI storage
             if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                self._access_token = app.storage.user.get("access_token")
+                logger.debug("_load_tokens_from_storage: app.storage.user is available")
+                token_from_storage = app.storage.user.get("access_token")
+                logger.debug(
+                    f"_load_tokens_from_storage: NiceGUI storage token={'present' if token_from_storage else 'None/empty'}"
+                )
+
+                self._access_token = token_from_storage
                 if self._access_token:
                     logger.info("Loaded access token from NiceGUI storage")
                     return
-            
+            else:
+                logger.debug(
+                    "_load_tokens_from_storage: app.storage.user not available"
+                )
+
             # Если в storage нет, пробуем загрузить из cookies через browser storage
             try:
                 import asyncio
                 from nicegui import ui
+
+                logger.debug(
+                    "_load_tokens_from_storage: Attempting browser localStorage access"
+                )
+
                 # Пытаемся получить токен из localStorage если доступен
                 token_from_browser = None
-                if hasattr(ui, 'run_javascript'):
-                    token_from_browser = ui.run_javascript('localStorage.getItem("hr_access_token")', timeout=1.0)
-                    
+                if hasattr(ui, "run_javascript"):
+                    logger.debug(
+                        "_load_tokens_from_storage: ui.run_javascript available"
+                    )
+                    token_from_browser = ui.run_javascript(
+                        'localStorage.getItem("hr_access_token")', timeout=1.0
+                    )
+                    logger.debug(
+                        f"_load_tokens_from_storage: browser token={'present' if token_from_browser else 'None/empty'}"
+                    )
+
                 if token_from_browser:
                     self._access_token = token_from_browser
                     # Синхронизируем обратно в NiceGUI storage
                     if hasattr(app, "storage") and hasattr(app.storage, "user"):
                         app.storage.user["access_token"] = self._access_token
                     logger.info("Loaded access token from browser localStorage")
-                    
+                else:
+                    logger.debug(
+                        "_load_tokens_from_storage: No token found in browser localStorage"
+                    )
+
             except Exception as browser_e:
                 logger.debug(f"Could not load from browser storage: {browser_e}")
-                
+
         except Exception as e:
             logger.debug(f"Could not load tokens from storage: {e}")
+
+        # Final state logging
+        logger.debug(
+            f"_load_tokens_from_storage: Final token state={'present' if self._access_token else 'None/empty'}"
+        )
 
     def _save_tokens_to_storage(self):
         """Сохранение токенов в NiceGUI storage и browser localStorage"""
@@ -132,16 +170,19 @@ class APIClient:
                 if self._access_token:
                     app.storage.user["access_token"] = self._access_token
                     app.storage.user["authenticated"] = True
-                    
+
                     # Также сохраняем в browser localStorage для persistance
                     try:
                         from nicegui import ui
-                        if hasattr(ui, 'run_javascript'):
-                            ui.run_javascript(f'localStorage.setItem("hr_access_token", "{self._access_token}")')
+
+                        if hasattr(ui, "run_javascript"):
+                            ui.run_javascript(
+                                f'localStorage.setItem("hr_access_token", "{self._access_token}")'
+                            )
                             logger.debug("Saved token to browser localStorage")
                     except Exception as browser_e:
                         logger.debug(f"Could not save to browser storage: {browser_e}")
-                        
+
                 logger.info("Saved tokens to storage")
         except Exception as e:
             logger.debug(f"Could not save tokens to storage: {e}")
@@ -149,7 +190,20 @@ class APIClient:
     def _get_auth_headers(self) -> Dict[str, str]:
         """Получение заголовков авторизации"""
         if self._access_token:
+            # DEBUG: Log token info (first 10 chars for security)
+            token_preview = (
+                self._access_token[:10] + "..."
+                if len(self._access_token) > 10
+                else self._access_token
+            )
+            logger.debug(
+                f"_get_auth_headers: Creating Authorization header with token {token_preview}"
+            )
             return {"Authorization": f"Bearer {self._access_token}"}
+
+        logger.warning(
+            "_get_auth_headers: No token available - returning empty headers"
+        )
         return {}
 
     async def _make_request(
@@ -175,14 +229,30 @@ class APIClient:
         url = f"{self.base_url}{endpoint}"
         headers = {}
 
+        # DEBUG: Log initial token state
+        logger.debug(
+            f"_make_request: require_auth={require_auth}, self._access_token={'present' if self._access_token else 'None/empty'}"
+        )
+
         if require_auth:
             # Проверяем и обновляем токен при необходимости
-            if not await self._ensure_valid_token():
+            token_valid = await self._ensure_valid_token()
+            logger.debug(f"_make_request: _ensure_valid_token returned {token_valid}")
+
+            if not token_valid:
+                logger.error(
+                    f"_make_request: No valid token for {method} {endpoint}, raising APIError"
+                )
                 raise APIError("Не удалось получить валидный токен авторизации", 401)
-            headers.update(self._get_auth_headers())
+
+            auth_headers = self._get_auth_headers()
+            logger.debug(f"_make_request: auth_headers = {auth_headers}")
+            headers.update(auth_headers)
 
         try:
-            logger.debug(f"Making {method} request to {url}")
+            logger.debug(
+                f"Making {method} request to {url} with headers: {list(headers.keys())}"
+            )
 
             response = await self.client.request(
                 method=method, url=url, json=data, params=params, headers=headers
@@ -226,7 +296,18 @@ class APIClient:
     async def _ensure_valid_token(self) -> bool:
         """Проверка и обновление токена при необходимости"""
 
+        # DEBUG: Log token state
+        logger.debug(
+            f"_ensure_valid_token: self._access_token={'present' if self._access_token else 'None/empty'}"
+        )
+        logger.debug(
+            f"_ensure_valid_token: token type={type(self._access_token)}, value='{self._access_token}'"
+        )
+
         if not self._access_token:
+            logger.warning(
+                "_ensure_valid_token: No access token available - returning False"
+            )
             return False
 
         # Проверяем срок действия
@@ -234,6 +315,7 @@ class APIClient:
             logger.info("Access token expired, attempting refresh")
             return await self.refresh_token()
 
+        logger.debug("_ensure_valid_token: Token is valid - returning True")
         return True
 
     # ============================================================================
@@ -308,7 +390,8 @@ class APIClient:
             # Очищаем localStorage
             try:
                 from nicegui import ui
-                if hasattr(ui, 'run_javascript'):
+
+                if hasattr(ui, "run_javascript"):
                     ui.run_javascript('localStorage.removeItem("hr_access_token")')
                     logger.debug("Cleared token from browser localStorage")
             except Exception as e:
@@ -687,7 +770,7 @@ class APIClient:
                     "profiles_count": 0,
                     "completion_percentage": 0.0,
                     "active_tasks_count": 0,
-                    "last_updated": datetime.now().isoformat()
+                    "last_updated": datetime.now().isoformat(),
                 }
         except Exception as e:
             logger.error(f"Error getting dashboard stats: {e}")
@@ -697,8 +780,30 @@ class APIClient:
                 "profiles_count": 0,
                 "completion_percentage": 0.0,
                 "active_tasks_count": 0,
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
+
+    def reload_tokens_from_storage(self):
+        """
+        @doc
+        Публичный метод для перезагрузки токенов из storage.
+
+        Используется после логина или когда нужно обновить токены
+        в уже существующем экземпляре APIClient.
+
+        Examples:
+          python> api_client.reload_tokens_from_storage()
+          python> # Токены будут загружены из NiceGUI storage или localStorage
+        """
+        logger.info("reload_tokens_from_storage: Manual token reload requested")
+        old_token_state = "present" if self._access_token else "None/empty"
+
+        self._load_tokens_from_storage()
+
+        new_token_state = "present" if self._access_token else "None/empty"
+        logger.info(
+            f"reload_tokens_from_storage: Token state changed from {old_token_state} to {new_token_state}"
+        )
 
     async def close(self):
         """Закрытие HTTP клиента"""
