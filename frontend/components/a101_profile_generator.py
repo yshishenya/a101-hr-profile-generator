@@ -346,30 +346,6 @@ class A101ProfileGenerator:
 
     # MASSIVE A101 CUSTOM CSS REMOVED (487 lines) - Using standard NiceGUI styling
 
-    async def render(self) -> ui.column:
-        """
-        @doc
-        Отрисовка профессионального генератора профилей A101.
-
-        Examples:
-          python> component = await generator.render()
-        """
-        # Основной контейнер с градиентным фоном
-        with ui.column().classes(
-            "w-full min-h-screen bg-gradient-to-br from-slate-50 to-blue-50"
-        ) as container:
-
-            # Корпоративный заголовок
-            await self._render_corporate_header()
-
-            # Системная статистика через unified component
-            await self._render_unified_system_stats()
-
-            # Главный генератор
-            await self._render_main_generator()
-
-        return container
-
     async def render_content(self) -> ui.column:
         """
         @doc
@@ -431,7 +407,9 @@ class A101ProfileGenerator:
         """Main generator with unified dashboard styling"""
         # Search section - полная ширина без ограничений
         with ui.card().classes("w-full mb-6"):
-            with ui.column().classes("w-full p-4").style("width: 100% !important; max-width: none !important;"):
+            with ui.column().classes("w-full p-4").style(
+                "width: 100% !important; max-width: none !important;"
+            ):
                 ui.label("🔍 Поиск должности").classes("text-h6 q-mb-md")
                 await self._render_unified_search_section()
 
@@ -475,7 +453,9 @@ class A101ProfileGenerator:
             )
             .props("outlined clearable use-input")
             .classes("w-full")
-            .style("min-width: 100% !important; width: 100% !important; max-width: none !important;")
+            .style(
+                "min-width: 100% !important; width: 100% !important; max-width: none !important;"
+            )
         )
 
         # Clean placeholder like login page
@@ -491,131 +471,6 @@ class A101ProfileGenerator:
         """Clean NiceGUI styling - Following login page philosophy"""
         # No custom CSS - using pure NiceGUI components like login page
         pass
-
-    async def _render_corporate_header(self):
-        """Корпоративный заголовок A101"""
-        with ui.card().classes("w-full bg-primary text-white border-0"):
-            with ui.card_section().classes("py-6"):
-                with ui.row().classes("w-full items-center justify-between"):
-                    # Логотип и название
-                    with ui.row().classes("items-center gap-4"):
-                        ui.icon("business", size="2.5rem").classes("text-white")
-                        with ui.column().classes("gap-0"):
-                            ui.label("A101 HR Profile Generator").classes(
-                                "text-white text-2xl font-bold"
-                            )
-                            ui.label(
-                                "Система автоматической генерации профилей должностей"
-                            ).classes("text-blue-100 text-sm")
-
-                    # Информация о пользователе
-                    with ui.row().classes(
-                        "items-center gap-3 bg-white bg-opacity-10 rounded-lg px-4 py-2"
-                    ):
-                        ui.avatar(icon="person", color="white").classes("text-blue-900")
-                        with ui.column().classes("gap-0"):
-                            ui.label("Администратор").classes(
-                                "text-white font-medium text-sm"
-                            )
-                            ui.label("Активная сессия").classes("text-blue-100 text-xs")
-
-            # Old _render_system_stats method removed - now using unified UnifiedStatsComponent
-
-            # Статус системы
-            with ui.card().classes("flex-1 p-4 text-center"):
-                ui.icon("check_circle", size="2rem").classes("text-green-600 mb-2")
-                ui.label("Готова").classes("text-3xl font-bold text-gray-900")
-                ui.label("Система").classes("text-gray-600 text-sm font-medium")
-
-    async def _render_main_generator(self):
-        """Основной генератор профилей"""
-        with ui.card().classes("w-full mx-auto"):
-
-            # Заголовок генератора
-            with ui.card_section().classes("bg-grey-2 py-4"):
-                with ui.row().classes("items-center gap-3"):
-                    ui.icon("psychology", size="2rem").classes("text-blue-600")
-                    with ui.column().classes("gap-1"):
-                        ui.label("Генератор профилей должностей").classes(
-                            "text-xl font-bold text-primary"
-                        )
-                        ui.label(
-                            "Найдите должность и создайте детальный профиль с помощью ИИ"
-                        ).classes("text-muted")
-
-            # Контент генератора
-            with ui.column().classes("w-full p-8"):
-
-                # Поиск должности
-                await self._render_search_section()
-
-                # Выбранная должность
-                with ui.column().classes("w-full mt-8"):
-                    self.selected_position_card = ui.column().classes("w-full")
-
-                # Параметры генерации убраны - упрощенный интерфейс
-
-                # Кнопка генерации
-                with ui.column().classes(
-                    "w-full mt-8 text-center"
-                ).bind_visibility_from(self, "has_selected_position"):
-                    self.generate_button = ui.button(
-                        "🚀 Создать профиль должности",
-                        icon="auto_awesome",
-                        on_click=self._start_generation,
-                    ).props("size=lg color=primary")
-
-                    ui.label(
-                        "Генерация займет 1-3 минуты в зависимости от сложности позиции"
-                    ).classes("text-xs text-muted mt-3")
-
-    async def _render_search_section(self):
-        """Секция поиска должностей"""
-        with ui.column().classes("w-full gap-6"):
-
-            # Заголовок поиска
-            with ui.row().classes("items-center gap-2"):
-                ui.icon("search", size="1.5rem").classes("text-blue-600")
-                ui.label("Поиск должности").classes(
-                    "text-lg font-semibold text-primary"
-                )
-
-            # Расширенная поисковая строка с автокомплитом
-            with ui.column().classes("w-full gap-2 relative"):
-
-                # Clean search input following login page philosophy
-                self.search_input = (
-                    ui.select(
-                        options={
-                            suggestion: suggestion
-                            for suggestion in self.hierarchical_suggestions
-                        },
-                        label="Поиск должности",
-                        with_input=True,
-                        on_change=self._on_search_select,
-                    )
-                    .props("outlined clearable use-input")
-                    .classes("w-full")
-                    .style("min-width: 100%; width: 100%;")
-                )
-
-                # Clean placeholder
-                self.search_input.props(
-                    'placeholder="Начните вводить название должности"'
-                )
-
-                # События для обновления результатов при вводе
-                self.search_input.on("input-value", self._on_search_input_value)
-
-                # Style fixes no longer needed with standard NiceGUI styling
-
-            # Убрали "Умные категории поиска" - dropdown заменяет эту функциональность
-
-            # Убрали результаты поиска - dropdown заменяет эту функциональность
-            # Оставляем только spinner для обратной связи при выборе
-            self.search_loading = (
-                ui.spinner(size="sm").classes("self-center").style("display: none")
-            )
 
     # Метод _load_system_stats удален - теперь используется UnifiedStatsComponent
     # Метод _update_stats_labels удален - теперь UnifiedStatsComponent сам обновляет UI
@@ -1407,87 +1262,6 @@ class A101ProfileGenerator:
         self.current_task_id = None
         ui.notify("🔄 Генератор сброшен", type="info")
 
-    async def _start_generation(self):
-        """Запуск генерации профиля должности"""
-        if not (self.selected_department and self.selected_position):
-            ui.notify("❌ Необходимо выбрать департамент и должность", type="negative")
-            return
-
-        try:
-            # Показываем диалог с прогрессом
-            await self._show_generation_progress_dialog()
-
-            # Подготавливаем данные для генерации
-            generation_data = {
-                "department": self.selected_department,
-                "position": self.selected_position,
-                "save_result": True,
-            }
-
-            # Отправляем запрос на генерацию
-            response = await self.api_client._make_request(
-                "POST", "/api/generation/start", data=generation_data
-            )
-
-            if response.get("task_id"):
-                # Сохраняем ID задачи
-                self.current_task_id = response["task_id"]
-                # Запускаем polling статуса задачи
-                await self._poll_task_status(response["task_id"])
-            else:
-                self._safe_close_dialog("generation_dialog")
-                ui.notify("❌ Ошибка при запуске генерации", type="negative")
-
-        except Exception as e:
-            logger.error(f"Error starting generation: {e}")
-            self._safe_close_dialog("generation_dialog")
-            ui.notify(f"❌ Ошибка генерации: {str(e)}", type="negative")
-
-    async def _show_generation_progress_dialog(self):
-        """Показ диалога с прогрессом генерации"""
-        self.generation_dialog = ui.dialog()
-        self.progress_value = 0
-        self.progress_step = "Инициализация..."
-
-        with self.generation_dialog:
-            with ui.card().classes("w-96 p-6"):
-                with ui.column().classes("items-center gap-4"):
-                    # Заголовок
-                    ui.label("🚀 Генерация профиля должности").classes(
-                        "text-lg font-bold"
-                    )
-
-                    # Информация о задаче
-                    with ui.column().classes("w-full gap-2"):
-                        ui.label(f"Должность: {self.selected_position}").classes(
-                            "font-medium"
-                        )
-                        ui.label(f"Департамент: {self.selected_department}").classes(
-                            "text-sm text-gray-600"
-                        )
-
-                    # Прогресс-бар и спиннер
-                    with ui.row().classes("w-full items-center gap-4"):
-                        ui.spinner(size="md", color="primary")
-                        with ui.column().classes("flex-1"):
-                            self.progress_bar = (
-                                ui.linear_progress()
-                                .bind_value_from(self, "progress_value")
-                                .classes("w-full")
-                            )
-                            self.progress_label = (
-                                ui.label()
-                                .bind_text_from(self, "progress_step")
-                                .classes("text-sm")
-                            )
-
-                    # Кнопка отмены
-                    ui.button("Отменить", on_click=self._cancel_generation).props(
-                        "outlined color=grey size=sm"
-                    )
-
-        self.generation_dialog.open()
-
     async def _poll_task_status(self, task_id: str):
         """Polling статуса задачи генерации"""
         max_attempts = 120  # 2 минуты максимум
@@ -1564,63 +1338,6 @@ class A101ProfileGenerator:
         self._safe_close_dialog("generation_dialog")
         await self._show_generation_error("Превышено время ожидания генерации")
 
-    async def _show_generation_success(self, result):
-        """Показ успешного результата генерации"""
-        dialog = ui.dialog()
-
-        with dialog:
-            with ui.card().classes("w-[500px] p-6"):
-                with ui.column().classes("items-center gap-4"):
-                    # Успех
-                    ui.icon("check_circle", size="3rem", color="positive")
-                    ui.label("✅ Профиль успешно создан!").classes(
-                        "text-xl font-bold text-positive"
-                    )
-
-                    if result and result.get("profile"):
-                        profile = result["profile"]
-
-                        # Краткая информация о профиле
-                        with ui.column().classes("w-full gap-2 bg-gray-50 p-4 rounded"):
-                            ui.label(
-                                f"Должность: {profile.get('position_title', 'N/A')}"
-                            ).classes("font-medium")
-                            ui.label(
-                                f"Департамент: {profile.get('department_specific', 'N/A')}"
-                            ).classes("text-sm")
-                            ui.label(
-                                f"Категория: {profile.get('position_category', 'N/A')}"
-                            ).classes("text-sm")
-
-                            # Метаданные генерации
-                            if result.get("metadata", {}).get("validation", {}):
-                                validation = result["metadata"]["validation"]
-                                completeness = (
-                                    validation.get("completeness_score", 0) * 100
-                                )
-                                ui.label(
-                                    f"Полнота профиля: {completeness:.0f}%"
-                                ).classes("text-sm text-blue-600")
-
-                    # Действия
-                    with ui.row().classes("gap-3 justify-center"):
-                        ui.button(
-                            "📄 Просмотреть профиль",
-                            icon="description",
-                            on_click=lambda: self._view_profile_result(result, dialog),
-                        ).props("color=primary")
-
-                        ui.button(
-                            "➕ Создать еще один",
-                            icon="add_circle_outline",
-                            on_click=lambda: self._create_another_profile(dialog),
-                        ).props("outlined")
-
-                    ui.button("Закрыть", on_click=dialog.close).props(
-                        "outlined color=grey"
-                    )
-
-        dialog.open()
 
     async def _show_generation_error(self, error_message: str):
         """Показ ошибки генерации"""
@@ -2281,41 +1998,52 @@ class A101ProfileGenerator:
             if not profile_id:
                 ui.notify("ID профиля не найден", type="negative", position="top")
                 return
-                
+
             # Показываем loading уведомление
             ui.notify("📄 Загрузка предпросмотра...", type="info", position="top")
             logger.info(f"Starting markdown preview for profile: {profile_id}")
-            
+
             # Загружаем содержимое с proper error handling
             try:
                 import httpx
-                
+
                 headers = self.api_client._get_auth_headers()
-                download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
-                
+                download_url = (
+                    f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
+                )
+
                 response = httpx.get(download_url, headers=headers, timeout=30)
-                
+
                 if response.status_code != 200:
-                    ui.notify(f"Ошибка сервера: HTTP {response.status_code}", 
-                            type="negative", position="top")
-                    logger.error(f"Preview failed: {response.status_code} - {response.text}")
+                    ui.notify(
+                        f"Ошибка сервера: HTTP {response.status_code}",
+                        type="negative",
+                        position="top",
+                    )
+                    logger.error(
+                        f"Preview failed: {response.status_code} - {response.text}"
+                    )
                     return
-                    
+
                 markdown_content = response.text
                 logger.info(f"Successfully loaded {len(markdown_content)} characters")
-                
+
             except httpx.TimeoutException:
                 ui.notify("Превышено время ожидания", type="warning", position="top")
                 return
             except httpx.RequestError as e:
-                ui.notify(f"Ошибка подключения: {str(e)}", type="negative", position="top")
+                ui.notify(
+                    f"Ошибка подключения: {str(e)}", type="negative", position="top"
+                )
                 logger.error(f"Request error: {e}")
                 return
             except Exception as e:
-                ui.notify(f"Неожиданная ошибка: {str(e)}", type="negative", position="top")
+                ui.notify(
+                    f"Неожиданная ошибка: {str(e)}", type="negative", position="top"
+                )
                 logger.error(f"Unexpected error loading content: {e}", exc_info=True)
                 return
-            
+
             # Создаем широкое модальное окно без заголовка
             with ui.dialog().classes("w-full") as dialog:
                 with ui.card().classes("bg-white dark:bg-gray-800 relative").style(
@@ -2324,7 +2052,9 @@ class A101ProfileGenerator:
                     # Кнопка закрытия в правом верхнем углу
                     ui.button(icon="close", on_click=dialog.close).props(
                         "flat round"
-                    ).classes("absolute top-2 right-2 z-10 text-gray-500 hover:text-gray-700")
+                    ).classes(
+                        "absolute top-2 right-2 z-10 text-gray-500 hover:text-gray-700"
+                    )
 
                     # Контент на всю область карточки
                     with ui.scroll_area().classes("w-full h-full p-6"):
@@ -2334,18 +2064,22 @@ class A101ProfileGenerator:
                         ).style(
                             "line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
                         )
-            
+
             # Открываем диалог и уведомляем об успехе
             dialog.open()
             ui.notify("✅ Предпросмотр готов", type="positive", position="top")
             logger.info("Preview dialog successfully opened")
-            
+
         except Exception as e:
             # Общий catch-all с полным трейсом
-            ui.notify(f"Критическая ошибка предпросмотра: {str(e)}", 
-                     type="negative", position="top")
+            ui.notify(
+                f"Критическая ошибка предпросмотра: {str(e)}",
+                type="negative",
+                position="top",
+            )
             logger.error(f"Critical error in _preview_markdown: {e}", exc_info=True)
             import traceback
+
             print(f"Full traceback: {traceback.format_exc()}")
 
     def _download_json(self, profile: Dict[str, Any]):
@@ -2368,42 +2102,49 @@ class A101ProfileGenerator:
         """Скачивание JSON по ID профиля"""
         if profile_id:
             ui.notify(f"📥 Загрузка JSON файла...", type="info")
-            
+
             try:
                 import httpx
                 import tempfile
                 import os
                 import threading
-                
+
                 # Получаем файл напрямую с backend
                 headers = self.api_client._get_auth_headers()
                 download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/json"
-                
+
                 # Синхронный запрос (просто и надежно)
                 response = httpx.get(download_url, headers=headers, timeout=30)
-                
+
                 if response.status_code == 200:
                     # Сохраняем в временный файл
-                    with tempfile.NamedTemporaryFile(mode='wb', suffix='.json', delete=False) as tmp_file:
+                    with tempfile.NamedTemporaryFile(
+                        mode="wb", suffix=".json", delete=False
+                    ) as tmp_file:
                         tmp_file.write(response.content)
                         temp_path = tmp_file.name
-                    
+
                     # Отдаем пользователю
                     ui.download(temp_path, f"profile_{profile_id[:8]}.json")
                     ui.notify("✅ JSON файл скачан", type="positive")
-                    
+
                     # Удаляем временный файл через 30 сек
                     def cleanup():
                         if os.path.exists(temp_path):
                             os.unlink(temp_path)
+
                     threading.Timer(30, cleanup).start()
-                    
+
                     logger.info(f"JSON download completed for profile: {profile_id}")
-                    
+
                 else:
-                    ui.notify(f"❌ Ошибка: HTTP {response.status_code}", type="negative")
-                    logger.error(f"Download failed with status {response.status_code}: {response.text}")
-                    
+                    ui.notify(
+                        f"❌ Ошибка: HTTP {response.status_code}", type="negative"
+                    )
+                    logger.error(
+                        f"Download failed with status {response.status_code}: {response.text}"
+                    )
+
             except Exception as e:
                 logger.error(f"Error downloading JSON: {e}")
                 ui.notify(f"❌ Ошибка скачивания: {str(e)}", type="negative")
@@ -2412,42 +2153,53 @@ class A101ProfileGenerator:
         """Скачивание Markdown по ID профиля"""
         if profile_id:
             ui.notify(f"📥 Загрузка Markdown файла...", type="info")
-            
+
             try:
                 import httpx
                 import tempfile
                 import os
                 import threading
-                
+
                 # Получаем файл напрямую с backend
                 headers = self.api_client._get_auth_headers()
-                download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
-                
+                download_url = (
+                    f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
+                )
+
                 # Синхронный запрос (просто и надежно)
                 response = httpx.get(download_url, headers=headers, timeout=30)
-                
+
                 if response.status_code == 200:
                     # Сохраняем в временный файл
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp_file:
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", suffix=".md", delete=False, encoding="utf-8"
+                    ) as tmp_file:
                         tmp_file.write(response.text)
                         temp_path = tmp_file.name
-                    
+
                     # Отдаем пользователю
                     ui.download(temp_path, f"profile_{profile_id[:8]}.md")
                     ui.notify("✅ Markdown файл скачан", type="positive")
-                    
+
                     # Удаляем временный файл через 30 сек
                     def cleanup():
                         if os.path.exists(temp_path):
                             os.unlink(temp_path)
+
                     threading.Timer(30, cleanup).start()
-                    
-                    logger.info(f"Markdown download completed for profile: {profile_id}")
-                    
+
+                    logger.info(
+                        f"Markdown download completed for profile: {profile_id}"
+                    )
+
                 else:
-                    ui.notify(f"❌ Ошибка: HTTP {response.status_code}", type="negative")
-                    logger.error(f"Download failed with status {response.status_code}: {response.text}")
-                    
+                    ui.notify(
+                        f"❌ Ошибка: HTTP {response.status_code}", type="negative"
+                    )
+                    logger.error(
+                        f"Download failed with status {response.status_code}: {response.text}"
+                    )
+
             except Exception as e:
                 logger.error(f"Error downloading Markdown: {e}")
                 ui.notify(f"❌ Ошибка скачивания: {str(e)}", type="negative")
