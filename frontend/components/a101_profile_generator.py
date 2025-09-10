@@ -2022,8 +2022,21 @@ class A101ProfileGenerator:
             full_profile = await self.api_client.get_profile_by_id(
                 profile["profile_id"]
             )
-            if full_profile and "data" in full_profile:
-                await self._show_profile_detail_dialog(full_profile["data"])
+            if full_profile and "profile" in full_profile:
+                # Адаптируем данные API к ожидаемому формату диалога
+                adapted_data = {
+                    "profile_id": full_profile.get("profile_id"),
+                    "position_title": profile.get("position", "Неизвестная должность"),
+                    "department_path": profile.get(
+                        "department", "Неизвестный департамент"
+                    ),
+                    "json_data": full_profile.get("profile", {}),
+                    "metadata": full_profile.get("metadata", {}),
+                    "created_at": full_profile.get("created_at"),
+                    "created_by_username": full_profile.get("created_by_username"),
+                    "actions": full_profile.get("actions", {}),
+                }
+                await self._show_profile_detail_dialog(adapted_data)
             else:
                 ui.notify("Ошибка загрузки профиля", type="negative")
         except Exception as e:
@@ -2314,14 +2327,72 @@ class A101ProfileGenerator:
         """Скачивание JSON по ID профиля"""
         if profile_id:
             ui.notify(f"📥 Загрузка JSON файла...", type="info")
-            # В реальной реализации здесь был бы запрос к API
+            # Создаем прямую ссылку на API эндпоинт скачивания
+            download_url = (
+                f"{self.api_client.base_url}/api/profiles/{profile_id}/download/json"
+            )
+            # Открываем в новом окне с токеном авторизации
+            ui.run_javascript(
+                f"""
+                const token = localStorage.getItem('hr_access_token');
+                const link = document.createElement('a');
+                link.href = '{download_url}';
+                link.download = 'profile.json';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                
+                fetch('{download_url}', {{
+                    headers: {{
+                        'Authorization': 'Bearer ' + token
+                    }}
+                }})
+                .then(response => response.blob())
+                .then(blob => {{
+                    const url = window.URL.createObjectURL(blob);
+                    link.href = url;
+                    link.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(link);
+                }})
+                .catch(error => console.error('Download error:', error));
+            """
+            )
             logger.info(f"Download JSON requested for profile: {profile_id}")
 
     def _download_markdown_by_id(self, profile_id: str):
         """Скачивание Markdown по ID профиля"""
         if profile_id:
-            ui.notify(f"📥 Загрузка MD файла...", type="info")
-            # В реальной реализации здесь был бы запрос к API
+            ui.notify(f"📥 Загрузка Markdown файла...", type="info")
+            # Создаем прямую ссылку на API эндпоинт скачивания
+            download_url = (
+                f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
+            )
+            # Открываем в новом окне с токеном авторизации
+            ui.run_javascript(
+                f"""
+                const token = localStorage.getItem('hr_access_token');
+                const link = document.createElement('a');
+                link.href = '{download_url}';
+                link.download = 'profile.md';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                
+                fetch('{download_url}', {{
+                    headers: {{
+                        'Authorization': 'Bearer ' + token
+                    }}
+                }})
+                .then(response => response.blob())
+                .then(blob => {{
+                    const url = window.URL.createObjectURL(blob);
+                    link.href = url;
+                    link.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(link);
+                }})
+                .catch(error => console.error('Download error:', error));
+            """
+            )
             logger.info(f"Download MD requested for profile: {profile_id}")
 
     def _download_profile_file(self, profile: Dict[str, Any], format_type: str):
