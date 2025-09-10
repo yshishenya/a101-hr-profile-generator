@@ -2281,6 +2281,9 @@ class A101ProfileGenerator:
                 ui.notify("ID профиля не найден", type="negative")
                 return
 
+            # Загружаем markdown содержимое из backend
+            ui.notify("📄 Загрузка предпросмотра...", type="info")
+
             # Показываем диалог предпросмотра
             dialog = ui.dialog()
 
@@ -2296,41 +2299,52 @@ class A101ProfileGenerator:
 
                     # Контент предпросмотра
                     with ui.scroll_area().classes("flex-1"):
-                        with ui.card_section():
-                            # В реальной реализации здесь бы загружался markdown контент
-                            position_title = profile.get(
-                                "position_title", "Профиль должности"
-                            )
-                            department = profile.get("department_path", "Не указан")
-                            created_at = self._format_datetime(
-                                profile.get("created_at", "")
-                            )
-
-                            ui.markdown(
-                                f"""
-# 📋 {position_title}
-
-**Департамент:** {department}
-
----
-
-## 📊 Основная информация
-
-| Параметр | Значение |
-|----------|----------|
-| **Название должности** | {position_title} |
-| **Департамент** | {department} |
-| **Создан** | {created_at} |
-
-## 🎯 Области ответственности
-
-*Загрузка полного содержания MD файла...*
-
----
-
-*Это предварительный просмотр. Полное содержание доступно при скачивании MD файла.*
-                            """
+                        with ui.card_section() as content_section:
+                            markdown_container = ui.markdown(
+                                "🔄 Загрузка содержимого markdown файла..."
                             ).classes("w-full")
+
+            # Загружаем реальное содержимое после открытия диалога
+            try:
+                # Используем fetch через JavaScript для получения содержимого
+                download_url = (
+                    f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
+                )
+
+                # Выполняем запрос через API client
+                import httpx
+                import asyncio
+
+                async def load_markdown_content():
+                    try:
+                        headers = self.api_client._get_auth_headers()
+                        async with httpx.AsyncClient() as client:
+                            response = await client.get(download_url, headers=headers)
+                            if response.status_code == 200:
+                                markdown_content = response.text
+                                markdown_container.content = markdown_content
+                                ui.notify("📄 Предпросмотр загружен", type="positive")
+                            else:
+                                markdown_container.content = (
+                                    f"❌ Ошибка загрузки: {response.status_code}"
+                                )
+                                ui.notify(
+                                    f"Ошибка загрузки предпросмотра: {response.status_code}",
+                                    type="negative",
+                                )
+                    except Exception as e:
+                        logger.error(f"Error loading markdown preview: {e}")
+                        markdown_container.content = f"❌ Ошибка: {str(e)}"
+                        ui.notify(f"Ошибка загрузки: {str(e)}", type="negative")
+
+                # Запускаем загрузку в фоне
+                asyncio.create_task(load_markdown_content())
+
+            except Exception as e:
+                logger.error(f"Error setting up markdown preview: {e}")
+                markdown_container.content = (
+                    f"❌ Ошибка инициализации предпросмотра: {str(e)}"
+                )
 
             dialog.open()
 
@@ -2340,83 +2354,107 @@ class A101ProfileGenerator:
 
     def _download_json(self, profile: Dict[str, Any]):
         """Скачивание JSON файла профиля"""
-        self._download_profile_file(profile, "json")
+        profile_id = profile.get("profile_id")
+        if profile_id:
+            self._download_json_by_id(profile_id)
+        else:
+            ui.notify("ID профиля не найден", type="negative")
 
     def _download_markdown(self, profile: Dict[str, Any]):
         """Скачивание Markdown файла профиля"""
-        self._download_profile_file(profile, "md")
+        profile_id = profile.get("profile_id")
+        if profile_id:
+            self._download_markdown_by_id(profile_id)
+        else:
+            ui.notify("ID профиля не найден", type="negative")
 
     def _download_json_by_id(self, profile_id: str):
         """Скачивание JSON по ID профиля"""
         if profile_id:
             ui.notify(f"📥 Загрузка JSON файла...", type="info")
-            # Создаем прямую ссылку на API эндпоинт скачивания
-            download_url = (
-                f"{self.api_client.base_url}/api/profiles/{profile_id}/download/json"
-            )
-            # Открываем в новом окне с токеном авторизации
-            ui.run_javascript(
-                f"""
-                const token = localStorage.getItem('hr_access_token');
-                const link = document.createElement('a');
-                link.href = '{download_url}';
-                link.download = 'profile.json';
-                link.style.display = 'none';
-                document.body.appendChild(link);
+            
+            try:
+                import httpx
+                import tempfile
+                import os
+                import threading
                 
-                fetch('{download_url}', {{
-                    headers: {{
-                        'Authorization': 'Bearer ' + token
-                    }}
-                }})
-                .then(response => response.blob())
-                .then(blob => {{
-                    const url = window.URL.createObjectURL(blob);
-                    link.href = url;
-                    link.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(link);
-                }})
-                .catch(error => console.error('Download error:', error));
-            """
-            )
-            logger.info(f"Download JSON requested for profile: {profile_id}")
+                # Получаем файл напрямую с backend
+                headers = self.api_client._get_auth_headers()
+                download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/json"
+                
+                # Синхронный запрос (просто и надежно)
+                response = httpx.get(download_url, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    # Сохраняем в временный файл
+                    with tempfile.NamedTemporaryFile(mode='wb', suffix='.json', delete=False) as tmp_file:
+                        tmp_file.write(response.content)
+                        temp_path = tmp_file.name
+                    
+                    # Отдаем пользователю
+                    ui.download(temp_path, f"profile_{profile_id[:8]}.json")
+                    ui.notify("✅ JSON файл скачан", type="positive")
+                    
+                    # Удаляем временный файл через 30 сек
+                    def cleanup():
+                        if os.path.exists(temp_path):
+                            os.unlink(temp_path)
+                    threading.Timer(30, cleanup).start()
+                    
+                    logger.info(f"JSON download completed for profile: {profile_id}")
+                    
+                else:
+                    ui.notify(f"❌ Ошибка: HTTP {response.status_code}", type="negative")
+                    logger.error(f"Download failed with status {response.status_code}: {response.text}")
+                    
+            except Exception as e:
+                logger.error(f"Error downloading JSON: {e}")
+                ui.notify(f"❌ Ошибка скачивания: {str(e)}", type="negative")
 
     def _download_markdown_by_id(self, profile_id: str):
         """Скачивание Markdown по ID профиля"""
         if profile_id:
             ui.notify(f"📥 Загрузка Markdown файла...", type="info")
-            # Создаем прямую ссылку на API эндпоинт скачивания
-            download_url = (
-                f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
-            )
-            # Открываем в новом окне с токеном авторизации
-            ui.run_javascript(
-                f"""
-                const token = localStorage.getItem('hr_access_token');
-                const link = document.createElement('a');
-                link.href = '{download_url}';
-                link.download = 'profile.md';
-                link.style.display = 'none';
-                document.body.appendChild(link);
+            
+            try:
+                import httpx
+                import tempfile
+                import os
+                import threading
                 
-                fetch('{download_url}', {{
-                    headers: {{
-                        'Authorization': 'Bearer ' + token
-                    }}
-                }})
-                .then(response => response.blob())
-                .then(blob => {{
-                    const url = window.URL.createObjectURL(blob);
-                    link.href = url;
-                    link.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(link);
-                }})
-                .catch(error => console.error('Download error:', error));
-            """
-            )
-            logger.info(f"Download MD requested for profile: {profile_id}")
+                # Получаем файл напрямую с backend
+                headers = self.api_client._get_auth_headers()
+                download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
+                
+                # Синхронный запрос (просто и надежно)
+                response = httpx.get(download_url, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    # Сохраняем в временный файл
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp_file:
+                        tmp_file.write(response.text)
+                        temp_path = tmp_file.name
+                    
+                    # Отдаем пользователю
+                    ui.download(temp_path, f"profile_{profile_id[:8]}.md")
+                    ui.notify("✅ Markdown файл скачан", type="positive")
+                    
+                    # Удаляем временный файл через 30 сек
+                    def cleanup():
+                        if os.path.exists(temp_path):
+                            os.unlink(temp_path)
+                    threading.Timer(30, cleanup).start()
+                    
+                    logger.info(f"Markdown download completed for profile: {profile_id}")
+                    
+                else:
+                    ui.notify(f"❌ Ошибка: HTTP {response.status_code}", type="negative")
+                    logger.error(f"Download failed with status {response.status_code}: {response.text}")
+                    
+            except Exception as e:
+                logger.error(f"Error downloading Markdown: {e}")
+                ui.notify(f"❌ Ошибка скачивания: {str(e)}", type="negative")
 
     def _download_profile_file(self, profile: Dict[str, Any], format_type: str):
         """Базовый метод скачивания файла профиля"""
@@ -2442,6 +2480,20 @@ class A101ProfileGenerator:
         except Exception as e:
             logger.error(f"Error downloading profile file: {e}")
             ui.notify(f"Ошибка скачивания: {str(e)}", type="negative")
+
+    async def _cleanup_temp_file(self, file_path: str, delay_seconds: int = 30):
+        """Очистка временного файла после задержки"""
+        try:
+            import asyncio
+            import os
+
+            await asyncio.sleep(delay_seconds)
+
+            if os.path.exists(file_path):
+                os.unlink(file_path)
+                logger.debug(f"Cleaned up temporary file: {file_path}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup temporary file {file_path}: {e}")
 
 
 if __name__ == "__main__":
