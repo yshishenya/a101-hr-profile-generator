@@ -147,29 +147,64 @@ class Config:
     def validate(self) -> bool:
         """Валидация критически важных настроек."""
         issues = []
+        critical_issues = []
 
-        # Проверяем JWT секрет в production
-        if self.ENVIRONMENT == "production" and self.JWT_SECRET_KEY.endswith(
-            "-change-in-production"
-        ):
-            issues.append("❌ JWT_SECRET_KEY должен быть изменен в production!")
+        # Критическая проверка: JWT секрет
+        if len(self.JWT_SECRET_KEY) < 32:
+            critical_issues.append("❌ КРИТИЧНО: JWT_SECRET_KEY должен быть минимум 32 символа!")
+        
+        if self.JWT_SECRET_KEY == "a101-hr-profile-generator-secret-key-change-in-production":
+            if self.ENVIRONMENT == "production":
+                critical_issues.append("❌ КРИТИЧНО: JWT_SECRET_KEY должен быть изменен в production!")
+            else:
+                issues.append("⚠️  JWT_SECRET_KEY использует default значение (измените для production)")
 
-        # Проверяем пароли по умолчанию в production
+        # Критическая проверка: OpenRouter API
+        if not self.OPENROUTER_API_KEY:
+            critical_issues.append("❌ КРИТИЧНО: OPENROUTER_API_KEY не настроен!")
+        elif not self.OPENROUTER_API_KEY.startswith("sk-or-"):
+            critical_issues.append("❌ КРИТИЧНО: Неверный формат OPENROUTER_API_KEY (должен начинаться с 'sk-or-')")
+
+        # Проверяем пароли по умолчанию
         if self.ENVIRONMENT == "production":
             if self.ADMIN_PASSWORD == "admin123":
-                issues.append("❌ ADMIN_PASSWORD должен быть изменен в production!")
+                critical_issues.append("❌ КРИТИЧНО: ADMIN_PASSWORD должен быть изменен в production!")
             if self.HR_PASSWORD == "hr123":
-                issues.append("❌ HR_PASSWORD должен быть изменен в production!")
+                critical_issues.append("❌ КРИТИЧНО: HR_PASSWORD должен быть изменен в production!")
+        else:
+            if self.ADMIN_PASSWORD == "admin123":
+                issues.append("⚠️  ADMIN_PASSWORD использует default значение")
+            if self.HR_PASSWORD == "hr123":  
+                issues.append("⚠️  HR_PASSWORD использует default значение")
 
+        # Проверка базы данных
+        if not self.DATABASE_URL:
+            critical_issues.append("❌ КРИТИЧНО: DATABASE_URL не настроен!")
+
+        # Проверка CORS origins в production
+        if self.ENVIRONMENT == "production":
+            if "localhost" in str(self.CORS_ORIGINS) or "127.0.0.1" in str(self.CORS_ORIGINS):
+                issues.append("⚠️  CORS_ORIGINS содержит localhost в production")
+
+        # Выводим критические ошибки
+        if critical_issues:
+            print("🚨 КРИТИЧЕСКИЕ ПРОБЛЕМЫ КОНФИГУРАЦИИ:")
+            for issue in critical_issues:
+                print(f"  {issue}")
+            print("🛑 Система не может работать с такими настройками!")
+            
         # Выводим предупреждения
         if issues:
-            print("🚨 ПРОБЛЕМЫ КОНФИГУРАЦИИ:")
+            print("⚠️  ПРЕДУПРЕЖДЕНИЯ КОНФИГУРАЦИИ:")
             for issue in issues:
                 print(f"  {issue}")
-            return False
 
-        print("✅ Конфигурация валидна")
-        return True
+        # Возвращаем True только если нет критических проблем
+        if len(critical_issues) == 0:
+            print("✅ Конфигурация валидна")
+            return True
+        
+        return False
 
     def print_summary(self):
         """Печать сводки конфигурации (без секретов)."""
@@ -190,6 +225,16 @@ class Config:
 
 # Глобальный экземпляр конфигурации
 config = Config()
+
+# Автоматическая валидация при импорте
+if not config.validate():
+    import sys
+    print("🛑 Система остановлена из-за критических проблем конфигурации!")
+    print("📋 Исправьте проблемы выше и перезапустите систему.")
+    if config.ENVIRONMENT == "production":
+        sys.exit(1)  # Останавливаем в production
+    else:
+        print("⚠️  Разработческий режим: продолжаем работу с предупреждениями")
 
 
 if __name__ == "__main__":
