@@ -53,25 +53,27 @@ async def on_successful_login():
     """
     @doc
     Callback функция, вызываемая после успешной авторизации.
-    
+
     Загружает статистику через упрощенный API client метод.
-    
+
     Examples:
       python> # Вызывается автоматически из AuthComponent
       python> await on_successful_login()
     """
     logger.info("🔄 Loading dashboard stats after successful authentication...")
-    
+
     try:
         # Предзагружаем статистику одним методом API клиента
         stats_data = await api_client.get_dashboard_stats()
-        
+
         if stats_data:
             logger.info("✅ Dashboard stats loaded successfully")
-            logger.debug(f"Stats: {stats_data['profiles_count']} profiles of {stats_data['positions_count']} positions")
+            logger.debug(
+                f"Stats: {stats_data['profiles_count']} profiles of {stats_data['positions_count']} positions"
+            )
         else:
             logger.warning("⚠️ Dashboard stats loaded with fallback data")
-            
+
     except Exception as e:
         logger.error(f"❌ Error loading dashboard stats: {e}")
 
@@ -152,7 +154,9 @@ async def login_page(redirect_to: str = "/") -> None:
             )
 
             # Компонент авторизации с callback для загрузки данных
-            auth_component = AuthComponent(api_client, redirect_to, on_success=on_successful_login)
+            auth_component = AuthComponent(
+                api_client, redirect_to, on_success=on_successful_login
+            )
             await auth_component.create()
 
 
@@ -188,24 +192,25 @@ async def main_page() -> None:
             # Создаем статистику
             stats = StatsComponent(api_client, style="dashboard")
             await stats.render()
-            
+
             # Быстрые действия
             with ui.card().classes("w-full mb-6"):
                 ui.label("🎯 Быстрые действия").classes("text-h6 q-mb-md")
-                
+
                 with ui.row().classes("w-full q-gutter-md"):
                     ui.button(
-                        "🔍 Найти должность", on_click=lambda: ui.navigate.to("/generator")
+                        "🔍 Найти должность",
+                        on_click=lambda: ui.navigate.to("/generator"),
                     ).classes("flex-1").props("size=lg color=primary")
-                    
+
                     ui.button(
-                        "📋 Все профили", on_click=lambda: ui.navigate.to("/profiles") 
+                        "📋 Все профили", on_click=lambda: ui.navigate.to("/profiles")
                     ).classes("flex-1").props("size=lg color=secondary")
-                    
+
                     ui.button(
                         "📊 Статистика", on_click=lambda: ui.navigate.to("/analytics")
                     ).classes("flex-1").props("size=lg color=info")
-            
+
             # Данные загружаются автоматически компонентом статистики
         except Exception as e:
             # Fallback если dashboard не загружается
@@ -257,11 +262,11 @@ async def generator_page() -> None:
         # Create generator component without duplicate header
         global profile_generator
         profile_generator = A101ProfileGenerator(api_client)
-        
+
         # Если пользователь уже авторизован, загружаем данные
         if app.storage.user.get("authenticated", False):
             await profile_generator.load_initial_data()
-        
+
         await profile_generator.render_content()
 
 

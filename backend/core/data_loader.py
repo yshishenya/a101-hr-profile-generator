@@ -36,7 +36,7 @@ class DataLoader:
         # Пути к статическим файлам - все в ./data
         self.paths = {
             "company_map": Path("data") / "Карта Компании А101.md",
-            "org_structure": Path("data") / "structure.json", 
+            "org_structure": Path("data") / "structure.json",
             "it_systems": Path("data") / "anonymized_digitization_map.md",
             "json_schema": Path("templates") / "job_profile_schema.json",
         }
@@ -125,7 +125,7 @@ class DataLoader:
         try:
             # Используем централизованный кеш вместо прямого чтения файла
             dept_info = organization_cache.find_department(department)
-            
+
             if dept_info:
                 dept_node = dept_info["node"]
                 return {
@@ -154,7 +154,6 @@ class DataLoader:
                 "found": False,
                 "error": str(e),
             }
-
 
     def _load_it_systems_cached(self) -> str:
         """Загрузка IT систем из anonymized_digitization_map.md с кешированием"""
@@ -414,11 +413,13 @@ class DataLoader:
     def _determine_position_level(self, position_name: str) -> str:
         """Определение уровня должности по названию"""
         from ..utils.position_utils import determine_position_level
+
         return determine_position_level(position_name, "string")
 
     def _determine_position_category(self, position_name: str) -> str:
         """Определение категории должности"""
         from ..utils.position_utils import determine_position_category
+
         return determine_position_category(position_name)
 
     def get_positions_for_department(self, department: str) -> List[str]:

@@ -30,7 +30,7 @@ class OrganizationMapper:
         """Получение данных из централизованного кеша"""
         return organization_cache.get_full_structure()
 
-    @property 
+    @property
     def _department_index(self) -> Dict[str, Dict[str, any]]:
         """Получение индекса департаментов из централизованного кеша"""
         return organization_cache.get_department_index()
@@ -70,14 +70,14 @@ class OrganizationMapper:
         """
         # Используем централизованный кеш вместо прямого доступа к файлам
         positions = organization_cache.get_department_positions(department_name)
-        
+
         if positions:
             logger.debug(
                 f"Found {len(positions)} positions in '{department_name}': {positions}"
             )
         else:
             logger.warning(f"No positions found for department: {department_name}")
-        
+
         return positions
 
     def extract_relevant_structure(

@@ -98,34 +98,25 @@ def determine_position_category(position_name: str) -> str:
         for keyword in ["архитектор", "разработчик", "программист", "техник", "инженер"]
     ):
         return "technical"
-    elif any(
-        keyword in position_lower for keyword in ["аналитик", "исследователь"]
-    ):
+    elif any(keyword in position_lower for keyword in ["аналитик", "исследователь"]):
         return "analytical"
     elif any(
-        keyword in position_lower
-        for keyword in ["продаж", "менеджер", "коммерческий"]
+        keyword in position_lower for keyword in ["продаж", "менеджер", "коммерческий"]
     ):
         return "sales"
     elif any(
-        keyword in position_lower
-        for keyword in ["hr", "кадр", "персонал", "рекрутер"]
+        keyword in position_lower for keyword in ["hr", "кадр", "персонал", "рекрутер"]
     ):
         return "hr"
     elif any(
-        keyword in position_lower
-        for keyword in ["финанс", "бухгалтер", "экономист"]
+        keyword in position_lower for keyword in ["финанс", "бухгалтер", "экономист"]
     ):
         return "finance"
     elif any(
-        keyword in position_lower
-        for keyword in ["маркетинг", "реклам", "pr", "brand"]
+        keyword in position_lower for keyword in ["маркетинг", "реклам", "pr", "brand"]
     ):
         return "marketing"
-    elif any(
-        keyword in position_lower
-        for keyword in ["юрист", "правов", "legal"]
-    ):
+    elif any(keyword in position_lower for keyword in ["юрист", "правов", "legal"]):
         return "legal"
     else:
         return "specialist"
@@ -151,30 +142,24 @@ def get_position_characteristics(position_name: str) -> Dict[str, Any]:
     return {
         "level": determine_position_level(position_name, "string"),
         "level_num": determine_position_level(position_name, "number"),
-        "category": determine_position_category(position_name)
+        "category": determine_position_category(position_name),
     }
 
 
 # Константы для уровней должностей
-POSITION_LEVELS = {
-    1: "senior",
-    2: "deputy", 
-    3: "lead",
-    4: "middle",
-    5: "junior"
-}
+POSITION_LEVELS = {1: "senior", 2: "deputy", 3: "lead", 4: "middle", 5: "junior"}
 
 # Константы для категорий должностей
 POSITION_CATEGORIES = [
     "management",
-    "technical", 
+    "technical",
     "analytical",
     "sales",
     "hr",
     "finance",
     "marketing",
     "legal",
-    "specialist"
+    "specialist",
 ]
 
 
@@ -183,11 +168,11 @@ if __name__ == "__main__":
     test_positions = [
         "Руководитель отдела",
         "Ведущий аналитик данных",
-        "Специалист по маркетингу", 
+        "Специалист по маркетингу",
         "Младший разработчик",
-        "Директор по продажам"
+        "Директор по продажам",
     ]
-    
+
     print("🧪 Тестирование position_utils...")
     for position in test_positions:
         chars = get_position_characteristics(position)

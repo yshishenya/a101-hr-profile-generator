@@ -24,7 +24,9 @@ class CatalogService:
 
     def __init__(self):
         self.db = db_manager
-        self.organization_cache = organization_cache  # Добавляем ссылку для новых endpoints
+        self.organization_cache = (
+            organization_cache  # Добавляем ссылку для новых endpoints
+        )
         # Removed DataLoader - using organization_cache directly
         # Removed local caching infrastructure - using centralized cache
 
@@ -44,18 +46,18 @@ class CatalogService:
 
             # Получаем все департаменты из централизованного кеша
             all_departments = organization_cache.get_all_departments()
-            
+
             # Преобразуем в API формат
             departments_info = []
             for dept_name in all_departments:
                 # Получаем количество позиций для департамента
                 positions = organization_cache.get_department_positions(dept_name)
                 positions_count = len(positions) if positions else 0
-                
+
                 # Получаем путь департамента
                 path_list = organization_cache.find_department_path(dept_name)
                 path = " → ".join(path_list) if path_list else dept_name
-                
+
                 dept_info = {
                     "name": dept_name,
                     "display_name": dept_name,
@@ -69,8 +71,10 @@ class CatalogService:
             departments_info.sort(key=lambda x: x["name"])
 
             load_time = (datetime.now() - start_time).total_seconds()
-            logger.info(f"✅ Loaded {len(departments_info)} departments in {load_time:.3f}s from centralized cache")
-            
+            logger.info(
+                f"✅ Loaded {len(departments_info)} departments in {load_time:.3f}s from centralized cache"
+            )
+
             return departments_info
 
         except Exception as e:
@@ -94,16 +98,16 @@ class CatalogService:
             start_time = datetime.now()
             logger.info(f"Loading positions for {department} from centralized cache")
 
-            # Получаем позиции из централизованного кеша  
+            # Получаем позиции из централизованного кеша
             positions = organization_cache.get_department_positions(department)
-            
+
             # Преобразуем в API формат
             positions_info = []
             for position in positions:
                 # Определяем уровень и категорию должности
                 level = self._determine_position_level(position)
                 category = self._determine_position_category(position)
-                
+
                 pos_info = {
                     "name": position,
                     "department": department,
@@ -118,12 +122,16 @@ class CatalogService:
             positions_info.sort(key=lambda x: (x["level"], x["name"]))
 
             load_time = (datetime.now() - start_time).total_seconds()
-            logger.info(f"✅ Loaded {len(positions_info)} positions for {department} in {load_time:.3f}s from centralized cache")
-            
+            logger.info(
+                f"✅ Loaded {len(positions_info)} positions for {department} in {load_time:.3f}s from centralized cache"
+            )
+
             return positions_info
 
         except Exception as e:
-            logger.error(f"Error getting positions for {department} from centralized cache: {e}")
+            logger.error(
+                f"Error getting positions for {department} from centralized cache: {e}"
+            )
             return []
 
     def search_departments(self, query: str) -> List[Dict[str, Any]]:
@@ -251,12 +259,15 @@ class CatalogService:
 
             # Добавляем расширенную информацию
             positions = self.get_positions(department_name)
-            
+
             # Получаем организационную структуру из централизованного кеша
             organization_structure = {
                 "target_department": department_name,
-                "department_path": " → ".join(organization_cache.find_department_path(department_name) or [department_name]),
-                "structure": organization_cache.find_department(department_name)
+                "department_path": " → ".join(
+                    organization_cache.find_department_path(department_name)
+                    or [department_name]
+                ),
+                "structure": organization_cache.find_department(department_name),
             }
 
             department_info.update(
@@ -280,51 +291,55 @@ class CatalogService:
     def _determine_position_level(self, position_name: str) -> int:
         """Определение уровня должности (1 - высший, 5 - младший)"""
         from ..utils.position_utils import determine_position_level
+
         return determine_position_level(position_name, "number")
 
     def _determine_position_category(self, position_name: str) -> str:
         """Определение категории должности"""
         from ..utils.position_utils import determine_position_category
+
         return determine_position_category(position_name)
 
     def clear_cache(self, cache_type: Optional[str] = None):
         """
         Очистка кеша - пустая реализация для совместимости с API.
-        
+
         Централизованный кеш управляется напрямую через organization_cache.
 
         Args:
             cache_type: Параметр для совместимости (игнорируется)
         """
-        logger.info(f"Cache clear requested: {cache_type or 'all'} - using centralized cache, no action needed")
+        logger.info(
+            f"Cache clear requested: {cache_type or 'all'} - using centralized cache, no action needed"
+        )
 
     # НОВЫЕ методы для path-based поддержки и LLM интеграции
     def get_searchable_items(self) -> List[Dict[str, Any]]:
         """
         @doc
         Получение всех элементов для frontend поиска с path-based индексацией.
-        
+
         Использует новую path-based систему для получения всех 567 бизнес-единиц
         без потерь данных из-за дублирующихся имен.
-        
+
         Returns:
             List[Dict[str, Any]]: Элементы для dropdown с полной иерархией
-            
+
         Examples:
             python> items = catalog_service.get_searchable_items()
             python> # [{'display_name': 'ДИТ (Блок ОД)', 'full_path': '...', ...}]
         """
         try:
             start_time = time.time()
-            
+
             # Используем новый path-based метод из organization_cache
             searchable_items = self.organization_cache.get_searchable_items()
-            
+
             execution_time = time.time() - start_time
             logger.info(
                 f"✅ Retrieved {len(searchable_items)} searchable items in {execution_time:.4f}s (path-based)"
             )
-            
+
             return searchable_items
 
         except Exception as e:
@@ -337,69 +352,79 @@ class CatalogService:
         """
         @doc
         Получение полной организационной структуры с выделенной целевой позицией.
-        
+
         Для LLM анализа карьерных путей - возвращает всю оргструктуру
         с подсвеченным целевым элементом и его родительскими узлами.
-        
+
         Args:
             target_path: Полный путь к целевой бизнес-единице
-            
+
         Returns:
             Dict[str, Any]: Полная структура с выделенной целью
-            
+
         Examples:
             python> structure = catalog_service.get_organization_structure_with_target("Блок ОД/ДИТ")
             python> # Полная оргструктура с ДИТ и родителями помеченными is_target=True
         """
         try:
             start_time = time.time()
-            
+
             # Проверяем существование целевого пути
             target_unit = self.organization_cache.find_unit_by_path(target_path)
             if not target_unit:
                 logger.warning(f"Target path not found: {target_path}")
                 return {
                     "error": f"Business unit at path '{target_path}' not found",
-                    "available_paths": list(self.organization_cache.get_all_business_units_with_paths().keys())[:10]  # Первые 10 для примера
+                    "available_paths": list(
+                        self.organization_cache.get_all_business_units_with_paths().keys()
+                    )[
+                        :10
+                    ],  # Первые 10 для примера
                 }
-            
+
             # Получаем структуру с подсвеченной целью
-            highlighted_structure = self.organization_cache.get_structure_with_target_highlighted(target_path)
-            
+            highlighted_structure = (
+                self.organization_cache.get_structure_with_target_highlighted(
+                    target_path
+                )
+            )
+
             # Добавляем метаданные для LLM
             highlighted_structure["target_unit_info"] = {
                 "name": target_unit["name"],
                 "full_path": target_path,
                 "positions_count": len(target_unit["positions"]),
                 "positions": target_unit["positions"],
-                "hierarchy_level": target_unit["level"]
+                "hierarchy_level": target_unit["level"],
             }
-            
+
             execution_time = time.time() - start_time
             logger.info(
                 f"✅ Generated highlighted structure for '{target_path}' in {execution_time:.4f}s"
             )
-            
+
             return highlighted_structure
 
         except Exception as e:
-            logger.error(f"❌ Error generating highlighted structure for '{target_path}': {e}")
+            logger.error(
+                f"❌ Error generating highlighted structure for '{target_path}': {e}"
+            )
             return {
                 "error": f"Failed to generate structure: {str(e)}",
-                "target_path": target_path
+                "target_path": target_path,
             }
 
     def find_business_unit_by_path(self, full_path: str) -> Optional[Dict[str, Any]]:
         """
         @doc
         Поиск бизнес-единицы по полному пути с дополнительными метаданными.
-        
+
         Args:
             full_path: Полный путь в формате "Блок/Департамент/Управление/Группа"
-            
+
         Returns:
             Optional[Dict[str, Any]]: Расширенные данные бизнес-единицы
-            
+
         Examples:
             python> unit = catalog_service.find_business_unit_by_path("Блок ОД/ДИТ")
             python> # {'name': 'ДИТ', 'positions': [...], 'hierarchy': [...], ...}
@@ -408,17 +433,19 @@ class CatalogService:
             unit_data = self.organization_cache.find_unit_by_path(full_path)
             if not unit_data:
                 return None
-                
+
             # Добавляем расширенные метаданные
             path_parts = full_path.split("/")
-            
+
             enhanced_unit = {
                 **unit_data,
                 "hierarchy_path": path_parts,
-                "parent_path": "/".join(path_parts[:-1]) if len(path_parts) > 1 else None,
-                "enriched_positions": []
+                "parent_path": (
+                    "/".join(path_parts[:-1]) if len(path_parts) > 1 else None
+                ),
+                "enriched_positions": [],
             }
-            
+
             # Обогащаем информацию о позициях
             for position in unit_data.get("positions", []):
                 enriched_position = {
@@ -427,13 +454,15 @@ class CatalogService:
                     "category": self._determine_position_category(position),
                     "department": unit_data["name"],
                     "full_path": full_path,
-                    "last_updated": datetime.now().isoformat()
+                    "last_updated": datetime.now().isoformat(),
                 }
                 enhanced_unit["enriched_positions"].append(enriched_position)
-            
-            logger.info(f"✅ Found business unit '{full_path}' with {len(enhanced_unit['enriched_positions'])} positions")
+
+            logger.info(
+                f"✅ Found business unit '{full_path}' with {len(enhanced_unit['enriched_positions'])} positions"
+            )
             return enhanced_unit
-            
+
         except Exception as e:
             logger.error(f"❌ Error finding business unit by path '{full_path}': {e}")
             return None

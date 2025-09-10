@@ -119,7 +119,7 @@ async def background_generate_profile(
 
         # Создаем profile_id заранее
         profile_id = str(uuid.uuid4())
-        
+
         # Генерация профиля с передачей profile_id
         result = await generator.generate_profile(
             department=request.department,
@@ -127,7 +127,7 @@ async def background_generate_profile(
             employee_name=request.employee_name,
             temperature=request.temperature,
             save_result=request.save_result,
-            profile_id=profile_id  # Передаем UUID в генератор
+            profile_id=profile_id,  # Передаем UUID в генератор
         )
 
         _active_tasks[task_id].update(
@@ -172,7 +172,9 @@ async def background_generate_profile(
         )
 
 
-async def save_generation_to_db(result: Dict[str, Any], user_id: int, task_id: str, profile_id: str):
+async def save_generation_to_db(
+    result: Dict[str, Any], user_id: int, task_id: str, profile_id: str
+):
     """Сохранение результата генерации в базу данных"""
     try:
         conn = db_manager.get_connection()

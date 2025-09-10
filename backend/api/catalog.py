@@ -656,7 +656,9 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
                 },
                 "cache_status": {
                     "departments_cached": catalog_service.organization_cache.is_loaded(),
-                    "positions_cached_count": len(catalog_service.organization_cache.get_all_business_units_with_paths()),
+                    "positions_cached_count": len(
+                        catalog_service.organization_cache.get_all_business_units_with_paths()
+                    ),
                     "centralized_cache": True,
                     "cache_type": "organization_cache (path-based)",
                 },

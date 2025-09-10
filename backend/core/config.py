@@ -151,30 +151,45 @@ class Config:
 
         # Критическая проверка: JWT секрет
         if len(self.JWT_SECRET_KEY) < 32:
-            critical_issues.append("❌ КРИТИЧНО: JWT_SECRET_KEY должен быть минимум 32 символа!")
-        
-        if self.JWT_SECRET_KEY == "a101-hr-profile-generator-secret-key-change-in-production":
+            critical_issues.append(
+                "❌ КРИТИЧНО: JWT_SECRET_KEY должен быть минимум 32 символа!"
+            )
+
+        if (
+            self.JWT_SECRET_KEY
+            == "a101-hr-profile-generator-secret-key-change-in-production"
+        ):
             if self.ENVIRONMENT == "production":
-                critical_issues.append("❌ КРИТИЧНО: JWT_SECRET_KEY должен быть изменен в production!")
+                critical_issues.append(
+                    "❌ КРИТИЧНО: JWT_SECRET_KEY должен быть изменен в production!"
+                )
             else:
-                issues.append("⚠️  JWT_SECRET_KEY использует default значение (измените для production)")
+                issues.append(
+                    "⚠️  JWT_SECRET_KEY использует default значение (измените для production)"
+                )
 
         # Критическая проверка: OpenRouter API
         if not self.OPENROUTER_API_KEY:
             critical_issues.append("❌ КРИТИЧНО: OPENROUTER_API_KEY не настроен!")
         elif not self.OPENROUTER_API_KEY.startswith("sk-or-"):
-            critical_issues.append("❌ КРИТИЧНО: Неверный формат OPENROUTER_API_KEY (должен начинаться с 'sk-or-')")
+            critical_issues.append(
+                "❌ КРИТИЧНО: Неверный формат OPENROUTER_API_KEY (должен начинаться с 'sk-or-')"
+            )
 
         # Проверяем пароли по умолчанию
         if self.ENVIRONMENT == "production":
             if self.ADMIN_PASSWORD == "admin123":
-                critical_issues.append("❌ КРИТИЧНО: ADMIN_PASSWORD должен быть изменен в production!")
+                critical_issues.append(
+                    "❌ КРИТИЧНО: ADMIN_PASSWORD должен быть изменен в production!"
+                )
             if self.HR_PASSWORD == "hr123":
-                critical_issues.append("❌ КРИТИЧНО: HR_PASSWORD должен быть изменен в production!")
+                critical_issues.append(
+                    "❌ КРИТИЧНО: HR_PASSWORD должен быть изменен в production!"
+                )
         else:
             if self.ADMIN_PASSWORD == "admin123":
                 issues.append("⚠️  ADMIN_PASSWORD использует default значение")
-            if self.HR_PASSWORD == "hr123":  
+            if self.HR_PASSWORD == "hr123":
                 issues.append("⚠️  HR_PASSWORD использует default значение")
 
         # Проверка базы данных
@@ -183,7 +198,9 @@ class Config:
 
         # Проверка CORS origins в production
         if self.ENVIRONMENT == "production":
-            if "localhost" in str(self.CORS_ORIGINS) or "127.0.0.1" in str(self.CORS_ORIGINS):
+            if "localhost" in str(self.CORS_ORIGINS) or "127.0.0.1" in str(
+                self.CORS_ORIGINS
+            ):
                 issues.append("⚠️  CORS_ORIGINS содержит localhost в production")
 
         # Выводим критические ошибки
@@ -192,7 +209,7 @@ class Config:
             for issue in critical_issues:
                 print(f"  {issue}")
             print("🛑 Система не может работать с такими настройками!")
-            
+
         # Выводим предупреждения
         if issues:
             print("⚠️  ПРЕДУПРЕЖДЕНИЯ КОНФИГУРАЦИИ:")
@@ -203,7 +220,7 @@ class Config:
         if len(critical_issues) == 0:
             print("✅ Конфигурация валидна")
             return True
-        
+
         return False
 
     def print_summary(self):
@@ -229,6 +246,7 @@ config = Config()
 # Автоматическая валидация при импорте
 if not config.validate():
     import sys
+
     print("🛑 Система остановлена из-за критических проблем конфигурации!")
     print("📋 Исправьте проблемы выше и перезапустите систему.")
     if config.ENVIRONMENT == "production":

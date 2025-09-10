@@ -88,7 +88,9 @@ async def get_search_items(
             },
         }
 
-        logger.info(f"Successfully returned {len(search_items)} search items (path-based)")
+        logger.info(
+            f"Successfully returned {len(search_items)} search items (path-based)"
+        )
         return response
 
     except Exception as e:
@@ -185,7 +187,7 @@ async def get_organization_structure_with_target(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Отсутствует обязательный параметр target_path",
             )
-            
+
         logger.info(
             f"Getting organization structure with target '{target_path}' for user {current_user['username']}"
         )
@@ -307,7 +309,7 @@ async def get_business_unit_details(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Отсутствует обязательный параметр unit_path",
             )
-            
+
         logger.info(
             f"Getting business unit details for '{unit_path}' for user {current_user['username']}"
         )
@@ -399,23 +401,27 @@ async def get_organization_stats(current_user: dict = Depends(get_current_user))
         python> # {'success': True, 'data': {'business_units': {'total_count': 567}, 'positions': {'total_count': 1689}}}
     """
     try:
-        logger.info(f"Getting organization statistics for user {current_user['username']}")
+        logger.info(
+            f"Getting organization statistics for user {current_user['username']}"
+        )
 
         # Получаем все бизнес-единицы через path-based индекс
-        all_units = catalog_service.organization_cache.get_all_business_units_with_paths()
-        
+        all_units = (
+            catalog_service.organization_cache.get_all_business_units_with_paths()
+        )
+
         # Статистика по уровням
         levels_stats = {}
         total_positions = 0
         units_with_positions = 0
-        
+
         for unit_path, unit_data in all_units.items():
             level = unit_data["level"]
             positions_count = len(unit_data["positions"])
-            
+
             levels_stats[level] = levels_stats.get(level, 0) + 1
             total_positions += positions_count
-            
+
             if positions_count > 0:
                 units_with_positions += 1
 
@@ -430,7 +436,9 @@ async def get_organization_stats(current_user: dict = Depends(get_current_user))
                 },
                 "positions": {
                     "total_count": total_positions,
-                    "average_per_unit": round(total_positions / len(all_units), 2) if all_units else 0,
+                    "average_per_unit": (
+                        round(total_positions / len(all_units), 2) if all_units else 0
+                    ),
                 },
                 "indexing_method": "path_based",
                 "data_completeness": "100%",  # Подтверждение отсутствия потерь
