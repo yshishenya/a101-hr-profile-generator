@@ -413,61 +413,13 @@ class DataLoader:
 
     def _determine_position_level(self, position_name: str) -> str:
         """Определение уровня должности по названию"""
-        position_lower = position_name.lower()
-
-        if any(
-            keyword in position_lower
-            for keyword in ["руководитель", "директор", "управляющий", "начальник"]
-        ):
-            return "senior"
-        elif any(
-            keyword in position_lower for keyword in ["ведущий", "главный", "старший"]
-        ):
-            return "lead"
-        elif any(
-            keyword in position_lower
-            for keyword in ["специалист", "аналитик", "консультант"]
-        ):
-            return "middle"
-        elif any(
-            keyword in position_lower for keyword in ["младший", "помощник", "стажер"]
-        ):
-            return "junior"
-        else:
-            return "middle"  # По умолчанию
+        from ..utils.position_utils import determine_position_level
+        return determine_position_level(position_name, "string")
 
     def _determine_position_category(self, position_name: str) -> str:
         """Определение категории должности"""
-        position_lower = position_name.lower()
-
-        if any(
-            keyword in position_lower
-            for keyword in ["руководитель", "директор", "управляющий", "начальник"]
-        ):
-            return "management"
-        elif any(
-            keyword in position_lower
-            for keyword in ["архитектор", "разработчик", "программист", "техник"]
-        ):
-            return "technical"
-        elif any(
-            keyword in position_lower for keyword in ["аналитик", "исследователь"]
-        ):
-            return "analytical"
-        elif any(
-            keyword in position_lower
-            for keyword in ["продаж", "менеджер", "коммерческий"]
-        ):
-            return "sales"
-        elif any(
-            keyword in position_lower
-            for keyword in ["бухгалтер", "финансовый", "экономист"]
-        ):
-            return "financial"
-        elif any(keyword in position_lower for keyword in ["hr", "кадр", "персонал"]):
-            return "hr"
-        else:
-            return "operational"  # По умолчанию
+        from ..utils.position_utils import determine_position_category
+        return determine_position_category(position_name)
 
     def get_positions_for_department(self, department: str) -> List[str]:
         """

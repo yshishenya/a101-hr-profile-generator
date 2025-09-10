@@ -279,33 +279,13 @@ class CatalogService:
 
     def _determine_position_level(self, position_name: str) -> int:
         """Определение уровня должности (1 - высший, 5 - младший)"""
-        position_lower = position_name.lower()
-
-        if "руководитель" in position_lower or "директор" in position_lower:
-            return 1
-        elif "заместитель" in position_lower or "зам" in position_lower:
-            return 2
-        elif "ведущий" in position_lower:
-            return 3
-        elif "старший" in position_lower:
-            return 4
-        else:
-            return 5  # Обычный специалист
+        from ..utils.position_utils import determine_position_level
+        return determine_position_level(position_name, "number")
 
     def _determine_position_category(self, position_name: str) -> str:
         """Определение категории должности"""
-        position_lower = position_name.lower()
-
-        if "руководитель" in position_lower or "директор" in position_lower:
-            return "management"
-        elif "аналитик" in position_lower:
-            return "analytics"
-        elif "инженер" in position_lower or "разработчик" in position_lower:
-            return "technical"
-        elif "менеджер" in position_lower:
-            return "management"
-        else:
-            return "specialist"
+        from ..utils.position_utils import determine_position_category
+        return determine_position_category(position_name)
 
     def clear_cache(self, cache_type: Optional[str] = None):
         """
