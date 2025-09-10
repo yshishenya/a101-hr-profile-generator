@@ -58,11 +58,14 @@ class ProfileStorageService:
       python> path = storage.find_department_path("Группа анализа данных")
       python> # ['Блок операционного директора', 'Департамент информационных технологий', 'Отдел управления данными', 'Группа анализа данных']
     """
-    # Локальный импорт для избежания циркулярной зависимости
-    from backend.core.organization_cache import organization_cache
-    
-    # Используем централизованный кеш вместо локальной структуры
-    return organization_cache.find_department_path(target_department)
+    try:
+      # Локальный импорт для избежания циркулярной зависимости
+      from backend.core.organization_cache import organization_cache
+      return organization_cache.find_department_path(target_department)
+    except ImportError as e:
+      logger.error(f"Failed to import organization_cache: {e}")
+      # Fallback: возвращаем простую структуру
+      return [target_department]
 
   def get_profile_paths(
     self, 
@@ -140,6 +143,13 @@ class ProfileStorageService:
     Examples:
       python> clean = storage.sanitize_path_component("Группа анализа данных")
     """
+    import re
+    
+    # Проверяем на path traversal атаки
+    if ".." in name or name.startswith("/") or name.startswith("\\"):
+      logger.warning(f"⚠️ Potential path traversal attempt blocked: {name}")
+      name = name.replace("..", "_").lstrip("/").lstrip("\\")
+    
     # Заменяем проблемные символы
     sanitized = name.replace(" ", "_")
     sanitized = sanitized.replace("/", "_")
@@ -151,7 +161,22 @@ class ProfileStorageService:
     sanitized = sanitized.replace("<", "_")
     sanitized = sanitized.replace(">", "_")
     sanitized = sanitized.replace("|", "_")
-
+    
+    # Удаляем любые остаточные опасные последовательности
+    sanitized = re.sub(r'\.+', '_', sanitized)  # Множественные точки
+    sanitized = re.sub(r'[^\w\-_а-яА-Я]', '_', sanitized)  # Только безопасные символы
+    
+    # Убираем множественные подчеркивания и ведущие/завершающие
+    sanitized = re.sub(r'_{2,}', '_', sanitized).strip('_')
+    
+    # Ограничиваем длину (файловые системы имеют лимиты)
+    if len(sanitized) > 100:
+      sanitized = sanitized[:100].rstrip('_')
+    
+    # Проверяем, что результат не пустой
+    if not sanitized:
+      sanitized = "unnamed"
+    
     return sanitized
 
   def create_profile_directory(
