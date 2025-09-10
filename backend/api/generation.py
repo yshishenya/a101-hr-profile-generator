@@ -225,6 +225,30 @@ async def start_generation(
 ):
     """
     Запуск асинхронной генерации профиля должности
+    
+    ### Пример запроса:
+    ```bash
+    curl -X POST "http://localhost:8001/api/generation/start" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+      -H "Content-Type: application/json" \
+      -d '{
+        "department": "Группа анализа данных",
+        "position": "Аналитик данных",
+        "employee_name": "Тест Тестов",
+        "temperature": 0.1,
+        "save_result": true
+      }'
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "task_id": "7feeb5ed-9e9d-419b-8a1d-e892accdd2c1",
+      "status": "queued",
+      "message": "Генерация профиля 'Аналитик данных' в 'Группа анализа данных' запущена",
+      "estimated_duration": 45
+    }
+    ```
 
     Returns:
         task_id и примерное время выполнения
@@ -270,6 +294,41 @@ async def start_generation(
 async def get_task_status(task_id: str, current_user=Depends(get_current_user)):
     """
     Получение статуса задачи генерации
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/generation/7feeb5ed-9e9d-419b-8a1d-e892accdd2c1/status" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример ответа (задача выполняется):
+    ```json
+    {
+      "task": {
+        "task_id": "7feeb5ed-9e9d-419b-8a1d-e892accdd2c1",
+        "status": "processing",
+        "progress": 30,
+        "created_at": "2025-09-10T02:52:46.830887",
+        "started_at": "2025-09-10T02:52:46.831493",
+        "estimated_duration": 45,
+        "current_step": "Генерация профиля через LLM"
+      },
+      "result": null
+    }
+    ```
+    
+    ### Пример ответа (ошибка):
+    ```json
+    {
+      "task": {
+        "status": "failed",
+        "progress": 100,
+        "current_step": "Завершено",
+        "error_message": "Generation failed: [Errno 2] No such file or directory: '/app/generated_profiles'"
+      },
+      "result": null
+    }
+    ```
 
     Args:
         task_id: ID задачи генерации
@@ -297,6 +356,43 @@ async def get_task_status(task_id: str, current_user=Depends(get_current_user)):
 async def get_task_result(task_id: str, current_user=Depends(get_current_user)):
     """
     Получение результата генерации профиля
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/generation/7feeb5ed-9e9d-419b-8a1d-e892accdd2c1/result" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "profile": {
+        "position_title": "Аналитик данных",
+        "department_broad": "Группа анализа данных",
+        "professional_skills": [...],
+        "responsibility_areas": [...]
+      },
+      "metadata": {
+        "generation": {
+          "timestamp": "2025-09-10T02:52:55.650672",
+          "duration": 12.48,
+          "temperature": 0.1
+        },
+        "llm": {
+          "model": "google/gemini-2.5-flash",
+          "tokens": {"input": 35821, "output": 2925, "total": 38746}
+        }
+      }
+    }
+    ```
+    
+    ### Пример ошибки (задача в процессе):
+    ```json
+    {
+      "detail": "Задача еще выполняется. Статус: processing"
+    }
+    ```
 
     Args:
         task_id: ID задачи генерации
@@ -330,6 +426,28 @@ async def get_task_result(task_id: str, current_user=Depends(get_current_user)):
 async def cancel_task(task_id: str, current_user=Depends(get_current_user)):
     """
     Отмена задачи генерации (если возможно)
+    
+    ### Пример запроса:
+    ```bash
+    curl -X DELETE "http://localhost:8001/api/generation/7feeb5ed-9e9d-419b-8a1d-e892accdd2c1" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешной отмены:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T03:00:00.000000",
+      "message": "Задача отменена"
+    }
+    ```
+    
+    ### Пример ошибки (нельзя отменить):
+    ```json
+    {
+      "detail": "Нельзя отменить завершенную задачу"
+    }
+    ```
 
     Args:
         task_id: ID задачи генерации
@@ -370,6 +488,31 @@ async def get_active_tasks(
 ) -> List[GenerationTask]:
     """
     Получение списка активных задач пользователя
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/generation/tasks/active" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример ответа (нет активных задач):
+    ```json
+    []
+    ```
+    
+    ### Пример ответа (есть активные задачи):
+    ```json
+    [
+      {
+        "task_id": "7feeb5ed-9e9d-419b-8a1d-e892accdd2c1",
+        "status": "processing",
+        "progress": 45,
+        "created_at": "2025-09-10T02:52:46.830887",
+        "current_step": "Генерация профиля через LLM",
+        "estimated_duration": 45
+      }
+    ]
+    ```
 
     Returns:
         Список активных задач генерации для текущего пользователя
@@ -393,6 +536,30 @@ async def get_active_tasks(
 async def cleanup_old_tasks(current_user=Depends(get_current_user)):
     """
     Очистка старых завершенных задач (только admin)
+    
+    Удаляет все задачи старше 24 часов со статусом completed/failed/cancelled.
+    
+    ### Пример запроса:
+    ```bash
+    curl -X POST "http://localhost:8001/api/generation/cleanup" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешной очистки:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T03:00:00.000000",
+      "message": "Очищено 5 старых задач"
+    }
+    ```
+    
+    ### Пример ошибки доступа:
+    ```json
+    {
+      "detail": "Только admin может очищать задачи"
+    }
+    ```
     """
     if current_user["username"] != "admin":
         raise HTTPException(status_code=403, detail="Только admin может очищать задачи")

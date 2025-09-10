@@ -36,6 +36,34 @@ async def get_departments(
     - Путь в организационной структуре
     - Количество доступных должностей
     - Время последнего обновления
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/catalog/departments?force_refresh=false" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "Найдено 510 департаментов",
+      "data": {
+        "departments": [
+          {
+            "name": "Административный отдел",
+            "display_name": "Административный отдел",
+            "path": "Блок директора по развитию → Департамент развития → Административный отдел",
+            "positions_count": 6,
+            "last_updated": "2025-09-10T02:50:13.676062"
+          }
+        ],
+        "total_count": 510,
+        "cached": true,
+        "last_updated": "2025-09-10T02:50:13.675934"
+      }
+    }
+    ```
 
     Args:
         force_refresh: Принудительное обновление кеша (по умолчанию False)
@@ -85,6 +113,48 @@ async def get_department_details(
     - Список всех должностей
     - Организационную структуру
     - Статистику по уровням и категориям должностей
+    
+    ### ⚠️ Важно:
+    Из-за проблем с кириллицей в path параметрах, рекомендуется
+    использовать новые endpoints: `/api/organization/unit` (POST)
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/catalog/departments/IT%20Department" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "Информация о департаменте 'IT Department' получена",
+      "data": {
+        "name": "IT Department",
+        "display_name": "IT Department",
+        "path": "Operations Block → IT Department",
+        "positions_count": 25,
+        "positions": [
+          {
+            "name": "Senior Developer",
+            "level": 3,
+            "category": "technical"
+          }
+        ],
+        "statistics": {
+          "levels": {"1": 2, "2": 8, "3": 15},
+          "categories": {"management": 2, "technical": 23}
+        }
+      }
+    }
+    ```
+    
+    ### Пример ошибки (департамент не найден):
+    ```json
+    {
+      "detail": "Департамент 'NonExistent' не найден"
+    }
+    ```
 
     Args:
         department_name: Название департамента
@@ -138,6 +208,43 @@ async def get_positions(
     - Уровень должности (1-5, где 1 - высший)
     - Категория должности (management, technical, specialist, etc.)
     - Департамент
+    
+    ### ⚠️ Важно: 
+    Из-за проблем с кириллицей в path параметрах, рекомендуется 
+    использовать новые endpoints: `/api/organization/search-items`
+    
+    ### Пример запроса (с URL-encoding):
+    ```bash
+    curl -X GET "http://localhost:8001/api/catalog/positions/Administrative%20Department" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "Найдено 6 должностей для департамента 'Административный отдел'",
+      "data": {
+        "department": "Административный отдел",
+        "positions": [
+          {
+            "name": "Руководитель административного отдела",
+            "level": 1,
+            "category": "management",
+            "department": "Административный отдел",
+            "last_updated": "2025-09-10T02:50:13.676062"
+          }
+        ],
+        "total_count": 6,
+        "statistics": {
+          "levels": {"1": 2, "3": 1, "5": 3},
+          "categories": {"management": 3, "specialist": 3}
+        },
+        "cached": true,
+        "last_updated": "2025-09-10T02:50:13.676062"
+      }
+    }
+    ```
 
     Args:
         department: Название департамента
@@ -206,6 +313,28 @@ async def search_departments(
     Выполняет нечеткий поиск по:
     - Названию департамента
     - Пути в иерархии организации
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/catalog/search?q=analyst" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "По запросу 'analyst' найдено 0 департаментов",
+      "data": {
+        "query": "analyst",
+        "departments": [],
+        "total_count": 0
+      }
+    }
+    ```
+    
+    ### ⚠️ Примечание о кириллице:
+    При использовании кириллических символов в URL-параметрах используйте URL-encoding.
 
     Args:
         q: Поисковой запрос (минимум 1 символ)
@@ -259,6 +388,43 @@ async def search_positions(
     - Названию департамента
     - Уровню должности (1-5)
     - Категории должности (management, technical, specialist, etc.)
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/catalog/search/positions?q=manager&department=IT" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "По запросу 'manager' найдено 15 должностей",
+      "data": {
+        "query": "manager",
+        "department_filter": "IT",
+        "positions": [
+          {
+            "name": "Senior Project Manager",
+            "level": 2,
+            "category": "management",
+            "department": "IT Department",
+            "last_updated": "2025-09-10T02:50:13.676062"
+          }
+        ],
+        "total_count": 15,
+        "breakdown": {
+          "departments": {"IT Department": 8, "Marketing": 7},
+          "levels": {"1": 3, "2": 12},
+          "categories": {"management": 15}
+        }
+      }
+    }
+    ```
+    
+    ### ⚠️ Примечание:
+    Для лучшей поддержки кириллицы используйте новый endpoint: 
+    `/api/organization/search-items`
 
     Args:
         q: Поисковой запрос (минимум 1 символ)
@@ -331,6 +497,28 @@ async def clear_cache(
 
     Позволяет очистить кеш департаментов, должностей или весь кеш полностью.
     Требует права администратора.
+    
+    ### Пример запроса:
+    ```bash
+    curl -X POST "http://localhost:8001/api/catalog/cache/clear?cache_type=departments" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T02:50:13.675934",
+      "message": "Кеш (departments) успешно очищен"
+    }
+    ```
+    
+    ### Пример ошибки доступа:
+    ```json
+    {
+      "detail": "Недостаточно прав для очистки кеша. Требуются права администратора."
+    }
+    ```
 
     Args:
         cache_type: Тип кеша для очистки (departments, positions или None для всех)
@@ -380,6 +568,47 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
     - Общему количеству должностей
     - Распределению должностей по уровням и категориям
     - Статусу кеша
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/catalog/stats" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "Статистика каталога получена",
+      "data": {
+        "departments": {
+          "total_count": 510,
+          "with_positions": 488
+        },
+        "positions": {
+          "total_count": 1487,
+          "average_per_department": 2.92,
+          "levels_distribution": {
+            "1": 504,
+            "2": 38,
+            "3": 287,
+            "4": 28,
+            "5": 630
+          },
+          "categories_distribution": {
+            "management": 665,
+            "specialist": 822
+          }
+        },
+        "cache_status": {
+          "departments_cached": true,
+          "positions_cached_count": 567,
+          "centralized_cache": true,
+          "cache_type": "organization_cache (path-based)"
+        }
+      }
+    }
+    ```
 
     Returns:
         Dict с общей статистикой каталога

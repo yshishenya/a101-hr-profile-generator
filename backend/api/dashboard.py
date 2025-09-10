@@ -38,12 +38,67 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     - Список активных задач генерации
     - Процент покрытия должностей профилями
     
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/dashboard/stats" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "Dashboard статистика получена",
+      "data": {
+        "summary": {
+          "departments_count": 510,
+          "positions_count": 1487,
+          "profiles_count": 8,
+          "completion_percentage": 0.5,
+          "active_tasks_count": 0
+        },
+        "departments": {
+          "total": 510,
+          "with_positions": 488,
+          "average_positions": 2.9
+        },
+        "positions": {
+          "total": 1487,
+          "with_profiles": 8,
+          "without_profiles": 1479,
+          "coverage_percent": 0.5
+        },
+        "profiles": {
+          "total": 8,
+          "percentage_complete": 0.5
+        },
+        "active_tasks": [],
+        "metadata": {
+          "last_updated": "2025-09-10T03:17:54.377302",
+          "data_sources": {
+            "catalog": "cached",
+            "profiles": "database",
+            "tasks": "memory"
+          }
+        }
+      }
+    }
+    ```
+    
+    ### 📊 Описание данных:
+    - **summary**: Основные метрики для карточек dashboard
+    - **departments**: Детальная статистика по департаментам
+    - **positions**: Статистика покрытия должностей профилями
+    - **profiles**: Информация о созданных профилях
+    - **active_tasks**: Список текущих задач генерации (TODO: интеграция с generation manager)
+    - **metadata**: Метаданные о источниках данных и времени обновления
+    
     Returns:
         Dict с полной статистикой для dashboard
         
     Examples:
-      python> # GET /api/dashboard/stats
-      python> # Возвращает всю необходимую статистику одним запросом
+        python> response = await get_dashboard_stats()
+        python> # {'success': True, 'data': {'summary': {'departments_count': 510, 'positions_count': 1487}}}
     """
     try:
         logger.info(f"Getting dashboard stats for user {current_user['username']}")
@@ -152,12 +207,44 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
     
     Максимально быстрый запрос для UX критичных компонентов.
     
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/dashboard/stats/minimal" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "positions_count": 1487,
+        "profiles_count": 8,
+        "completion_percentage": 0.5,
+        "active_tasks_count": 0,
+        "last_updated": "2025-09-10T03:18:00.094062"
+      }
+    }
+    ```
+    
+    ### ⚡ Оптимизация производительности:
+    - Минимальное количество данных для быстрой загрузки
+    - Использует кэшированные данные каталога
+    - Один SQL запрос для подсчета профилей
+    - Идеально для компонентов реального времени
+    
+    ### 🎯 Использование в UI:
+    - Компактные виджеты dashboard
+    - Индикаторы прогресса
+    - Уведомления о статусе системы
+    - Мобильные представления
+    
     Returns:
         Dict с минимальной статистикой
         
     Examples:
-      python> # GET /api/dashboard/stats/minimal
-      python> # Быстрый запрос только важных метрик
+        python> response = await get_minimal_stats()
+        python> # {'success': True, 'data': {'positions_count': 1487, 'profiles_count': 8, 'completion_percentage': 0.5}}
     """
     try:
         logger.info(f"Getting minimal stats for user {current_user['username']}")
@@ -213,15 +300,67 @@ async def get_activity_stats(current_user: dict = Depends(get_current_user)):
     
     Возвращает:
     - Активные задачи генерации с прогрессом
-    - Недавно созданные профили
+    - Недавно созданные профили (последние 10)
     - Статистику активности за период
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/dashboard/stats/activity" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "active_tasks": [],
+        "recent_profiles": [
+          {
+            "department": "Департамент по связям с общественностью",
+            "position": "Специалист по связям с общественностью",
+            "employee_name": null,
+            "created_at": "2025-09-09T18:47:26.337714",
+            "status": "completed",
+            "created_by": "admin"
+          },
+          {
+            "department": "Группа анализа данных",
+            "position": "Исправленный аналитик v2",
+            "employee_name": "Иванов Иван Иванович",
+            "created_at": "2025-09-09T18:18:52.529865",
+            "status": "completed",
+            "created_by": "admin"
+          }
+        ],
+        "summary": {
+          "active_tasks_count": 0,
+          "recent_profiles_count": 8,
+          "has_activity": true
+        },
+        "last_updated": "2025-09-10T03:18:05.749119"
+      }
+    }
+    ```
+    
+    ### 📈 Структура данных активности:
+    - **active_tasks**: Список выполняющихся задач генерации (TODO: интеграция с generation manager)
+    - **recent_profiles**: Последние 10 созданных профилей с метаданными
+    - **summary**: Агрегированная статистика активности
+    - **has_activity**: Флаг наличия активности для условного рендеринга
+    
+    ### 🔄 Обновления в реальном времени:
+    - Endpoint оптимизирован для частых вызовов
+    - Данные сортируются по времени создания (DESC)
+    - Включает информацию о создателе профиля
+    - Поддерживает пустые значения employee_name
     
     Returns:
         Dict со статистикой активности
         
     Examples:
-      python> # GET /api/dashboard/stats/activity
-      python> # Данные для ленты активности
+        python> response = await get_activity_stats()
+        python> # {'success': True, 'data': {'recent_profiles': [...], 'has_activity': True}}
     """
     try:
         logger.info(f"Getting activity stats for user {current_user['username']}")

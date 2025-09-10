@@ -61,6 +61,53 @@ async def login(login_request: LoginRequest, request: Request):
     3. Создание пользовательской сессии
     4. Возврат токена и информации о пользователе
 
+    ### Пример запроса:
+    ```bash
+    curl -X POST http://localhost:8001/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"username": "admin", "password": "admin123"}'
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T02:48:36.374259",
+      "message": "Добро пожаловать, Администратор системы!",
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token_type": "bearer",
+      "expires_in": 86400,
+      "user_info": {
+        "id": 1,
+        "username": "admin",
+        "full_name": "Администратор системы",
+        "is_active": true,
+        "created_at": "2025-09-07T14:38:37",
+        "last_login": "2025-09-09T21:34:22"
+      }
+    }
+    ```
+    
+    ### Пример ошибки валидации:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Request validation failed",
+        "details": {
+          "validation_errors": [
+            {
+              "field": "body.password",
+              "message": "String should have at least 6 characters",
+              "type": "string_too_short"
+            }
+          ]
+        }
+      }
+    }
+    ```
+
     Returns:
         LoginResponse с JWT токеном и информацией о пользователе
     """
@@ -104,6 +151,21 @@ async def logout(current_user: dict = Depends(get_current_user)):
     Выход пользователя из системы.
 
     Инвалидирует все активные сессии пользователя.
+    
+    ### Пример запроса:
+    ```bash
+    curl -X POST http://localhost:8001/api/auth/logout \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T02:48:57.092103",
+      "message": "Вы успешно вышли из системы"
+    }
+    ```
     """
     try:
         user_id = current_user["user_id"]
@@ -128,6 +190,24 @@ async def logout(current_user: dict = Depends(get_current_user)):
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """
     Получение информации о текущем авторизованном пользователе.
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET http://localhost:8001/api/auth/me \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "id": 1,
+      "username": "admin",
+      "full_name": "Администратор системы",
+      "is_active": true,
+      "created_at": "2025-09-07T14:38:37",
+      "last_login": "2025-09-09T21:48:36"
+    }
+    ```
 
     Returns:
         UserInfo с полной информацией о пользователе
@@ -158,6 +238,32 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
     Обновление JWT токена.
 
     Создает новый токен с тем же временем жизни для текущего пользователя.
+    
+    ### Пример запроса:
+    ```bash
+    curl -X POST http://localhost:8001/api/auth/refresh \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T02:48:52.129515",
+      "message": "Токен обновлен успешно",
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token_type": "bearer",
+      "expires_in": 86400,
+      "user_info": {
+        "id": 1,
+        "username": "admin",
+        "full_name": "Администратор системы",
+        "is_active": true,
+        "created_at": "2025-09-07T14:38:37",
+        "last_login": "2025-09-09T21:48:36"
+      }
+    }
+    ```
     """
     try:
         user_data = current_user["user"]
@@ -199,6 +305,28 @@ async def validate_token(current_user: dict = Depends(get_current_user)):
     Проверка валидности текущего токена.
 
     Endpoint для frontend для проверки, что токен все еще действителен.
+    
+    ### Пример запроса:
+    ```bash
+    curl -X GET http://localhost:8001/api/auth/validate \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "timestamp": "2025-09-10T02:48:47.121861",
+      "message": "Токен действителен для пользователя admin"
+    }
+    ```
+    
+    ### Пример ошибки авторизации:
+    ```json
+    {
+      "detail": "Недействительный токен авторизации"
+    }
+    ```
     """
     return BaseResponse(
         success=True,
