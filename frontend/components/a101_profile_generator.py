@@ -2008,7 +2008,7 @@ class A101ProfileGenerator:
                 ).props("flat size=sm color=primary")
 
                 ui.button(
-                    icon="article", on_click=lambda p=profile: self._preview_markdown(p)
+                    icon="article", on_click=lambda p=profile: (print(f"🔍 Button clicked for profile: {p.get('profile_id', 'NO_ID')}"), self._preview_markdown(p))[1]
                 ).props("flat round size=sm color=green").tooltip("Предпросмотр MD")
 
                 ui.button(
@@ -2273,18 +2273,62 @@ class A101ProfileGenerator:
         # TODO: Реализовать меню выбора формата
         ui.notify("Выберите формат для скачивания", type="info")
 
-    async def _preview_markdown(self, profile: Dict[str, Any]):
+    def _preview_markdown(self, profile: Dict[str, Any]):
         """Предпросмотр markdown файла"""
+        print(f"🔍 DEBUG: _preview_markdown called with profile: {profile.get('profile_id', 'NO_ID')}")
+        
         try:
+            logger.info(f"🔍 _preview_markdown called with profile: {profile}")
+            print(f"🔍 DEBUG: Logger available")
+            
             profile_id = profile.get("profile_id")
+            print(f"🔍 DEBUG: profile_id = {profile_id}")
+            
             if not profile_id:
+                print("🔍 DEBUG: No profile_id found!")
                 ui.notify("ID профиля не найден", type="negative")
                 return
 
-            # Загружаем markdown содержимое из backend
+            # Сначала загружаем содержимое, затем показываем диалог
+            print(f"🔍 DEBUG: About to show loading notification for {profile_id}")
             ui.notify("📄 Загрузка предпросмотра...", type="info")
+            print(f"🔍 DEBUG: Notification shown, starting markdown preview")
+            logger.info(f"Starting markdown preview for profile: {profile_id}")
+            print(f"🔍 DEBUG: Logger info written")
+        
+        except Exception as early_e:
+            print(f"🔍 DEBUG: Early exception: {early_e}")
+            logger.error(f"Early exception in _preview_markdown: {early_e}", exc_info=True)
+            ui.notify(f"Ошибка: {str(early_e)}", type="negative")
+            return
+        
+        try:
+            
+            try:
+                import httpx
+                
+                # Получаем содержимое файла синхронно
+                headers = self.api_client._get_auth_headers()
+                download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
+                
+                logger.info(f"Requesting markdown from: {download_url}")
+                response = httpx.get(download_url, headers=headers, timeout=30)
+                
+                if response.status_code != 200:
+                    ui.notify(f"❌ Ошибка загрузки: HTTP {response.status_code}", type="negative")
+                    logger.error(f"Preview failed with status {response.status_code}: {response.text}")
+                    return
+                
+                markdown_content = response.text
+                logger.info(f"Received {len(markdown_content)} characters of markdown content")
+                ui.notify("📄 Предпросмотр загружен", type="positive")
+                
+            except Exception as e:
+                logger.error(f"Error loading markdown content: {e}", exc_info=True)
+                ui.notify(f"❌ Ошибка загрузки: {str(e)}", type="negative")
+                return
 
-            # Показываем диалог предпросмотра
+            # Теперь показываем диалог с уже загруженным содержимым
             dialog = ui.dialog()
 
             with dialog:
@@ -2297,59 +2341,17 @@ class A101ProfileGenerator:
                                 "flat round"
                             )
 
-                    # Контент предпросмотра
+                    # Контент предпросмотра - с уже загруженным содержимым
                     with ui.scroll_area().classes("flex-1"):
-                        with ui.card_section() as content_section:
-                            markdown_container = ui.markdown(
-                                "🔄 Загрузка содержимого markdown файла..."
-                            ).classes("w-full")
-
-            # Загружаем реальное содержимое после открытия диалога
-            try:
-                # Используем fetch через JavaScript для получения содержимого
-                download_url = (
-                    f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
-                )
-
-                # Выполняем запрос через API client
-                import httpx
-                import asyncio
-
-                async def load_markdown_content():
-                    try:
-                        headers = self.api_client._get_auth_headers()
-                        async with httpx.AsyncClient() as client:
-                            response = await client.get(download_url, headers=headers)
-                            if response.status_code == 200:
-                                markdown_content = response.text
-                                markdown_container.content = markdown_content
-                                ui.notify("📄 Предпросмотр загружен", type="positive")
-                            else:
-                                markdown_container.content = (
-                                    f"❌ Ошибка загрузки: {response.status_code}"
-                                )
-                                ui.notify(
-                                    f"Ошибка загрузки предпросмотра: {response.status_code}",
-                                    type="negative",
-                                )
-                    except Exception as e:
-                        logger.error(f"Error loading markdown preview: {e}")
-                        markdown_container.content = f"❌ Ошибка: {str(e)}"
-                        ui.notify(f"Ошибка загрузки: {str(e)}", type="negative")
-
-                # Запускаем загрузку в фоне
-                asyncio.create_task(load_markdown_content())
-
-            except Exception as e:
-                logger.error(f"Error setting up markdown preview: {e}")
-                markdown_container.content = (
-                    f"❌ Ошибка инициализации предпросмотра: {str(e)}"
-                )
+                        with ui.card_section():
+                            # Отображаем реальное содержимое
+                            ui.markdown(markdown_content).classes("w-full")
 
             dialog.open()
+            logger.info("Preview dialog opened with content")
 
         except Exception as e:
-            logger.error(f"Error previewing markdown: {e}")
+            logger.error(f"Error previewing markdown: {e}", exc_info=True)
             ui.notify(f"Ошибка предпросмотра: {str(e)}", type="negative")
 
     def _download_json(self, profile: Dict[str, Any]):

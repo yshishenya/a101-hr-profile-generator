@@ -156,6 +156,27 @@ class APIClient:
         except Exception as e:
             logger.debug(f"Could not load tokens from storage: {e}")
 
+        # Если токен всё ещё не найден, пробуем загрузить из environment variables
+        if not self._access_token:
+            import os
+            test_token = os.getenv("TEST_JWT_TOKEN")
+            logger.debug(f"Checking TEST_JWT_TOKEN: {'present' if test_token else 'None/empty'}")
+            if test_token:
+                self._access_token = test_token
+                logger.info("✅ Loaded TEST_JWT_TOKEN from environment variables")
+                
+                # Сохраняем в storage для последующих запросов (избегаем циклический вызов)
+                try:
+                    from nicegui import app
+                    if hasattr(app, "storage") and hasattr(app.storage, "user"):
+                        app.storage.user["access_token"] = self._access_token
+                        app.storage.user["authenticated"] = True
+                        logger.debug("Saved token to NiceGUI storage")
+                except Exception as save_e:
+                    logger.debug(f"Could not save token to storage: {save_e}")
+            else:
+                logger.debug("TEST_JWT_TOKEN not found in environment variables")
+
         # Final state logging
         logger.debug(
             f"_load_tokens_from_storage: Final token state={'present' if self._access_token else 'None/empty'}"
