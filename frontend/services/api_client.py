@@ -71,7 +71,18 @@ class APIClient:
         self._load_tokens_from_storage()
 
     def _load_tokens_from_storage(self):
-        """Загрузка токенов из NiceGUI storage и localStorage"""
+        """Load tokens from NiceGUI storage and localStorage.
+        
+        This function attempts to load the access token from NiceGUI storage first. If
+        the token is not found or has expired, it tries to retrieve it from
+        localStorage. If the token is still unavailable, it falls back to loading a
+        test token from environment variables for development purposes. The function
+        also handles potential exceptions during the loading process and logs relevant
+        information.
+        
+        Args:
+            self: The instance of the class that contains the token attributes.
+        """
         logger.debug("_load_tokens_from_storage: Starting token loading process")
 
         try:
@@ -162,7 +173,14 @@ class APIClient:
         )
 
     def _save_tokens_to_storage(self):
-        """Сохранение токенов с учетом remember_me"""
+        """Save tokens to storage with consideration for remember_me.
+        
+        This function checks if an access token exists and prepares the token data for
+        storage. It saves the token data in NiceGUI's session storage and, depending on
+        the value of remember_me, either saves it to localStorage or removes it from
+        localStorage. The function also handles potential exceptions during the storage
+        operations and logs relevant information.
+        """
         try:
             from nicegui import app
             import json
@@ -209,7 +227,7 @@ class APIClient:
             logger.debug(f"Could not save tokens to storage: {e}")
 
     def _get_auth_headers(self) -> Dict[str, str]:
-        """Получение заголовков авторизации"""
+        """Retrieve authorization headers."""
         if self._access_token:
             # DEBUG: Log token info (first 10 chars for security)
             token_preview = (
@@ -315,7 +333,14 @@ class APIClient:
             raise APIError(f"Неожиданная ошибка: {str(e)}")
 
     async def _ensure_valid_token(self) -> bool:
-        """Проверка и автоматическое обновление токена при необходимости"""
+        """Ensure the access token is valid and refresh if necessary.
+        
+        This function checks if the access token is present and verifies its expiration
+        status.  If the token is missing, it logs a warning and returns False. If the
+        token is expired  or is about to expire within the next 5 minutes, it attempts
+        to refresh the token  by calling the _refresh_token_internal method. If the
+        token is valid, it logs the  status and returns True.
+        """
         logger.debug(
             f"_ensure_valid_token: self._access_token={'present' if self._access_token else 'None/empty'}"
         )
@@ -342,7 +367,7 @@ class APIClient:
         return True
         
     async def _refresh_token_internal(self) -> bool:
-        """Внутренний метод для обновления токена через /api/auth/refresh"""
+        """Refreshes the access token using the /api/auth/refresh endpoint."""
         try:
             # Используем текущий токен для запроса обновления
             headers = {"Authorization": f"Bearer {self._access_token}"}
@@ -379,8 +404,8 @@ class APIClient:
             return False
             
     def _clear_expired_token(self):
-        """Очищаем истекший токен из всех хранилищ"""
         # Используем общую логику очистки, но не трогаем remember_me
+        """Clears expired tokens from all storage."""
         remember_me_backup = self._remember_me
         self._clear_all_tokens()
         self._remember_me = remember_me_backup
@@ -392,18 +417,8 @@ class APIClient:
     async def login(
         self, username: str, password: str, remember_me: bool = False
     ) -> Dict[str, Any]:
-        """
-        @doc
-        Авторизация пользователя в системе.
 
-        Отправляет учетные данные на backend и сохраняет полученный JWT токен.
-        Возвращает информацию о пользователе и статус авторизации.
-
-        Examples:
-          python> result = await client.login("admin", "admin123")
-          python> if result["success"]: print("Successfully logged in")
-        """
-
+        """Logs in a user and retrieves authentication tokens."""
         login_data = {
             "username": username,
             "password": password,
@@ -436,17 +451,9 @@ class APIClient:
             raise
 
     async def logout(self) -> Dict[str, Any]:
-        """
-        @doc
-        Выход пользователя из системы.
 
-        Инвалидирует токен на backend и очищает локальные данные авторизации.
-
-        Examples:
-          python> result = await client.logout()
-          python> print(result["message"])
-        """
-
+        """Logs the user out by invalidating the token on the backend and clearing local
+        authorization data."""
         try:
             response = await self._make_request("POST", "/api/auth/logout")
 
@@ -486,17 +493,15 @@ class APIClient:
 
 
     async def validate_token(self, token: Optional[str] = None) -> bool:
+
+        """Validate the provided token for authentication.
+        
+        This function checks the validity of a given token by sending a request  to the
+        backend API. If a new token is provided, it temporarily replaces  the current
+        access token during the validation process. The function  returns True if the
+        token is valid and False if an APIError occurs.  Finally, it restores the old
+        token if a new one was provided.
         """
-        @doc
-        Проверка валидности токена.
-
-        Отправляет запрос на backend для проверки действительности токена.
-
-        Examples:
-          python> is_valid = await client.validate_token()
-          python> if not is_valid: print("Need to login again")
-        """
-
         if token:
             old_token = self._access_token
             self._access_token = token
@@ -513,17 +518,8 @@ class APIClient:
                 self._access_token = old_token
 
     async def get_current_user(self) -> Dict[str, Any]:
-        """
-        @doc
-        Получение информации о текущем пользователе.
 
-        Возвращает полную информацию об авторизованном пользователе.
-
-        Examples:
-          python> user_info = await client.get_current_user()
-          python> print(user_info["username"])
-        """
-
+        """Retrieve information about the current user."""
         return await self._make_request("GET", "/api/auth/me")
 
     # ============================================================================
