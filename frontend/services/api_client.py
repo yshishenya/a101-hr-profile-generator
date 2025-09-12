@@ -380,23 +380,10 @@ class APIClient:
             
     def _clear_expired_token(self):
         """Очищаем истекший токен из всех хранилищ"""
-        self._access_token = None
-        self._token_expires_at = None
-        
-        try:
-            from nicegui import app, ui
-            
-            # Очищаем NiceGUI storage
-            if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                app.storage.user.pop("token_data", None)
-                app.storage.user.pop("authenticated", None)
-            
-            # Очищаем localStorage
-            if hasattr(ui, "run_javascript"):
-                ui.run_javascript('localStorage.removeItem("hr_token_data")')
-                
-        except Exception as e:
-            logger.debug(f"Could not clear expired token: {e}")
+        # Используем общую логику очистки, но не трогаем remember_me
+        remember_me_backup = self._remember_me
+        self._clear_all_tokens()
+        self._remember_me = remember_me_backup
 
     # ============================================================================
     # AUTHENTICATION API
@@ -497,19 +484,6 @@ class APIClient:
         except Exception as e:
             logger.debug(f"Could not clear token storages: {e}")
 
-    async def refresh_token(self) -> bool:
-        """
-        @doc
-        Публичный метод для обновления JWT токена.
-
-        Получает новый access token с использованием текущего токена.
-        Возвращает True если обновление успешно.
-
-        Examples:
-          python> success = await client.refresh_token()
-          python> if success: print("Token refreshed")
-        """
-        return await self._refresh_token_internal()
 
     async def validate_token(self, token: Optional[str] = None) -> bool:
         """
@@ -603,10 +577,6 @@ class APIClient:
         """
         return self._get_auth_headers()
 
-    def set_token(self, token: str, expires_in: int = 24 * 3600):
-        """Установка токена вручную"""
-        self._access_token = token
-        self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
 
     # ========================================================================
     # DASHBOARD API METHODS
