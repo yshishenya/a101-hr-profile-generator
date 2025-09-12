@@ -9,20 +9,20 @@ import os
 from typing import Optional
 from pathlib import Path
 
-# Загружаем переменные из .env файла
-try:
-    from dotenv import load_dotenv
+# # Загружаем переменные из .env файла
+# try:
+#     from dotenv import load_dotenv
 
-    # Ищем .env файл в корне проекта
-    env_path = Path(__file__).parent.parent.parent / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-        print(f"✅ Loaded environment from: {env_path}")
-    else:
-        print(f"⚠️  .env file not found at: {env_path}")
+#     # Ищем .env файл в корне проекта
+#     env_path = Path(__file__).parent.parent.parent / ".env"
+#     if env_path.exists():
+#         load_dotenv(env_path)
+#         print(f"✅ Loaded environment from: {env_path}")
+#     else:
+#         print(f"⚠️  .env file not found at: {env_path}")
 
-except ImportError:
-    print("📦 python-dotenv not installed, using system environment variables only")
+# except ImportError:
+#     print("📦 python-dotenv not installed, using system environment variables only")
 
 
 class Config:

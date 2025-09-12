@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from ..core.config import config
 from ..core.profile_generator import ProfileGenerator
 from .auth import get_current_user
-from ..models.database import db_manager
+from ..models.database import get_db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ async def save_generation_to_db(
 ):
     """Сохранение результата генерации в базу данных"""
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Сохраняем профиль с правильной схемой

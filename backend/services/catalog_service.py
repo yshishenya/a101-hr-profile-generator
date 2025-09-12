@@ -13,7 +13,7 @@ import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from ..models.database import db_manager
+from ..models.database import get_db_manager
 from ..core.organization_cache import organization_cache
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class CatalogService:
     """Сервис для работы с каталогом департаментов и должностей"""
 
     def __init__(self):
-        self.db = db_manager
+        self.db = get_db_manager()
         self.organization_cache = (
             organization_cache  # Добавляем ссылку для новых endpoints
         )
@@ -469,7 +469,17 @@ class CatalogService:
 
 
 # Глобальный экземпляр сервиса каталога
-catalog_service = CatalogService()
+# Инициализируется в main.py после инициализации database manager
+catalog_service = None
+
+
+def initialize_catalog_service() -> CatalogService:
+    """Инициализация глобального экземпляра сервиса каталога"""
+    global catalog_service
+    if catalog_service is None:
+        catalog_service = CatalogService()
+        logger.info("✅ CatalogService initialized successfully")
+    return catalog_service
 
 
 if __name__ == "__main__":

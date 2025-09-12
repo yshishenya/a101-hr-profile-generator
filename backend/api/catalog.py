@@ -14,10 +14,17 @@ from typing import List, Dict, Any, Optional
 import logging
 
 from ..models.schemas import BaseResponse, ErrorResponse
-from ..services.catalog_service import catalog_service
 from ..api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+
+def get_catalog_service():
+    """Получение инициализированного catalog_service"""
+    from ..services.catalog_service import catalog_service
+    if catalog_service is None:
+        raise RuntimeError("CatalogService not initialized. Check main.py lifespan initialization.")
+    return catalog_service
 
 # Создаем роутер для catalog endpoints
 catalog_router = APIRouter(prefix="/api/catalog", tags=["Catalog"])
@@ -36,13 +43,13 @@ async def get_departments(
     - Путь в организационной структуре
     - Количество доступных должностей
     - Время последнего обновления
-    
+
     ### Пример запроса:
     ```bash
     curl -X GET "http://localhost:8001/api/catalog/departments?force_refresh=false" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -76,6 +83,7 @@ async def get_departments(
             f"Getting departments list (force_refresh={force_refresh}) for user {current_user['username']}"
         )
 
+        catalog_service = get_catalog_service()
         departments = catalog_service.get_departments(force_refresh=force_refresh)
 
         response = {
@@ -113,17 +121,17 @@ async def get_department_details(
     - Список всех должностей
     - Организационную структуру
     - Статистику по уровням и категориям должностей
-    
+
     ### ⚠️ Важно:
     Из-за проблем с кириллицей в path параметрах, рекомендуется
     использовать новые endpoints: `/api/organization/unit` (POST)
-    
+
     ### Пример запроса:
     ```bash
     curl -X GET "http://localhost:8001/api/catalog/departments/IT%20Department" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -148,7 +156,7 @@ async def get_department_details(
       }
     }
     ```
-    
+
     ### Пример ошибки (департамент не найден):
     ```json
     {
@@ -167,6 +175,7 @@ async def get_department_details(
             f"Getting details for department '{department_name}' for user {current_user['username']}"
         )
 
+        catalog_service = get_catalog_service()
         department_details = catalog_service.get_department_details(department_name)
 
         if not department_details:
@@ -208,17 +217,17 @@ async def get_positions(
     - Уровень должности (1-5, где 1 - высший)
     - Категория должности (management, technical, specialist, etc.)
     - Департамент
-    
-    ### ⚠️ Важно: 
-    Из-за проблем с кириллицей в path параметрах, рекомендуется 
+
+    ### ⚠️ Важно:
+    Из-за проблем с кириллицей в path параметрах, рекомендуется
     использовать новые endpoints: `/api/organization/search-items`
-    
+
     ### Пример запроса (с URL-encoding):
     ```bash
     curl -X GET "http://localhost:8001/api/catalog/positions/Administrative%20Department" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -258,6 +267,7 @@ async def get_positions(
             f"Getting positions for department '{department}' (force_refresh={force_refresh}) for user {current_user['username']}"
         )
 
+        catalog_service = get_catalog_service()
         positions = catalog_service.get_positions(
             department, force_refresh=force_refresh
         )
@@ -313,13 +323,13 @@ async def search_departments(
     Выполняет нечеткий поиск по:
     - Названию департамента
     - Пути в иерархии организации
-    
+
     ### Пример запроса:
     ```bash
     curl -X GET "http://localhost:8001/api/catalog/search?q=analyst" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -332,7 +342,7 @@ async def search_departments(
       }
     }
     ```
-    
+
     ### ⚠️ Примечание о кириллице:
     При использовании кириллических символов в URL-параметрах используйте URL-encoding.
 
@@ -347,6 +357,7 @@ async def search_departments(
             f"Searching departments with query '{q}' for user {current_user['username']}"
         )
 
+        catalog_service = get_catalog_service()
         search_results = catalog_service.search_departments(q)
 
         response = {
@@ -388,13 +399,13 @@ async def search_positions(
     - Названию департамента
     - Уровню должности (1-5)
     - Категории должности (management, technical, specialist, etc.)
-    
+
     ### Пример запроса:
     ```bash
     curl -X GET "http://localhost:8001/api/catalog/search/positions?q=manager&department=IT" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -421,9 +432,9 @@ async def search_positions(
       }
     }
     ```
-    
+
     ### ⚠️ Примечание:
-    Для лучшей поддержки кириллицы используйте новый endpoint: 
+    Для лучшей поддержки кириллицы используйте новый endpoint:
     `/api/organization/search-items`
 
     Args:
@@ -438,6 +449,7 @@ async def search_positions(
             f"Searching positions with query '{q}' (department filter: {department}) for user {current_user['username']}"
         )
 
+        catalog_service = get_catalog_service()
         search_results = catalog_service.search_positions(
             q, department_filter=department
         )
@@ -497,13 +509,13 @@ async def clear_cache(
 
     Позволяет очистить кеш департаментов, должностей или весь кеш полностью.
     Требует права администратора.
-    
+
     ### Пример запроса:
     ```bash
     curl -X POST "http://localhost:8001/api/catalog/cache/clear?cache_type=departments" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -512,7 +524,7 @@ async def clear_cache(
       "message": "Кеш (departments) успешно очищен"
     }
     ```
-    
+
     ### Пример ошибки доступа:
     ```json
     {
@@ -538,6 +550,7 @@ async def clear_cache(
             f"Clearing cache (type: {cache_type or 'all'}) by admin user {current_user['username']}"
         )
 
+        catalog_service = get_catalog_service()
         catalog_service.clear_cache(cache_type)
 
         response = BaseResponse(
@@ -568,13 +581,13 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
     - Общему количеству должностей
     - Распределению должностей по уровням и категориям
     - Статусу кеша
-    
+
     ### Пример запроса:
     ```bash
     curl -X GET "http://localhost:8001/api/catalog/stats" \
       -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -616,6 +629,7 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
     try:
         logger.info(f"Getting catalog stats for user {current_user['username']}")
 
+        catalog_service = get_catalog_service()
         departments = catalog_service.get_departments()
 
         total_positions = 0
@@ -624,6 +638,7 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
 
         # Собираем статистику по всем департаментам
         for dept in departments:
+            catalog_service = get_catalog_service()
             positions = catalog_service.get_positions(dept["name"])
             total_positions += len(positions)
 

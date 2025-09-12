@@ -15,15 +15,22 @@ import logging
 import sqlite3
 from datetime import datetime
 
-from ..services.catalog_service import catalog_service
-from ..models.database import DatabaseManager
+from ..models.database import get_db_manager
+from ..core.config import config
 from ..api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
+
+def get_catalog_service():
+    """Получение инициализированного catalog_service"""
+    from ..services.catalog_service import catalog_service
+    if catalog_service is None:
+        raise RuntimeError("CatalogService not initialized. Check main.py lifespan initialization.")
+    return catalog_service
+
 # Создаем роутер для dashboard endpoints
 dashboard_router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
-db_manager = DatabaseManager()
 
 
 @dashboard_router.get("/stats", response_model=Dict[str, Any])
@@ -104,6 +111,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         logger.info(f"Getting dashboard stats for user {current_user['username']}")
 
         # 1. Получаем статистику каталога (кэшированная, быстро)
+        catalog_service = get_catalog_service()
         departments = catalog_service.get_departments()
 
         # Считаем общее количество должностей
@@ -113,7 +121,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             total_positions += len(positions)
 
         # 2. Получаем количество профилей (одним SQL запросом)
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         cursor.execute("SELECT COUNT(*) FROM profiles")
@@ -255,11 +263,12 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
         logger.info(f"Getting minimal stats for user {current_user['username']}")
 
         # Используем кэшированные данные каталога
+        catalog_service = get_catalog_service()
         departments = catalog_service.get_departments()
         total_positions = sum(dept["positions_count"] for dept in departments)
 
         # Быстрый подсчет профилей
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM profiles")
         profiles_count = cursor.fetchone()[0]
@@ -384,7 +393,7 @@ async def get_activity_stats(current_user: dict = Depends(get_current_user)):
         #     active_tasks = []
 
         # 2. Недавние профили (последние 10)
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         cursor.execute(

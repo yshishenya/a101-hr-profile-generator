@@ -19,8 +19,8 @@ from .data_loader import DataLoader
 from .llm_client import LLMClient
 from .prompt_manager import PromptManager
 from .config import config
-from ..services.profile_markdown_generator import ProfileMarkdownGenerator
-from ..services.profile_storage_service import ProfileStorageService
+from .markdown_service import ProfileMarkdownService
+from .storage_service import ProfileStorageService
 
 # from langfuse.decorators import observe  # Временно убрали из-за проблем с версией
 
@@ -57,7 +57,7 @@ class ProfileGenerator:
 
         # Инициализируем компоненты
         self.data_loader = DataLoader(str(self.base_data_path))
-        self.md_generator = ProfileMarkdownGenerator()
+        self.md_generator = ProfileMarkdownService()
         self.storage_service = ProfileStorageService(
             str(self.base_data_path / "generated_profiles")
         )

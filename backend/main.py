@@ -26,10 +26,13 @@ from .api.organization import organization_router
 from .api.generation import router as generation_router, initialize_generation_system
 from .api.profiles import router as profiles_router
 from .api.dashboard import dashboard_router
-from .utils.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from .api.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from .utils.exception_handlers import setup_exception_handlers
 from .core.config import config
 from .core.organization_cache import organization_cache
+from .models.database import initialize_db_manager
+from .services.auth_service import initialize_auth_service
+from .services.catalog_service import initialize_catalog_service
 
 # Настройка логирования
 logging.basicConfig(
@@ -56,6 +59,26 @@ async def lifespan(app: FastAPI):
             logger.info("ℹ️ Langfuse мониторинг не настроен - работаем без трекинга")
         else:
             logger.info("✅ Langfuse мониторинг настроен")
+
+        # Инициализируем глобальный менеджер базы данных
+        db_manager = initialize_db_manager(config.database_path)
+        logger.info("✅ Database manager initialized successfully")
+        
+        # Создаем схему БД и начальные данные
+        db_manager.create_schema()
+        db_manager.seed_initial_data(
+            admin_username=config.ADMIN_USERNAME,
+            admin_password=config.ADMIN_PASSWORD,
+            admin_full_name=config.ADMIN_FULL_NAME,
+            hr_username=config.HR_USERNAME,
+            hr_password=config.HR_PASSWORD,
+            hr_full_name=config.HR_FULL_NAME
+        )
+        logger.info("✅ Database schema and initial data ready")
+
+        # Инициализируем сервисы после инициализации базы данных
+        auth_service = initialize_auth_service()
+        catalog_service = initialize_catalog_service()
 
         # Инициализируем централизованный кеш организационной структуры
         if organization_cache.is_loaded():

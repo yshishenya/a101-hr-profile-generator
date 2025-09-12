@@ -29,7 +29,6 @@ class DataLoader:
         # Инициализация маппинговых компонентов
         self.org_mapper = OrganizationMapper("data/structure.json")
         self.kpi_mapper = KPIMapper("data/KPI")
-        self.catalog_service = None  # Lazy initialization
 
         # Кеш для статических данных
         self._cache = {}
@@ -82,7 +81,7 @@ class DataLoader:
                 "department_path": department_path,
                 # ПОЛНАЯ ОРГАНИЗАЦИОННАЯ СТРУКТУРА с выделением цели
                 "OrgStructure": json.dumps(
-                    self._get_catalog_service().get_organization_structure_with_target(
+                    self._get_organization_structure_with_target(
                         f"{department}/{position}"
                     ),
                     ensure_ascii=False,
@@ -138,12 +137,54 @@ class DataLoader:
 
         return self._cache[cache_key]
     
-    def _get_catalog_service(self):
-        """Lazy initialization of CatalogService to avoid circular imports"""
-        if self.catalog_service is None:
-            from ..services.catalog_service import CatalogService
-            self.catalog_service = CatalogService()
-        return self.catalog_service
+    def _get_organization_structure_with_target(self, target_path: str) -> Dict[str, Any]:
+        """
+        Получение полной организационной структуры с выделенной целевой позицией.
+        
+        Интегрированная версия логики из CatalogService для устранения зависимости.
+        Напрямую использует organization_cache.
+        
+        Args:
+            target_path: Полный путь к целевой бизнес-единице (department/position)
+        
+        Returns:
+            Dict[str, Any]: Полная структура с выделенной целью
+        """
+        try:
+            # Проверяем существование целевого пути  
+            target_unit = organization_cache.find_unit_by_path(target_path)
+            if not target_unit:
+                logger.warning(f"Target path not found: {target_path}")
+                return {
+                    "error": f"Business unit at path '{target_path}' not found",
+                    "available_paths": list(
+                        organization_cache.get_all_business_units_with_paths().keys()
+                    )[:10],  # Первые 10 для примера
+                }
+
+            # Получаем структуру с подсвеченной целью
+            highlighted_structure = organization_cache.get_structure_with_target_highlighted(
+                target_path
+            )
+
+            # Добавляем метаданные для LLM (копия логики из CatalogService)
+            highlighted_structure["target_unit_info"] = {
+                "name": target_unit["name"],
+                "full_path": target_path,
+                "positions_count": len(target_unit["positions"]),
+                "positions": target_unit["positions"],
+                "hierarchy_level": target_unit["level"],
+            }
+
+            logger.debug(f"✅ Generated structure with target: {target_path}")
+            return highlighted_structure
+
+        except Exception as e:
+            logger.error(f"❌ Error getting organization structure with target: {e}")
+            return {
+                "error": f"Failed to retrieve organization structure: {str(e)}",
+                "target_path": target_path,
+            }
 
     def _load_org_structure_for_department(self, department: str) -> dict:
         """Загрузка организационной структуры для департамента из централизованного кеша"""

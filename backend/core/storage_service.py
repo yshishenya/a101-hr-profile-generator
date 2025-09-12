@@ -1,6 +1,9 @@
 """
 @doc
-Сервис для управления файловой структурой и путями профилей должностей.
+Core service для управления файловой структурой и путями профилей должностей.
+
+Перемещен из services в core как domain service - управление хранением
+профилей является частью бизнес-логики, не внешним сервисом.
 
 Создает иерархическую структуру папок на основе организационной структуры:
 - Блок/Департамент/Отдел/Группа/Должность/ВремяСоздания/файлы
@@ -20,15 +23,13 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 import logging
 
-# Импорт централизованного кеша будет выполнен локально для избежания циркулярной зависимости
-
 logger = logging.getLogger(__name__)
 
 
 class ProfileStorageService:
     """
     @doc
-    Сервис для управления файловой структурой профилей должностей.
+    Core service для управления файловой структурой профилей должностей.
 
     Создает полную иерархию папок согласно организационной структуре
     и управляет хранением JSON/MD файлов с версионностью.
@@ -58,8 +59,8 @@ class ProfileStorageService:
           python> # ['Блок операционного директора', 'Департамент информационных технологий', 'Отдел управления данными', 'Группа анализа данных']
         """
         try:
-            # Локальный импорт для избежания циркулярной зависимости
-            from backend.core.organization_cache import organization_cache
+            # Используем относительный импорт в core
+            from .organization_cache import organization_cache
 
             return organization_cache.find_department_path(target_department)
         except ImportError as e:

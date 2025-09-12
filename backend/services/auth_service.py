@@ -15,9 +15,10 @@ from typing import Dict, Any, Optional
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
-from ..models.database import db_manager
+from ..models.database import get_db_manager
 from ..models.schemas import LoginRequest, LoginResponse, UserInfo
 from ..core.config import config
+from ..utils.interfaces import AuthInterface
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,11 +32,11 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES = config.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-class AuthenticationService:
+class AuthenticationService(AuthInterface):
     """Сервис аутентификации и авторизации пользователей"""
 
     def __init__(self):
-        self.db = db_manager
+        self.db = get_db_manager()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Проверка пароля против хеша"""
@@ -404,7 +405,17 @@ class AuthenticationService:
 
 
 # Глобальный экземпляр сервиса аутентификации
-auth_service = AuthenticationService()
+# Инициализируется в main.py после инициализации database manager
+auth_service = None
+
+
+def initialize_auth_service() -> AuthenticationService:
+    """Инициализация глобального экземпляра сервиса аутентификации"""
+    global auth_service
+    if auth_service is None:
+        auth_service = AuthenticationService()
+        logger.info("✅ AuthenticationService initialized successfully")
+    return auth_service
 
 
 if __name__ == "__main__":

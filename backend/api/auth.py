@@ -18,10 +18,17 @@ from ..models.schemas import (
     BaseResponse,
     ErrorResponse,
 )
-from ..services.auth_service import auth_service
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def get_auth_service():
+    """Получение инициализированного auth_service"""
+    from ..services.auth_service import auth_service
+    if auth_service is None:
+        raise RuntimeError("AuthService not initialized. Check main.py lifespan initialization.")
+    return auth_service
 
 # Создаем роутер для auth endpoints
 auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -38,6 +45,7 @@ async def get_current_user(
     Используется для защищенных endpoints.
     """
     token = credentials.credentials
+    auth_service = get_auth_service()
     user_data = auth_service.verify_token(token)
 
     if not user_data:
@@ -121,6 +129,7 @@ async def login(login_request: LoginRequest, request: Request):
         )
 
         # Выполняем авторизацию
+        auth_service = get_auth_service()
         result = await auth_service.login(
             login_request, user_agent=user_agent, ip_address=client_ip
         )
@@ -172,6 +181,7 @@ async def logout(current_user: dict = Depends(get_current_user)):
         username = current_user["username"]
 
         # Инвалидируем все сессии пользователя
+        auth_service = get_auth_service()
         auth_service.invalidate_user_sessions(user_id)
 
         logger.info(f"User {username} logged out successfully")
@@ -269,6 +279,7 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
         user_data = current_user["user"]
 
         # Создаем новый токен
+        auth_service = get_auth_service()
         new_token = auth_service.create_access_token(user_data)
 
         user_info = UserInfo(
@@ -348,6 +359,7 @@ def get_current_user_optional(
         return None
 
     token = credentials.credentials
+    auth_service = get_auth_service()
     return auth_service.verify_token(token)
 
 

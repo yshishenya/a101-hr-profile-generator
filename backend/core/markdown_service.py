@@ -1,12 +1,15 @@
 """
 @doc
-Сервис генерации красивых Markdown документов из JSON профилей должностей.
+Core service для генерации красивых Markdown документов из JSON профилей должностей.
+
+Перемещен из services в core как domain service - генерация markdown
+является частью бизнес-логики, не внешним сервисом.
 
 Конвертирует структурированные JSON профили в читаемые MD документы
 с правильным форматированием, таблицами и разделами.
 
 Examples:
-  python> generator = ProfileMarkdownGenerator()
+  python> generator = ProfileMarkdownService()
   python> md_content = generator.generate_from_json(profile_data)
   python> generator.save_md_file("profile.md", md_content)
 """
@@ -19,10 +22,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ProfileMarkdownGenerator:
+class ProfileMarkdownService:
     """
     @doc
-    Генератор Markdown документов из JSON профилей должностей.
+    Core service для генерации Markdown документов из JSON профилей должностей.
 
     Создает красиво отформатированные MD файлы с:
     - Структурированными разделами
@@ -31,8 +34,8 @@ class ProfileMarkdownGenerator:
     - Метаинформацией
 
     Examples:
-      python> generator = ProfileMarkdownGenerator()
-      python> md_text = generator.generate_from_json(json_profile)
+      python> service = ProfileMarkdownService()
+      python> md_text = service.generate_from_json(json_profile)
     """
 
     def __init__(self):
@@ -52,7 +55,7 @@ class ProfileMarkdownGenerator:
           str: Готовый Markdown документ
 
         Examples:
-          python> md = generator.generate_from_json({"position_title": "Аналитик BI"})
+          python> md = service.generate_from_json({"position_title": "Аналитик BI"})
         """
         try:
             # Если передана полная структура с "profile", извлекаем его
@@ -863,7 +866,7 @@ class ProfileMarkdownGenerator:
           str: Полный путь к сохраненному файлу
 
         Examples:
-          python> path = generator.save_md_file("profile.md", md_content)
+          python> path = service.save_md_file("profile.md", md_content)
         """
         filepath = os.path.join(self.output_dir, filename)
 
@@ -890,7 +893,7 @@ class ProfileMarkdownGenerator:
           str: Имя файла в формате Department_Position_YYYYMMDD_HHMMSS.md
 
         Examples:
-          python> filename = generator.generate_filename(profile_json)
+          python> filename = service.generate_filename(profile_json)
         """
         try:
             # Если передана полная структура с "profile", извлекаем его
@@ -931,7 +934,7 @@ class ProfileMarkdownGenerator:
 
 if __name__ == "__main__":
     print(
-        "✅ ProfileMarkdownGenerator - Convert JSON profiles to beautiful MD documents"
+        "✅ ProfileMarkdownService - Convert JSON profiles to beautiful MD documents"
     )
     print("📝 Features: Structured sections, skill tables, metadata")
     print("🎨 Output: Clean, readable Markdown files")

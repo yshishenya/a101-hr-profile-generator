@@ -13,10 +13,17 @@ from typing import Dict, Any, List
 import logging
 
 from ..models.schemas import BaseResponse, ErrorResponse
-from ..services.catalog_service import catalog_service
 from ..api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+
+def get_catalog_service():
+    """Получение инициализированного catalog_service"""
+    from ..services.catalog_service import catalog_service
+    if catalog_service is None:
+        raise RuntimeError("CatalogService not initialized. Check main.py lifespan initialization.")
+    return catalog_service
 
 # Создаем роутер для organization endpoints
 organization_router = APIRouter(prefix="/api/organization", tags=["Organization"])
@@ -75,6 +82,7 @@ async def get_search_items(
         logger.info(f"Getting search items for user {current_user['username']}")
 
         # Получаем все элементы через новую path-based систему
+        catalog_service = get_catalog_service()
         search_items = catalog_service.get_searchable_items()
 
         response = {
@@ -193,6 +201,7 @@ async def get_organization_structure_with_target(
         )
 
         # Получаем структуру с подсвеченной целью
+        catalog_service = get_catalog_service()
         highlighted_structure = catalog_service.get_organization_structure_with_target(
             target_path
         )
@@ -315,6 +324,7 @@ async def get_business_unit_details(
         )
 
         # Получаем детали бизнес-единицы
+        catalog_service = get_catalog_service()
         unit_details = catalog_service.find_business_unit_by_path(unit_path)
 
         if not unit_details:
@@ -406,6 +416,7 @@ async def get_organization_stats(current_user: dict = Depends(get_current_user))
         )
 
         # Получаем все бизнес-единицы через path-based индекс
+        catalog_service = get_catalog_service()
         all_units = (
             catalog_service.organization_cache.get_all_business_units_with_paths()
         )

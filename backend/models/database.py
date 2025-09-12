@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 class DatabaseManager:
     """Менеджер базы данных SQLite с методами для создания схемы и управления соединениями"""
 
-    def __init__(self, db_path: Optional[str] = None):
-        if db_path is None:
-            # Импорт здесь, чтобы избежать циклических импортов
-            from ..core.config import config
+    def __init__(self, db_path: str):
+        """
+        Инициализация DatabaseManager с dependency injection конфигурации.
 
-            db_path = config.database_path
-
+        Args:
+            db_path: Путь к файлу базы данных SQLite
+        """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._connection = None
@@ -45,7 +45,7 @@ class DatabaseManager:
                     self._connection.close()
                 except:
                     pass  # Ignore errors when closing dead connection
-            
+
             self._connection = sqlite3.connect(
                 str(self.db_path), check_same_thread=False, timeout=30.0
             )
@@ -56,7 +56,7 @@ class DatabaseManager:
             logger.debug("Database connection created successfully")
 
         return self._connection
-    
+
     def _is_connection_closed(self) -> bool:
         """Проверка, закрыто ли соединение с базой данных"""
         if self._connection is None:
@@ -120,29 +120,29 @@ class DatabaseManager:
                     department TEXT NOT NULL,
                     position TEXT NOT NULL,
                     employee_name TEXT,
-                    
+
                     -- JSON данные профиля
                     profile_data TEXT NOT NULL,  -- JSON профиля
                     metadata_json TEXT NOT NULL,  -- Метаданные генерации
-                    
+
                     -- Метрики генерации
                     generation_time_seconds REAL NOT NULL,
                     input_tokens INTEGER DEFAULT 0,
                     output_tokens INTEGER DEFAULT 0,
                     total_tokens INTEGER DEFAULT 0,
-                    
+
                     -- Качество профиля
                     validation_score REAL DEFAULT 0.0,  -- 0.0 - 1.0
                     completeness_score REAL DEFAULT 0.0,  -- 0.0 - 1.0
-                    
+
                     -- Системные поля
                     created_by INTEGER,  -- User ID
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    
+
                     -- Статус
                     status TEXT DEFAULT 'completed',  -- completed, failed, processing
-                    
+
                     FOREIGN KEY (created_by) REFERENCES users (id)
                 )
             """
@@ -153,30 +153,30 @@ class DatabaseManager:
                 """
                 CREATE TABLE IF NOT EXISTS generation_tasks (
                     id TEXT PRIMARY KEY,  -- UUID4 task ID
-                    
+
                     -- Параметры генерации
                     department TEXT NOT NULL,
                     position TEXT NOT NULL,
                     employee_name TEXT,
                     generation_params TEXT,  -- JSON с дополнительными параметрами
-                    
+
                     -- Статус задачи
                     status TEXT DEFAULT 'pending',  -- pending, processing, completed, failed, cancelled
                     progress INTEGER DEFAULT 0,  -- 0-100
                     current_step TEXT,  -- Текущий шаг выполнения
-                    
+
                     -- Результат
                     result_profile_id TEXT,  -- Ссылка на profiles.id при успехе
                     error_message TEXT,
-                    
+
                     -- Временные метки
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     started_at DATETIME,
                     completed_at DATETIME,
-                    
+
                     -- Пользователь
                     created_by INTEGER,
-                    
+
                     FOREIGN KEY (created_by) REFERENCES users (id),
                     FOREIGN KEY (result_profile_id) REFERENCES profiles (id)
                 )
@@ -188,28 +188,28 @@ class DatabaseManager:
                 """
                 CREATE TABLE IF NOT EXISTS generation_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    
+
                     -- Что генерировали
                     department TEXT NOT NULL,
                     position TEXT NOT NULL,
                     employee_name TEXT,
-                    
+
                     -- Как генерировали
                     generation_type TEXT NOT NULL,  -- sync, async
                     status TEXT NOT NULL,  -- success, failed, cancelled
-                    
+
                     -- Метрики
                     generation_time_seconds REAL,
                     tokens_used INTEGER DEFAULT 0,
-                    
+
                     -- Результат
                     profile_id TEXT,  -- Ссылка на profiles.id если успешно
                     error_type TEXT,  -- Тип ошибки если неуспешно
-                    
+
                     -- Системные поля
                     created_by INTEGER,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    
+
                     FOREIGN KEY (created_by) REFERENCES users (id),
                     FOREIGN KEY (profile_id) REFERENCES profiles (id)
                 )
@@ -223,10 +223,10 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     cache_key TEXT NOT NULL UNIQUE,  -- department_name или другой ключ
                     cache_type TEXT NOT NULL,  -- department_structure, kpi_mapping, positions
-                    
+
                     -- Данные
                     data_json TEXT NOT NULL,
-                    
+
                     -- Кеш метаданные
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     expires_at DATETIME,
@@ -287,7 +287,7 @@ class DatabaseManager:
         cursor.execute(
             """
             CREATE VIEW IF NOT EXISTS profile_details AS
-            SELECT 
+            SELECT
                 p.*,
                 u.username as created_by_username,
                 u.full_name as created_by_full_name
@@ -300,7 +300,7 @@ class DatabaseManager:
         cursor.execute(
             """
             CREATE VIEW IF NOT EXISTS generation_stats AS
-            SELECT 
+            SELECT
                 DATE(created_at) as date,
                 department,
                 COUNT(*) as total_generations,
@@ -313,8 +313,21 @@ class DatabaseManager:
         """
         )
 
-    def seed_initial_data(self):
-        """Создание начальных данных для системы"""
+    def seed_initial_data(self, admin_username: str = None, admin_password: str = None,
+                        admin_full_name: str = "System Administrator",
+                        hr_username: str = None, hr_password: str = None,
+                        hr_full_name: str = "HR Manager"):
+        """
+        Создание начальных данных для системы с dependency injection параметров.
+
+        Args:
+            admin_username: Имя пользователя администратора
+            admin_password: Пароль администратора
+            admin_full_name: Полное имя администратора
+            hr_username: Имя пользователя HR
+            hr_password: Пароль HR
+            hr_full_name: Полное имя HR пользователя
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
 
@@ -326,12 +339,11 @@ class DatabaseManager:
             if user_count == 0:
                 # Создаем пользователей только если их нет
                 from passlib.context import CryptContext
-                from ..core.config import config
 
                 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-                admin_password_hash = pwd_context.hash(config.ADMIN_PASSWORD)
-                hr_password_hash = pwd_context.hash(config.HR_PASSWORD)
+                admin_password_hash = pwd_context.hash(admin_password)
+                hr_password_hash = pwd_context.hash(hr_password)
 
                 cursor.execute(
                     """
@@ -339,9 +351,9 @@ class DatabaseManager:
                     VALUES (?, ?, ?, ?)
                 """,
                     (
-                        config.ADMIN_USERNAME,
+                        admin_username,
                         admin_password_hash,
-                        config.ADMIN_FULL_NAME,
+                        admin_full_name,
                         True,
                     ),
                 )
@@ -351,12 +363,12 @@ class DatabaseManager:
                     INSERT INTO users (username, password_hash, full_name, is_active)
                     VALUES (?, ?, ?, ?)
                 """,
-                    (config.HR_USERNAME, hr_password_hash, config.HR_FULL_NAME, True),
+                    (hr_username, hr_password_hash, hr_full_name, True),
                 )
 
                 conn.commit()
                 logger.info(
-                    f"✅ Начальные данные созданы ({config.ADMIN_USERNAME}, {config.HR_USERNAME})"
+                    f"✅ Начальные данные созданы ({admin_username}, {hr_username})"
                 )
             else:
                 logger.info("ℹ️ Пользователи уже существуют, пропускаем создание")
@@ -367,8 +379,42 @@ class DatabaseManager:
             raise
 
 
-# Глобальный экземпляр менеджера БД
-db_manager = DatabaseManager()
+# Глобальный экземпляр менеджера БД (инициализируется в main.py)
+db_manager: Optional[DatabaseManager] = None
+
+
+def initialize_db_manager(database_path: str) -> DatabaseManager:
+    """
+    Инициализация глобального экземпляра DatabaseManager.
+
+    Вызывается из main.py для dependency injection конфигурации.
+
+    Args:
+        database_path: Путь к файлу базы данных
+
+    Returns:
+        Инициализированный экземпляр DatabaseManager
+    """
+    global db_manager
+    db_manager = DatabaseManager(database_path)
+    return db_manager
+
+
+def get_db_manager() -> DatabaseManager:
+    """
+    Получение глобального экземпляра DatabaseManager.
+
+    Returns:
+        Глобальный экземпляр DatabaseManager
+
+    Raises:
+        RuntimeError: Если db_manager не был инициализирован
+    """
+    if db_manager is None:
+        raise RuntimeError(
+            "DatabaseManager not initialized. Call initialize_db_manager() first."
+        )
+    return db_manager
 
 
 if __name__ == "__main__":

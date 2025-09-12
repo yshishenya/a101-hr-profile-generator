@@ -21,7 +21,8 @@ from datetime import datetime
 
 from ..models.schemas import ProfileListResponse, ProfileUpdateRequest
 from .auth import get_current_user
-from ..models.database import DatabaseManager
+from ..models.database import get_db_manager
+from ..core.config import config
 from ..utils.validators import (
     validate_profile_id,
     validate_pagination,
@@ -31,10 +32,9 @@ from ..utils.validators import (
     validate_profile_update_request,
 )
 from ..utils.exceptions import NotFoundError, ValidationError, DatabaseError
-from ..services.profile_storage_service import ProfileStorageService
+from ..core.storage_service import ProfileStorageService
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile Management"])
-db_manager = DatabaseManager()
 storage_service = ProfileStorageService()
 
 
@@ -52,10 +52,10 @@ async def get_profiles(
 ):
     """
     @doc Получить список профилей с пагинацией и фильтрацией
-    
+
     Возвращает список всех профилей с поддержкой пагинации, фильтрации по
     департаменту, должности, статусу и текстового поиска по всем полям.
-    
+
     **Query Parameters:**
     - `page` (int): Номер страницы (по умолчанию: 1)
     - `limit` (int): Количество записей на страницу (1-100, по умолчанию: 20)
@@ -67,21 +67,21 @@ async def get_profiles(
       департаменту и должности
     - `status` (str, optional): Фильтр по статусу
       ('completed', 'archived', 'in_progress')
-    
+
     **Response Model:** ProfileListResponse
     - `profiles`: Массив профилей с базовой информацией
     - `pagination`: Метаданные пагинации (общее количество, страницы, навигация)
     - `filters_applied`: Примененные фильтры
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     Examples:
         bash>
         # 1. Получить первую страницу (5 записей на страницу)
         curl -X GET "http://localhost:8001/api/profiles/?page=1&limit=5" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           -H "Content-Type: application/json"
-        
+
         # Response (200 OK):
         {
           "profiles": [
@@ -116,13 +116,13 @@ async def get_profiles(
             "status": null
           }
         }
-        
+
         # 2. Фильтрация по департаменту (URL encoded)
         curl -X GET "http://localhost:8001/api/profiles/?department=%D0%93%D1%80%D1%83%D0%BF%D0%BF%D0%B0%20%D0%B0%D0%BD%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%20%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Note: "Группа анализа данных" должно быть URL encoded
-        
+
         # Response (200 OK) - только профили из указанного департамента:
         {
           "profiles": [
@@ -149,11 +149,11 @@ async def get_profiles(
             "status": null
           }
         }
-        
+
         # 3. Текстовый поиск (поиск "analyst")
         curl -X GET "http://localhost:8001/api/profiles/?search=analyst" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (200 OK) - профили, содержащие "analyst" в названии должности:
         {
           "profiles": [
@@ -168,7 +168,7 @@ async def get_profiles(
             "search": "analyst"
           }
         }
-        
+
         # 4. Комбинированный поиск с пагинацией
         curl -X GET "http://localhost:8001/api/profiles/?page=2&limit=3&status=completed" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
@@ -182,7 +182,7 @@ async def get_profiles(
         status = validate_status(status)
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Базовый запрос
@@ -211,8 +211,8 @@ async def get_profiles(
         if search:
             conditions.append(
                 """
-                (p.employee_name LIKE ? OR 
-                 p.department LIKE ? OR 
+                (p.employee_name LIKE ? OR
+                 p.department LIKE ? OR
                  p.position LIKE ?)
             """
             )
@@ -301,13 +301,13 @@ async def get_profiles(
 async def get_profile(profile_id: str, current_user: dict = Depends(get_current_user)):
     """
     @doc Получить конкретный профиль по ID
-    
+
     Возвращает полную информацию о профиле, включая все данные профиля,
     метаданные генерации и информацию о создателе.
-    
+
     **Path Parameters:**
     - `profile_id` (str): UUID профиля
-    
+
     **Response:** Полный объект профиля с метаданными
     - `profile_id`: UUID профиля
     - `profile`: Полные данные профиля в JSON формате
@@ -315,16 +315,16 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
     - `created_at`: Дата создания
     - `created_by_username`: Имя создателя
     - `actions`: Ссылки на действия (скачивание файлов)
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     Examples:
         bash>
         # 1. Получить профиль по ID
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           -H "Content-Type: application/json"
-        
+
         # Response (200 OK):
         {
           "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef",
@@ -369,11 +369,11 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
             "download_md": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md"
           }
         }
-        
+
         # 2. Ошибка - профиль не найден
         curl -X GET "http://localhost:8001/api/profiles/nonexistent-profile-id" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -383,11 +383,11 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
             "resource_id": "nonexistent-profile-id"
           }
         }
-        
+
         # 3. Ошибка авторизации
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer invalid-token"
-        
+
         # Response (401 Unauthorized):
         {
           "detail": "Invalid authentication token"
@@ -397,7 +397,7 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
     profile_id = validate_profile_id(profile_id)
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         cursor.execute(
@@ -460,27 +460,27 @@ async def update_profile_metadata(
 ):
     """
     @doc Обновить метаданные профиля (имя сотрудника, статус)
-    
+
     Позволяет обновить метаданные существующего профиля. Поддерживается
     изменение имени сотрудника и статуса профиля.
-    
+
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для обновления
-    
+
     **Request Body:** ProfileUpdateRequest
     - `employee_name` (str, optional): Новое имя сотрудника (только кириллица, пробелы, дефисы)
     - `status` (str, optional): Новый статус ('completed', 'archived', 'in_progress')
-    
+
     **Response:** Сообщение об успешном обновлении
     - `message`: Текст подтверждения
     - `profile_id`: UUID обновленного профиля
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     **Validation Rules:**
     - `employee_name`: Максимум 200 символов, только кириллица, пробелы, дефисы
     - `status`: Должен быть одним из допустимых значений
-    
+
     Examples:
         bash>
         # 1. Успешное обновление имени и статуса
@@ -491,13 +491,13 @@ async def update_profile_metadata(
             "employee_name": "Петрова Мария Александровна",
             "status": "completed"
           }'
-        
+
         # Response (200 OK):
         {
           "message": "Profile updated successfully",
           "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef"
         }
-        
+
         # 2. Обновление только имени сотрудника
         curl -X PUT "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
@@ -505,13 +505,13 @@ async def update_profile_metadata(
           -d '{
             "employee_name": "Сидоров Алексей Викторович"
           }'
-        
+
         # Response (200 OK):
         {
           "message": "Profile updated successfully",
           "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef"
         }
-        
+
         # 3. Ошибка валидации - неправильное имя с спецсимволами
         curl -X PUT "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
@@ -519,7 +519,7 @@ async def update_profile_metadata(
           -d '{
             "employee_name": "John@Smith#123"
           }'
-        
+
         # Response (422 Unprocessable Entity):
         {
           "detail": {
@@ -532,7 +532,7 @@ async def update_profile_metadata(
             }
           }
         }
-        
+
         # 4. Ошибка - профиль не найден
         curl -X PUT "http://localhost:8001/api/profiles/nonexistent-id" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
@@ -540,7 +540,7 @@ async def update_profile_metadata(
           -d '{
             "employee_name": "Новое Имя"
           }'
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -550,7 +550,7 @@ async def update_profile_metadata(
             "resource_id": "nonexistent-id"
           }
         }
-        
+
         # 5. Обновление статуса
         curl -X PUT "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
@@ -566,7 +566,7 @@ async def update_profile_metadata(
     )
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Проверяем существование профиля
@@ -591,7 +591,7 @@ async def update_profile_metadata(
 
         # Выполняем обновление
         update_query = f"""
-            UPDATE profiles 
+            UPDATE profiles
             SET {', '.join(update_fields)}
             WHERE id = ?
         """
@@ -628,44 +628,44 @@ async def delete_profile(
 ):
     """
     @doc Удалить профиль (soft delete - помечаем как архивный)
-    
+
     Выполняет «мягкое» удаление профиля, изменяя его статус на 'archived' вместо
     физического удаления из базы данных. Архивные профили можно восстановить.
-    
+
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для архивирования
-    
+
     **Response:** Подтверждение архивирования
     - `message`: Текст подтверждения операции
     - `profile_id`: UUID архивированного профиля
     - `status`: Новый статус профиля ('archived')
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     **Business Logic:**
     - Проверяет существование профиля
     - Проверяет, что профиль еще не архивирован
     - Изменяет статус на 'archived' с обновлением времени
     - Архивированные профили исключаются из обычных поисков
-    
+
     Examples:
         bash>
         # 1. Успешное архивирование профиля
         curl -X DELETE "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           -H "Content-Type: application/json"
-        
+
         # Response (200 OK):
         {
           "message": "Profile archived successfully",
           "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef",
           "status": "archived"
         }
-        
+
         # 2. Ошибка - попытка архивировать уже архивированный профиль
         curl -X DELETE "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (422 Unprocessable Entity):
         {
           "detail": {
@@ -678,11 +678,11 @@ async def delete_profile(
             }
           }
         }
-        
+
         # 3. Ошибка - профиль не найден
         curl -X DELETE "http://localhost:8001/api/profiles/nonexistent-profile-id" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -692,18 +692,18 @@ async def delete_profile(
             "resource_id": "nonexistent-profile-id"
           }
         }
-        
+
         # 4. Проверка результата архивирования через список профилей
         curl -X GET "http://localhost:8001/api/profiles/?status=archived" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N10.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response: список архивных профилей
     """
     # Валидация profile_id
     profile_id = validate_profile_id(profile_id)
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Проверяем существование профиля
@@ -725,7 +725,7 @@ async def delete_profile(
         # Soft delete - помечаем как архивный
         cursor.execute(
             """
-            UPDATE profiles 
+            UPDATE profiles
             SET status = 'archived', updated_at = ?
             WHERE id = ?
         """,
@@ -762,44 +762,44 @@ async def restore_profile(
 ):
     """
     @doc Восстановить архивный профиль
-    
+
     Восстанавливает архивированный профиль, возвращая ему статус 'completed'.
     Профиль снова становится доступным для обычных поисков и операций.
-    
+
     **Path Parameters:**
     - `profile_id` (str): UUID архивированного профиля для восстановления
-    
+
     **Response:** Подтверждение восстановления
     - `message`: Текст подтверждения операции
     - `profile_id`: UUID восстановленного профиля
     - `status`: Новый статус профиля ('completed')
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     **Business Logic:**
     - Проверяет существование профиля
     - Проверяет, что профиль действительно архивирован
     - Восстанавливает статус 'completed' с обновлением времени
     - Восстановленный профиль возвращается в обычные поиски
-    
+
     Examples:
         bash>
         # 1. Успешное восстановление архивированного профиля
         curl -X POST "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/restore" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           -H "Content-Type: application/json"
-        
+
         # Response (200 OK):
         {
           "message": "Profile restored successfully",
           "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef",
           "status": "completed"
         }
-        
+
         # 2. Ошибка - попытка восстановить неархивированный профиль
         curl -X POST "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/restore" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (422 Unprocessable Entity):
         {
           "detail": {
@@ -812,11 +812,11 @@ async def restore_profile(
             }
           }
         }
-        
+
         # 3. Ошибка - профиль не найден
         curl -X POST "http://localhost:8001/api/profiles/nonexistent-profile-id/restore" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -826,18 +826,18 @@ async def restore_profile(
             "resource_id": "nonexistent-profile-id"
           }
         }
-        
+
         # 4. Проверка результата восстановления
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response: профиль со статусом 'completed'
     """
     # Валидация profile_id
     profile_id = validate_profile_id(profile_id)
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Проверяем существование профиля
@@ -859,7 +859,7 @@ async def restore_profile(
         # Восстанавливаем профиль
         cursor.execute(
             """
-            UPDATE profiles 
+            UPDATE profiles
             SET status = 'completed', updated_at = ?
             WHERE id = ?
         """,
@@ -896,49 +896,49 @@ async def download_profile_json(
 ):
     """
     @doc Скачать JSON файл профиля
-    
+
     Скачивает полный профиль в JSON формате из файловой системы. Файл содержит
     как сами данные профиля, так и метаданные генерации.
-    
+
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для скачивания
-    
+
     **Response:** Файл JSON для скачивания
     - Content-Type: application/json
     - Content-Disposition: attachment
     - Имя файла: profile_{position}_{profile_id_short}.json
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     **File Location Logic:**
     - Файлы хранятся в /generated_profiles/{department}/
     - Путь вычисляется детерминистично по profile_id + created_at
     - Имя файла: {position}_{timestamp}.json
-    
+
     **Error Cases:**
     - 404: Профиль не найден в базе данных
     - 404: JSON файл не найден в файловой системе
     - 401: Невалидный токен авторизации
-    
+
     Examples:
         bash>
         # 1. Успешное скачивание JSON файла
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/json" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           --output "profile_data_analyst.json"
-        
+
         # Response (200 OK): Скачивание файла начнется автоматически
         # Headers:
         # Content-Type: application/json
         # Content-Disposition: attachment; filename="profile_Старший_аналитик_данных_4aec3e73.json"
         # Content-Length: 15420
-        
+
         # File content: Полные данные профиля в JSON формате
-        
+
         # 2. Ошибка - файл не найден (профиль существует, но файлы удалены)
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/json" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -948,11 +948,11 @@ async def download_profile_json(
             "resource_id": "/generated_profiles/Группа_анализа_данных/Старший_аналитик_данных_20250110_143022.json"
           }
         }
-        
+
         # 3. Ошибка - профиль не найден в базе данных
         curl -X GET "http://localhost:8001/api/profiles/nonexistent-profile-id/download/json" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -962,13 +962,13 @@ async def download_profile_json(
             "resource_id": "nonexistent-profile-id"
           }
         }
-        
+
         # 4. Пример скачивания с корректным именем файла
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/json" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           --output "/tmp/my_profile_$(date +%Y%m%d).json" \
           --silent --show-error
-        
+
         # Проверка результата скачивания:
         ls -la /tmp/my_profile_*.json
         file /tmp/my_profile_*.json  # Покажет 'JSON data'
@@ -977,7 +977,7 @@ async def download_profile_json(
     profile_id = validate_profile_id(profile_id)
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Получаем информацию о профиле из БД
@@ -1043,25 +1043,25 @@ async def download_profile_md(
 ):
     """
     @doc Скачать MD файл профиля
-    
+
     Скачивает профиль в Markdown формате для удобного чтения и печати.
     MD файл содержит человекочитаемое описание профиля с форматированием.
-    
+
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для скачивания
-    
+
     **Response:** Файл Markdown для скачивания
     - Content-Type: text/markdown
-    - Content-Disposition: attachment  
+    - Content-Disposition: attachment
     - Имя файла: profile_{position}_{profile_id_short}.md
-    
+
     **Authentication:** Требуется Bearer Token
-    
+
     **File Location Logic:**
     - MD файлы хранятся рядом с JSON в /generated_profiles/{department}/
     - Путь вычисляется детерминистично по profile_id + created_at
     - Имя файла: {position}_{timestamp}.md
-    
+
     **Markdown Content Structure:**
     - Заголовок с названием должности
     - Общая информация (департамент, подчинение)
@@ -1069,43 +1069,43 @@ async def download_profile_md(
     - Квалификация и навыки
     - KPI и метрики (таблица)
     - Метаданные генерации
-    
+
     **Error Cases:**
     - 404: Профиль не найден в базе данных
     - 404: MD файл не найден в файловой системе
     - 401: Невалидный токен авторизации
-    
+
     Examples:
         bash>
         # 1. Успешное скачивание MD файла
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           --output "profile_analyst.md"
-        
+
         # Response (200 OK): Скачивание файла начнется автоматически
         # Headers:
         # Content-Type: text/markdown
         # Content-Disposition: attachment; filename="profile_Старший_аналитик_данных_4aec3e73.md"
         # Content-Length: 8240
-        
+
         # File content: Профиль в Markdown с красивым форматированием
-        
+
         # 2. Просмотр содержимого файла в терминале
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE" \
           --silent | head -20
-        
+
         # Output: Первые 20 строк MD файла
         # # Старший аналитик данных
-        # 
+        #
         # ## Общая информация
         # - **Департамент:** Группа анализа данных
         # - **Подчиняется:** Руководитель группы
-        
+
         # 3. Ошибка - файл не найден (профиль существует, но MD файл удален)
         curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -1115,11 +1115,11 @@ async def download_profile_md(
             "resource_id": "/generated_profiles/Группа_анализа_данных/Старший_аналитик_данных_20250110_143022.md"
           }
         }
-        
+
         # 4. Ошибка - профиль не найден
         curl -X GET "http://localhost:8001/api/profiles/nonexistent-profile-id/download/md" \
           -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Response (404 Not Found):
         {
           "detail": {
@@ -1129,21 +1129,21 @@ async def download_profile_md(
             "resource_id": "nonexistent-profile-id"
           }
         }
-        
+
         # 5. Комбинированное скачивание обоих форматов
         PROFILE_ID="4aec3e73-c9bd-4d25-a123-456789abcdef"
         AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMTA5Mzc5N30.K8FgXOaVtDyVQs-wc2D8UgPMqGwNb_-pE3YKwN9TjeE"
-        
+
         # Скачивание JSON
         curl -X GET "http://localhost:8001/api/profiles/${PROFILE_ID}/download/json" \
           -H "Authorization: Bearer ${AUTH_TOKEN}" \
           --output "profile_data.json" --silent
-        
+
         # Скачивание MD
         curl -X GET "http://localhost:8001/api/profiles/${PROFILE_ID}/download/md" \
           -H "Authorization: Bearer ${AUTH_TOKEN}" \
           --output "profile_readable.md" --silent
-        
+
         echo "Downloaded both formats:"
         ls -la profile_*
     """
@@ -1151,7 +1151,7 @@ async def download_profile_md(
     profile_id = validate_profile_id(profile_id)
 
     try:
-        conn = db_manager.get_connection()
+        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
         # Получаем информацию о профиле из БД
