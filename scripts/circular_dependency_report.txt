@@ -1,0 +1,437 @@
+================================================================================
+CIRCULAR DEPENDENCY ANALYSIS REPORT
+================================================================================
+Generated: 2025-09-13T00:05:02.063838
+Backend Path: /home/yan/A101/HR/backend
+
+SUMMARY
+----------------------------------------
+Total Modules Analyzed: 37
+Total Dependencies: 227
+Circular Dependencies: 0
+Architectural Violations: 0
+External Dependencies: 38
+
+✅ NO CIRCULAR DEPENDENCIES FOUND
+
+✅ NO ARCHITECTURAL VIOLATIONS FOUND
+
+DEPENDENCY ANALYSIS
+----------------------------------------
+Most Imported Modules (Dependency Hotspots):
+  backend.typing (26 imports)
+  backend.logging (23 imports)
+  backend.datetime (17 imports)
+  backend.fastapi (13 imports)
+  backend.json (11 imports)
+  backend.pathlib (9 imports)
+  backend.core.config (7 imports)
+  backend.os (7 imports)
+  backend.uuid (7 imports)
+  backend.models.database (6 imports)
+
+Modules with Most Dependencies (High Fan-out):
+  backend.main (24 dependencies)
+  backend.core.profile_generator (14 dependencies)
+  backend.api.profiles (13 dependencies)
+  backend.api.generation (11 dependencies)
+  backend.services.auth_service (11 dependencies)
+  backend.core.llm_client (10 dependencies)
+  backend.utils.exception_handlers (10 dependencies)
+  backend.api.dashboard (9 dependencies)
+  backend.models.database (8 dependencies)
+  backend.services.catalog_service (8 dependencies)
+
+External Dependencies:
+  - __future__
+  - abc
+  - argparse
+  - asyncio
+  - collections
+  - contextlib
+  - datetime
+  - dotenv
+  - enum
+  - fastapi
+  - fastapi.exceptions
+  - fastapi.middleware.cors
+  - fastapi.middleware.trustedhost
+  - fastapi.responses
+  - fastapi.security
+  - fastapi.staticfiles
+  - hashlib
+  - jose
+  - json
+  - langfuse
+  - langfuse.decorators
+  - langfuse.openai
+  - logging
+  - openpyxl
+  - os
+  - passlib.context
+  - pathlib
+  - pydantic
+  - re
+  - sqlite3
+  - starlette.middleware.base
+  - sys
+  - threading
+  - time
+  - traceback
+  - typing
+  - uuid
+  - uvicorn
+
+MODULE DEPENDENCY DETAILS
+----------------------------------------
+backend.api.auth
+  → backend.fastapi
+  → backend.fastapi.security
+  → backend.logging
+  → backend.models.schemas
+  → backend.services.auth_service
+
+backend.api.catalog
+  → backend.api.auth
+  → backend.fastapi
+  → backend.logging
+  → backend.models.schemas
+  → backend.services.catalog_service
+  → backend.typing
+
+backend.api.dashboard
+  → backend.api.auth
+  → backend.core.config
+  → backend.datetime
+  → backend.fastapi
+  → backend.logging
+  → backend.models.database
+  → backend.services.catalog_service
+  → backend.sqlite3
+  → backend.typing
+
+backend.api.generation
+  → backend.api.auth
+  → backend.core.config
+  → backend.core.profile_generator
+  → backend.datetime
+  → backend.fastapi
+  → backend.json
+  → backend.logging
+  → backend.models.database
+  → backend.pydantic
+  → backend.typing
+  → backend.uuid
+
+backend.api.middleware
+  → backend.api.auth_middleware
+  → backend.api.logging_middleware
+  → backend.api.security_middleware
+
+backend.api.middleware.auth_middleware
+  → backend.api.services.auth_service
+  → backend.datetime
+  → backend.fastapi
+  → backend.fastapi.responses
+  → backend.logging
+  → backend.starlette.middleware.base
+
+backend.api.middleware.logging_middleware
+  → backend.api.services.auth_service
+  → backend.datetime
+  → backend.fastapi
+  → backend.fastapi.responses
+  → backend.logging
+  → backend.starlette.middleware.base
+  → backend.time
+
+backend.api.middleware.security_middleware
+  → backend.fastapi
+  → backend.logging
+  → backend.starlette.middleware.base
+
+backend.api.organization
+  → backend.api.auth
+  → backend.fastapi
+  → backend.logging
+  → backend.models.schemas
+  → backend.services.catalog_service
+  → backend.typing
+
+backend.api.profiles
+  → backend.api.auth
+  → backend.core.config
+  → backend.core.storage_service
+  → backend.datetime
+  → backend.fastapi
+  → backend.fastapi.responses
+  → backend.json
+  → backend.models.database
+  → backend.models.schemas
+  → backend.sqlite3
+  → backend.typing
+  → backend.utils.exceptions
+  → backend.utils.validators
+
+backend.core
+  → backend.data_loader
+  → backend.data_mapper
+  → backend.llm_client
+  → backend.profile_generator
+
+backend.core.config
+  → backend.dotenv
+  → backend.os
+  → backend.pathlib
+  → backend.sys
+  → backend.typing
+
+backend.core.data_loader
+  → backend.core.data_mapper
+  → backend.core.organization_cache
+  → backend.datetime
+  → backend.json
+  → backend.logging
+  → backend.pathlib
+  → backend.typing
+  → backend.utils.position_utils
+
+backend.core.data_mapper
+  → backend.core.organization_cache
+  → backend.json
+  → backend.logging
+  → backend.pathlib
+  → backend.re
+  → backend.typing
+
+backend.core.llm_client
+  → backend.core.config
+  → backend.datetime
+  → backend.json
+  → backend.langfuse
+  → backend.langfuse.decorators
+  → backend.langfuse.openai
+  → backend.logging
+  → backend.os
+  → backend.time
+  → backend.typing
+
+backend.core.markdown_service
+  → backend.datetime
+  → backend.logging
+  → backend.os
+  → backend.typing
+
+backend.core.organization_cache
+  → backend.collections
+  → backend.json
+  → backend.logging
+  → backend.pathlib
+  → backend.threading
+  → backend.typing
+
+backend.core.profile_generator
+  → backend.asyncio
+  → backend.core.config
+  → backend.core.data_loader
+  → backend.core.llm_client
+  → backend.core.markdown_service
+  → backend.core.prompt_manager
+  → backend.core.storage_service
+  → backend.datetime
+  → backend.json
+  → backend.logging
+  → backend.os
+  → backend.pathlib
+  → backend.typing
+  → backend.uuid
+
+backend.core.prompt_manager
+  → backend.datetime
+  → backend.hashlib
+  → backend.json
+  → backend.logging
+  → backend.os
+  → backend.pathlib
+  → backend.re
+  → backend.typing
+
+backend.core.storage_service
+  → backend.core.organization_cache
+  → backend.datetime
+  → backend.json
+  → backend.logging
+  → backend.os
+  → backend.pathlib
+  → backend.re
+  → backend.typing
+
+backend.main
+  → backend.api.auth
+  → backend.api.catalog
+  → backend.api.dashboard
+  → backend.api.generation
+  → backend.api.middleware
+  → backend.api.organization
+  → backend.api.profiles
+  → backend.contextlib
+  → backend.core.config
+  → backend.core.organization_cache
+  → backend.datetime
+  → backend.fastapi
+  → backend.fastapi.middleware.cors
+  → backend.fastapi.middleware.trustedhost
+  → backend.fastapi.responses
+  → backend.fastapi.staticfiles
+  → backend.logging
+  → backend.models.database
+  → backend.os
+  → backend.services.auth_service
+  → backend.services.catalog_service
+  → backend.typing
+  → backend.utils.exception_handlers
+  → backend.uvicorn
+
+backend.models.database
+  → backend.datetime
+  → backend.json
+  → backend.logging
+  → backend.passlib.context
+  → backend.pathlib
+  → backend.sqlite3
+  → backend.typing
+  → backend.uuid
+
+backend.models.schemas
+  → backend.datetime
+  → backend.enum
+  → backend.pydantic
+  → backend.typing
+  → backend.uuid
+
+backend.services.auth_service
+  → backend.asyncio
+  → backend.core.config
+  → backend.datetime
+  → backend.jose
+  → backend.logging
+  → backend.models.database
+  → backend.models.schemas
+  → backend.passlib.context
+  → backend.typing
+  → backend.utils.interfaces
+  → backend.uuid
+
+backend.services.catalog_service
+  → backend.asyncio
+  → backend.core.organization_cache
+  → backend.datetime
+  → backend.logging
+  → backend.models.database
+  → backend.time
+  → backend.typing
+  → backend.utils.position_utils
+
+backend.tools.xlsx_dump
+  → backend.__future__
+  → backend.argparse
+  → backend.json
+  → backend.openpyxl
+  → backend.pathlib
+  → backend.typing
+
+backend.utils.exception_handlers
+  → backend.datetime
+  → backend.fastapi
+  → backend.fastapi.exceptions
+  → backend.fastapi.responses
+  → backend.logging
+  → backend.pydantic
+  → backend.traceback
+  → backend.typing
+  → backend.utils.exceptions
+  → backend.uuid
+
+backend.utils.exceptions
+  → backend.fastapi
+  → backend.typing
+
+backend.utils.interfaces
+  → backend.abc
+  → backend.typing
+
+backend.utils.position_utils
+  → backend.logging
+  → backend.typing
+
+backend.utils.request_utils
+  → backend.fastapi
+  → backend.logging
+  → backend.typing
+
+backend.utils.validators
+  → backend.re
+  → backend.typing
+  → backend.utils.exceptions
+  → backend.uuid
+
+ARCHITECTURAL LAYER ANALYSIS
+----------------------------------------
+API LAYER (Level 4)
+  Can import from: services, core, models, utils
+  Modules (11):
+    - backend.api
+    - backend.api.auth
+    - backend.api.catalog
+    - backend.api.dashboard
+    - backend.api.generation
+    - backend.api.middleware
+    - backend.api.middleware.auth_middleware
+    - backend.api.middleware.logging_middleware
+    - backend.api.middleware.security_middleware
+    - backend.api.organization
+    - backend.api.profiles
+
+SERVICES LAYER (Level 3)
+  Can import from: core, models, utils
+  Modules (3):
+    - backend.services
+    - backend.services.auth_service
+    - backend.services.catalog_service
+
+CORE LAYER (Level 2)
+  Can import from: models, utils
+  Modules (10):
+    - backend.core
+    - backend.core.config
+    - backend.core.data_loader
+    - backend.core.data_mapper
+    - backend.core.llm_client
+    - backend.core.markdown_service
+    - backend.core.organization_cache
+    - backend.core.profile_generator
+    - backend.core.prompt_manager
+    - backend.core.storage_service
+
+MODELS LAYER (Level 1)
+  Can import from: utils
+  Modules (3):
+    - backend.models
+    - backend.models.database
+    - backend.models.schemas
+
+UTILS LAYER (Level 0)
+  Can import from: 
+  Modules (7):
+    - backend.utils
+    - backend.utils.exception_handlers
+    - backend.utils.exceptions
+    - backend.utils.interfaces
+    - backend.utils.position_utils
+    - backend.utils.request_utils
+    - backend.utils.validators
+
+TOOLS LAYER (Level -1)
+  Can import from: services, core, models, utils
+  Modules (1):
+    - backend.tools.xlsx_dump

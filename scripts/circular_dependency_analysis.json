@@ -1,0 +1,2847 @@
+{
+  "analysis_date": "2025-09-13T00:05:02.066653",
+  "backend_path": "/home/yan/A101/HR/backend",
+  "summary": {
+    "total_modules": 37,
+    "total_dependencies": 227,
+    "circular_dependencies_count": 0,
+    "architectural_violations_count": 0
+  },
+  "circular_dependencies": [],
+  "architectural_violations": [],
+  "dependency_graph": {
+    "backend.main": [
+      "backend.models.database",
+      "backend.fastapi.middleware.cors",
+      "backend.services.auth_service",
+      "backend.fastapi.staticfiles",
+      "backend.fastapi",
+      "backend.api.middleware",
+      "backend.contextlib",
+      "backend.api.catalog",
+      "backend.api.dashboard",
+      "backend.core.organization_cache",
+      "backend.services.catalog_service",
+      "backend.api.generation",
+      "backend.fastapi.middleware.trustedhost",
+      "backend.typing",
+      "backend.core.config",
+      "backend.api.auth",
+      "backend.fastapi.responses",
+      "backend.utils.exception_handlers",
+      "backend.datetime",
+      "backend.api.organization",
+      "backend.uvicorn",
+      "backend.os",
+      "backend.api.profiles",
+      "backend.logging"
+    ],
+    "backend.models.schemas": [
+      "backend.datetime",
+      "backend.pydantic",
+      "backend.uuid",
+      "backend.typing",
+      "backend.enum"
+    ],
+    "backend.models.database": [
+      "backend.pathlib",
+      "backend.datetime",
+      "backend.passlib.context",
+      "backend.json",
+      "backend.logging",
+      "backend.uuid",
+      "backend.typing",
+      "backend.sqlite3"
+    ],
+    "backend.api.profiles": [
+      "backend.fastapi.responses",
+      "backend.models.database",
+      "backend.datetime",
+      "backend.core.storage_service",
+      "backend.json",
+      "backend.utils.validators",
+      "backend.fastapi",
+      "backend.utils.exceptions",
+      "backend.models.schemas",
+      "backend.typing",
+      "backend.core.config",
+      "backend.api.auth",
+      "backend.sqlite3"
+    ],
+    "backend.api.auth": [
+      "backend.services.auth_service",
+      "backend.fastapi",
+      "backend.fastapi.security",
+      "backend.models.schemas",
+      "backend.logging"
+    ],
+    "backend.api.dashboard": [
+      "backend.models.database",
+      "backend.datetime",
+      "backend.services.catalog_service",
+      "backend.logging",
+      "backend.fastapi",
+      "backend.typing",
+      "backend.core.config",
+      "backend.api.auth",
+      "backend.sqlite3"
+    ],
+    "backend.api.organization": [
+      "backend.services.catalog_service",
+      "backend.fastapi",
+      "backend.models.schemas",
+      "backend.typing",
+      "backend.api.auth",
+      "backend.logging"
+    ],
+    "backend.api.catalog": [
+      "backend.services.catalog_service",
+      "backend.fastapi",
+      "backend.models.schemas",
+      "backend.typing",
+      "backend.api.auth",
+      "backend.logging"
+    ],
+    "backend.api.generation": [
+      "backend.models.database",
+      "backend.datetime",
+      "backend.json",
+      "backend.fastapi",
+      "backend.core.profile_generator",
+      "backend.pydantic",
+      "backend.uuid",
+      "backend.typing",
+      "backend.core.config",
+      "backend.api.auth",
+      "backend.logging"
+    ],
+    "backend.services.catalog_service": [
+      "backend.models.database",
+      "backend.datetime",
+      "backend.core.organization_cache",
+      "backend.time",
+      "backend.utils.position_utils",
+      "backend.asyncio",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.services.auth_service": [
+      "backend.models.database",
+      "backend.datetime",
+      "backend.passlib.context",
+      "backend.logging",
+      "backend.models.schemas",
+      "backend.utils.interfaces",
+      "backend.asyncio",
+      "backend.uuid",
+      "backend.typing",
+      "backend.core.config",
+      "backend.jose"
+    ],
+    "backend.core.data_loader": [
+      "backend.pathlib",
+      "backend.datetime",
+      "backend.core.organization_cache",
+      "backend.json",
+      "backend.utils.position_utils",
+      "backend.core.data_mapper",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.core.organization_cache": [
+      "backend.pathlib",
+      "backend.collections",
+      "backend.json",
+      "backend.threading",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.core.config": [
+      "backend.pathlib",
+      "backend.os",
+      "backend.sys",
+      "backend.dotenv",
+      "backend.typing"
+    ],
+    "backend.core.profile_generator": [
+      "backend.pathlib",
+      "backend.datetime",
+      "backend.core.storage_service",
+      "backend.json",
+      "backend.core.prompt_manager",
+      "backend.os",
+      "backend.core.markdown_service",
+      "backend.core.llm_client",
+      "backend.core.data_loader",
+      "backend.asyncio",
+      "backend.uuid",
+      "backend.typing",
+      "backend.core.config",
+      "backend.logging"
+    ],
+    "backend.core": [
+      "backend.data_mapper",
+      "backend.profile_generator",
+      "backend.data_loader",
+      "backend.llm_client"
+    ],
+    "backend.core.markdown_service": [
+      "backend.os",
+      "backend.typing",
+      "backend.datetime",
+      "backend.logging"
+    ],
+    "backend.core.prompt_manager": [
+      "backend.pathlib",
+      "backend.datetime",
+      "backend.hashlib",
+      "backend.re",
+      "backend.json",
+      "backend.os",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.core.storage_service": [
+      "backend.pathlib",
+      "backend.datetime",
+      "backend.core.organization_cache",
+      "backend.re",
+      "backend.json",
+      "backend.os",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.core.data_mapper": [
+      "backend.pathlib",
+      "backend.re",
+      "backend.core.organization_cache",
+      "backend.json",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.core.llm_client": [
+      "backend.datetime",
+      "backend.time",
+      "backend.json",
+      "backend.os",
+      "backend.langfuse",
+      "backend.langfuse.openai",
+      "backend.typing",
+      "backend.core.config",
+      "backend.langfuse.decorators",
+      "backend.logging"
+    ],
+    "backend.utils.request_utils": [
+      "backend.typing",
+      "backend.fastapi",
+      "backend.logging"
+    ],
+    "backend.utils.interfaces": [
+      "backend.typing",
+      "backend.abc"
+    ],
+    "backend.utils.exception_handlers": [
+      "backend.fastapi.responses",
+      "backend.datetime",
+      "backend.traceback",
+      "backend.fastapi.exceptions",
+      "backend.fastapi",
+      "backend.utils.exceptions",
+      "backend.pydantic",
+      "backend.uuid",
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.utils.validators": [
+      "backend.utils.exceptions",
+      "backend.uuid",
+      "backend.typing",
+      "backend.re"
+    ],
+    "backend.utils.position_utils": [
+      "backend.typing",
+      "backend.logging"
+    ],
+    "backend.utils.exceptions": [
+      "backend.typing",
+      "backend.fastapi"
+    ],
+    "backend.tools.xlsx_dump": [
+      "backend.__future__",
+      "backend.pathlib",
+      "backend.openpyxl",
+      "backend.argparse",
+      "backend.json",
+      "backend.typing"
+    ],
+    "backend.api.middleware.auth_middleware": [
+      "backend.fastapi.responses",
+      "backend.datetime",
+      "backend.starlette.middleware.base",
+      "backend.fastapi",
+      "backend.api.services.auth_service",
+      "backend.logging"
+    ],
+    "backend.api.middleware.logging_middleware": [
+      "backend.fastapi.responses",
+      "backend.datetime",
+      "backend.time",
+      "backend.starlette.middleware.base",
+      "backend.fastapi",
+      "backend.api.services.auth_service",
+      "backend.logging"
+    ],
+    "backend.api.middleware": [
+      "backend.api.logging_middleware",
+      "backend.api.security_middleware",
+      "backend.api.auth_middleware"
+    ],
+    "backend.api.middleware.security_middleware": [
+      "backend.starlette.middleware.base",
+      "backend.fastapi",
+      "backend.logging"
+    ]
+  },
+  "module_imports": {
+    "backend": [],
+    "backend.main": [
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 10,
+        "is_relative": false
+      },
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "contextlib",
+        "from_module": "asynccontextmanager",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "uvicorn",
+        "from_module": null,
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "FastAPI",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.middleware.cors",
+        "from_module": "CORSMiddleware",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.middleware.trustedhost",
+        "from_module": "TrustedHostMiddleware",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.responses",
+        "from_module": "JSONResponse",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      },
+      {
+        "module": "api.auth",
+        "from_module": "auth_router",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": true
+      },
+      {
+        "module": "api.catalog",
+        "from_module": "catalog_router",
+        "alias": null,
+        "line_number": 24,
+        "is_relative": true
+      },
+      {
+        "module": "api.organization",
+        "from_module": "organization_router",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "api.generation",
+        "from_module": "router",
+        "alias": "generation_router",
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "api.generation",
+        "from_module": "initialize_generation_system",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "api.profiles",
+        "from_module": "router",
+        "alias": "profiles_router",
+        "line_number": 27,
+        "is_relative": true
+      },
+      {
+        "module": "api.dashboard",
+        "from_module": "dashboard_router",
+        "alias": null,
+        "line_number": 28,
+        "is_relative": true
+      },
+      {
+        "module": "api.middleware",
+        "from_module": "RequestLoggingMiddleware",
+        "alias": null,
+        "line_number": 29,
+        "is_relative": true
+      },
+      {
+        "module": "api.middleware",
+        "from_module": "SecurityHeadersMiddleware",
+        "alias": null,
+        "line_number": 29,
+        "is_relative": true
+      },
+      {
+        "module": "utils.exception_handlers",
+        "from_module": "setup_exception_handlers",
+        "alias": null,
+        "line_number": 30,
+        "is_relative": true
+      },
+      {
+        "module": "core.config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 31,
+        "is_relative": true
+      },
+      {
+        "module": "core.organization_cache",
+        "from_module": "organization_cache",
+        "alias": null,
+        "line_number": 32,
+        "is_relative": true
+      },
+      {
+        "module": "models.database",
+        "from_module": "initialize_db_manager",
+        "alias": null,
+        "line_number": 33,
+        "is_relative": true
+      },
+      {
+        "module": "services.auth_service",
+        "from_module": "initialize_auth_service",
+        "alias": null,
+        "line_number": 34,
+        "is_relative": true
+      },
+      {
+        "module": "services.catalog_service",
+        "from_module": "initialize_catalog_service",
+        "alias": null,
+        "line_number": 35,
+        "is_relative": true
+      },
+      {
+        "module": "fastapi.staticfiles",
+        "from_module": "StaticFiles",
+        "alias": null,
+        "line_number": 223,
+        "is_relative": false
+      },
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 224,
+        "is_relative": false
+      }
+    ],
+    "backend.models.schemas": [
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Union",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "enum",
+        "from_module": "Enum",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "BaseModel",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "Field",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "field_validator",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "ConfigDict",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      }
+    ],
+    "backend.models": [],
+    "backend.models.database": [
+      {
+        "module": "sqlite3",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "timedelta",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "passlib.context",
+        "from_module": "CryptContext",
+        "alias": null,
+        "line_number": 341,
+        "is_relative": false
+      }
+    ],
+    "backend.api.profiles": [
+      {
+        "module": "fastapi",
+        "from_module": "APIRouter",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Depends",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Query",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.responses",
+        "from_module": "FileResponse",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "sqlite3",
+        "from_module": null,
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "ProfileListResponse",
+        "alias": null,
+        "line_number": 22,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "ProfileUpdateRequest",
+        "alias": null,
+        "line_number": 22,
+        "is_relative": true
+      },
+      {
+        "module": "auth",
+        "from_module": "get_current_user",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": true
+      },
+      {
+        "module": "models.database",
+        "from_module": "get_db_manager",
+        "alias": null,
+        "line_number": 24,
+        "is_relative": true
+      },
+      {
+        "module": "core.config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "utils.validators",
+        "from_module": "validate_profile_id",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "utils.validators",
+        "from_module": "validate_pagination",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "utils.validators",
+        "from_module": "validate_search_query",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "utils.validators",
+        "from_module": "validate_optional_string",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "utils.validators",
+        "from_module": "validate_status",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "utils.validators",
+        "from_module": "validate_profile_update_request",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": true
+      },
+      {
+        "module": "utils.exceptions",
+        "from_module": "NotFoundError",
+        "alias": null,
+        "line_number": 34,
+        "is_relative": true
+      },
+      {
+        "module": "utils.exceptions",
+        "from_module": "ValidationError",
+        "alias": null,
+        "line_number": 34,
+        "is_relative": true
+      },
+      {
+        "module": "utils.exceptions",
+        "from_module": "DatabaseError",
+        "alias": null,
+        "line_number": 34,
+        "is_relative": true
+      },
+      {
+        "module": "core.storage_service",
+        "from_module": "ProfileStorageService",
+        "alias": null,
+        "line_number": 35,
+        "is_relative": true
+      }
+    ],
+    "backend.api.auth": [
+      {
+        "module": "fastapi",
+        "from_module": "APIRouter",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Depends",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Request",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "status",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.security",
+        "from_module": "HTTPBearer",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.security",
+        "from_module": "HTTPAuthorizationCredentials",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "LoginRequest",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "LoginResponse",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "UserInfo",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "BaseResponse",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "ErrorResponse",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 21,
+        "is_relative": false
+      },
+      {
+        "module": "services.auth_service",
+        "from_module": "auth_service",
+        "alias": null,
+        "line_number": 28,
+        "is_relative": true
+      }
+    ],
+    "backend.api.dashboard": [
+      {
+        "module": "fastapi",
+        "from_module": "APIRouter",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Depends",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "status",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "sqlite3",
+        "from_module": null,
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "models.database",
+        "from_module": "get_db_manager",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": true
+      },
+      {
+        "module": "core.config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "api.auth",
+        "from_module": "get_current_user",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": true
+      },
+      {
+        "module": "services.catalog_service",
+        "from_module": "catalog_service",
+        "alias": null,
+        "line_number": 27,
+        "is_relative": true
+      }
+    ],
+    "backend.api": [],
+    "backend.api.organization": [
+      {
+        "module": "fastapi",
+        "from_module": "APIRouter",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Depends",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "status",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "BaseResponse",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "ErrorResponse",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": true
+      },
+      {
+        "module": "api.auth",
+        "from_module": "get_current_user",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": true
+      },
+      {
+        "module": "services.catalog_service",
+        "from_module": "catalog_service",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": true
+      }
+    ],
+    "backend.api.catalog": [
+      {
+        "module": "fastapi",
+        "from_module": "APIRouter",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Query",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Depends",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "status",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "BaseResponse",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "ErrorResponse",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": true
+      },
+      {
+        "module": "api.auth",
+        "from_module": "get_current_user",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": true
+      },
+      {
+        "module": "services.catalog_service",
+        "from_module": "catalog_service",
+        "alias": null,
+        "line_number": 24,
+        "is_relative": true
+      }
+    ],
+    "backend.api.generation": [
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "timedelta",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "APIRouter",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "BackgroundTasks",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Depends",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "BaseModel",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "Field",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "core.config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "core.profile_generator",
+        "from_module": "ProfileGenerator",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": true
+      },
+      {
+        "module": "auth",
+        "from_module": "get_current_user",
+        "alias": null,
+        "line_number": 21,
+        "is_relative": true
+      },
+      {
+        "module": "models.database",
+        "from_module": "get_db_manager",
+        "alias": null,
+        "line_number": 22,
+        "is_relative": true
+      }
+    ],
+    "backend.services.catalog_service": [
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "time",
+        "from_module": null,
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "models.database",
+        "from_module": "get_db_manager",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": true
+      },
+      {
+        "module": "core.organization_cache",
+        "from_module": "organization_cache",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": true
+      },
+      {
+        "module": "utils.position_utils",
+        "from_module": "determine_position_level",
+        "alias": null,
+        "line_number": 293,
+        "is_relative": true
+      },
+      {
+        "module": "utils.position_utils",
+        "from_module": "determine_position_category",
+        "alias": null,
+        "line_number": 299,
+        "is_relative": true
+      },
+      {
+        "module": "asyncio",
+        "from_module": null,
+        "alias": null,
+        "line_number": 487,
+        "is_relative": false
+      }
+    ],
+    "backend.services.auth_service": [
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "timedelta",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "jose",
+        "from_module": "jwt",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "jose",
+        "from_module": "JWTError",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "passlib.context",
+        "from_module": "CryptContext",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "models.database",
+        "from_module": "get_db_manager",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "LoginRequest",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "LoginResponse",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "models.schemas",
+        "from_module": "UserInfo",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "core.config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": true
+      },
+      {
+        "module": "utils.interfaces",
+        "from_module": "AuthInterface",
+        "alias": null,
+        "line_number": 21,
+        "is_relative": true
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 22,
+        "is_relative": false
+      },
+      {
+        "module": "asyncio",
+        "from_module": null,
+        "alias": null,
+        "line_number": 423,
+        "is_relative": false
+      }
+    ],
+    "backend.services": [],
+    "backend.core.data_loader": [
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 8,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 9,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 10,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "data_mapper",
+        "from_module": "OrganizationMapper",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "data_mapper",
+        "from_module": "KPIMapper",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "organization_cache",
+        "from_module": "organization_cache",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": true
+      },
+      {
+        "module": "utils.position_utils",
+        "from_module": "determine_position_level",
+        "alias": null,
+        "line_number": 481,
+        "is_relative": true
+      },
+      {
+        "module": "utils.position_utils",
+        "from_module": "determine_position_category",
+        "alias": null,
+        "line_number": 487,
+        "is_relative": true
+      }
+    ],
+    "backend.core.organization_cache": [
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "threading",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "collections",
+        "from_module": "defaultdict",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      }
+    ],
+    "backend.core.config": [
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 8,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 9,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 10,
+        "is_relative": false
+      },
+      {
+        "module": "dotenv",
+        "from_module": "load_dotenv",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "sys",
+        "from_module": null,
+        "alias": null,
+        "line_number": 248,
+        "is_relative": false
+      }
+    ],
+    "backend.core.profile_generator": [
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "data_loader",
+        "from_module": "DataLoader",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": true
+      },
+      {
+        "module": "llm_client",
+        "from_module": "LLMClient",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "prompt_manager",
+        "from_module": "PromptManager",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": true
+      },
+      {
+        "module": "config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 21,
+        "is_relative": true
+      },
+      {
+        "module": "markdown_service",
+        "from_module": "ProfileMarkdownService",
+        "alias": null,
+        "line_number": 22,
+        "is_relative": true
+      },
+      {
+        "module": "storage_service",
+        "from_module": "ProfileStorageService",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": true
+      },
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 478,
+        "is_relative": false
+      },
+      {
+        "module": "asyncio",
+        "from_module": null,
+        "alias": null,
+        "line_number": 479,
+        "is_relative": false
+      }
+    ],
+    "backend.core": [
+      {
+        "module": "data_mapper",
+        "from_module": "OrganizationMapper",
+        "alias": null,
+        "line_number": 5,
+        "is_relative": true
+      },
+      {
+        "module": "data_mapper",
+        "from_module": "KPIMapper",
+        "alias": null,
+        "line_number": 5,
+        "is_relative": true
+      },
+      {
+        "module": "data_loader",
+        "from_module": "DataLoader",
+        "alias": null,
+        "line_number": 6,
+        "is_relative": true
+      },
+      {
+        "module": "llm_client",
+        "from_module": "LLMClient",
+        "alias": null,
+        "line_number": 7,
+        "is_relative": true
+      },
+      {
+        "module": "profile_generator",
+        "from_module": "ProfileGenerator",
+        "alias": null,
+        "line_number": 8,
+        "is_relative": true
+      }
+    ],
+    "backend.core.markdown_service": [
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      }
+    ],
+    "backend.core.prompt_manager": [
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 22,
+        "is_relative": false
+      },
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 24,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 26,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 27,
+        "is_relative": false
+      },
+      {
+        "module": "hashlib",
+        "from_module": null,
+        "alias": null,
+        "line_number": 28,
+        "is_relative": false
+      },
+      {
+        "module": "re",
+        "from_module": null,
+        "alias": null,
+        "line_number": 422,
+        "is_relative": false
+      }
+    ],
+    "backend.core.storage_service": [
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 21,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 22,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Tuple",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 24,
+        "is_relative": false
+      },
+      {
+        "module": "organization_cache",
+        "from_module": "organization_cache",
+        "alias": null,
+        "line_number": 63,
+        "is_relative": true
+      },
+      {
+        "module": "re",
+        "from_module": null,
+        "alias": null,
+        "line_number": 145,
+        "is_relative": false
+      }
+    ],
+    "backend.core.data_mapper": [
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 9,
+        "is_relative": false
+      },
+      {
+        "module": "re",
+        "from_module": null,
+        "alias": null,
+        "line_number": 10,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "organization_cache",
+        "from_module": "organization_cache",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": true
+      }
+    ],
+    "backend.core.llm_client": [
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 11,
+        "is_relative": false
+      },
+      {
+        "module": "time",
+        "from_module": null,
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "langfuse.openai",
+        "from_module": "OpenAI",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "langfuse",
+        "from_module": "Langfuse",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "config",
+        "from_module": "config",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      },
+      {
+        "module": "langfuse.decorators",
+        "from_module": "langfuse_context",
+        "alias": null,
+        "line_number": 340,
+        "is_relative": false
+      },
+      {
+        "module": "langfuse.decorators",
+        "from_module": "langfuse_context",
+        "alias": null,
+        "line_number": 380,
+        "is_relative": false
+      },
+      {
+        "module": "os",
+        "from_module": null,
+        "alias": null,
+        "line_number": 716,
+        "is_relative": false
+      }
+    ],
+    "backend.utils.request_utils": [
+      {
+        "module": "fastapi",
+        "from_module": "Request",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      }
+    ],
+    "backend.utils.interfaces": [
+      {
+        "module": "abc",
+        "from_module": "ABC",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "abc",
+        "from_module": "abstractmethod",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      }
+    ],
+    "backend.utils.exception_handlers": [
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "traceback",
+        "from_module": null,
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "FastAPI",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "Request",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.responses",
+        "from_module": "JSONResponse",
+        "alias": null,
+        "line_number": 21,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.exceptions",
+        "from_module": "RequestValidationError",
+        "alias": null,
+        "line_number": 22,
+        "is_relative": false
+      },
+      {
+        "module": "pydantic",
+        "from_module": "ValidationError",
+        "alias": "PydanticValidationError",
+        "line_number": 23,
+        "is_relative": false
+      },
+      {
+        "module": "exceptions",
+        "from_module": "BaseAppException",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "ValidationError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "AuthenticationError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "AuthorizationError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "NotFoundError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "DatabaseError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "ExternalAPIError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "ConfigurationError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "ProfileGenerationError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      },
+      {
+        "module": "exceptions",
+        "from_module": "RateLimitError",
+        "alias": null,
+        "line_number": 25,
+        "is_relative": true
+      }
+    ],
+    "backend.utils.validators": [
+      {
+        "module": "re",
+        "from_module": null,
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "uuid",
+        "from_module": null,
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "exceptions",
+        "from_module": "ValidationError",
+        "alias": null,
+        "line_number": 21,
+        "is_relative": true
+      }
+    ],
+    "backend.utils": [],
+    "backend.utils.position_utils": [
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 9,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 9,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 10,
+        "is_relative": false
+      }
+    ],
+    "backend.utils.exceptions": [
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 20,
+        "is_relative": false
+      }
+    ],
+    "backend.tools.xlsx_dump": [
+      {
+        "module": "__future__",
+        "from_module": "annotations",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "argparse",
+        "from_module": null,
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "json",
+        "from_module": null,
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "pathlib",
+        "from_module": "Path",
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "List",
+        "alias": null,
+        "line_number": 18,
+        "is_relative": false
+      },
+      {
+        "module": "openpyxl",
+        "from_module": "load_workbook",
+        "alias": null,
+        "line_number": 37,
+        "is_relative": false
+      }
+    ],
+    "backend.api.middleware.auth_middleware": [
+      {
+        "module": "fastapi",
+        "from_module": "Request",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "HTTPException",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi",
+        "from_module": "status",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.responses",
+        "from_module": "JSONResponse",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "starlette.middleware.base",
+        "from_module": "BaseHTTPMiddleware",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "services.auth_service",
+        "from_module": "auth_service",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      }
+    ],
+    "backend.api.middleware.logging_middleware": [
+      {
+        "module": "fastapi",
+        "from_module": "Request",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "fastapi.responses",
+        "from_module": "JSONResponse",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "starlette.middleware.base",
+        "from_module": "BaseHTTPMiddleware",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      },
+      {
+        "module": "datetime",
+        "from_module": "datetime",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": false
+      },
+      {
+        "module": "time",
+        "from_module": null,
+        "alias": null,
+        "line_number": 16,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 17,
+        "is_relative": false
+      },
+      {
+        "module": "services.auth_service",
+        "from_module": "auth_service",
+        "alias": null,
+        "line_number": 19,
+        "is_relative": true
+      }
+    ],
+    "backend.api.middleware": [
+      {
+        "module": "auth_middleware",
+        "from_module": "JWTAuthMiddleware",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": true
+      },
+      {
+        "module": "logging_middleware",
+        "from_module": "RequestLoggingMiddleware",
+        "alias": null,
+        "line_number": 14,
+        "is_relative": true
+      },
+      {
+        "module": "security_middleware",
+        "from_module": "SecurityHeadersMiddleware",
+        "alias": null,
+        "line_number": 15,
+        "is_relative": true
+      }
+    ],
+    "backend.api.middleware.security_middleware": [
+      {
+        "module": "fastapi",
+        "from_module": "Request",
+        "alias": null,
+        "line_number": 12,
+        "is_relative": false
+      },
+      {
+        "module": "starlette.middleware.base",
+        "from_module": "BaseHTTPMiddleware",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "logging",
+        "from_module": null,
+        "alias": null,
+        "line_number": 14,
+        "is_relative": false
+      }
+    ]
+  }
+}
