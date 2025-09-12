@@ -65,6 +65,10 @@ class DataLoader:
 
             # 🎯 ДЕТЕРМИНИРОВАННЫЙ ВЫБОР KPI ФАЙЛА
             kpi_content = self.kpi_mapper.load_kpi_content(department)
+            
+            # 🎯 ИЗВЛЕЧЕНИЕ ДАННЫХ О ЧИСЛЕННОСТИ
+            headcount_info = self.org_mapper.get_headcount_info(department)
+            subordinates_count = self.org_mapper.calculate_subordinates_count(department, position)
 
             # Подготовка всех переменных
             variables = {
@@ -91,9 +95,14 @@ class DataLoader:
                 # ДИНАМИЧЕСКИЙ КОНТЕКСТ (детерминированно найденный)
                 "kpi_data": kpi_content,  # 0-15K токенов
                 "it_systems": self._load_it_systems_cached(),  # ~15K токенов
+                # ДАННЫЕ О ЧИСЛЕННОСТИ И ПОДЧИНЕННЫХ (НОВОЕ!)
+                "headcount_info": headcount_info,  # Полная информация о численности департамента
+                "subordinates_calculation": subordinates_count,  # Расчет подчиненных на основе реальных данных
+                "department_headcount": headcount_info.get("headcount"),  # Прямое значение для удобства
+                "headcount_source": headcount_info.get("headcount_source"),  # Источник данных о численности
                 # МЕТАДАННЫЕ
                 "generation_timestamp": datetime.now().isoformat(),
-                "data_version": "v1.0",
+                "data_version": "v1.1",  # Увеличена версия из-за добавления данных о численности
             }
 
             # Подсчет токенов для мониторинга

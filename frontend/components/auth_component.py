@@ -45,7 +45,6 @@ class AuthComponent:
         self.password_input: Optional[ui.input] = None
         self.remember_checkbox: Optional[ui.checkbox] = None
         self.login_button: Optional[ui.button] = None
-        self.loading_spinner: Optional[ui.spinner] = None
 
         # Состояние
         self.is_loading = False
@@ -100,14 +99,7 @@ class AuthComponent:
                     .classes("w-full")
                 )
 
-            # Индикатор загрузки (скрытый по умолчанию)
-            self.loading_spinner = ui.spinner(size="lg").classes("hidden")
 
-            # Дополнительная информация
-            with ui.row().classes("w-full justify-center mt-6"):
-                ui.label("По умолчанию: admin/admin123 или hr/hr123").classes(
-                    "text-caption text-grey-6 text-center"
-                )
 
     async def _handle_login(self) -> None:
         """
@@ -194,15 +186,11 @@ class AuthComponent:
             # Обработка ошибок API
             handle_api_error(e, "авторизации")
 
-            # Дополнительная обработка для конкретных ошибок
+            # Очищаем пароль при ошибке авторизации
             if e.status_code == 401:
-                # Очищаем поля пароля при неверных учетных данных
-                if self.password_input:
-                    self.password_input.value = ""
-                    # Устанавливаем фокус на поле логина
-                    await asyncio.sleep(0.1)
-                    if self.username_input:
-                        self.username_input.run_method("focus")
+                self.password_input.value = ""
+                await asyncio.sleep(0.1)
+                self.username_input.run_method("focus")
 
         except Exception as e:
             # Неожиданные ошибки
@@ -218,7 +206,7 @@ class AuthComponent:
         Валидация учетных данных перед отправкой.
 
         Проверяет заполненность полей и базовые требования.
-        Возвращает сообщение об ошибке или None если валидация прошла.
+        Возвращает сообщение об ошибке или пустую строку если валидация прошла.
 
         Examples:
           python> error = auth._validate_credentials("", "pass")
@@ -286,117 +274,8 @@ class AuthComponent:
                 self.login_button.props("loading=false disable=false")
                 self.login_button._props["icon"] = "login"
 
-        # Индикатор загрузки
-        if self.loading_spinner:
-            if loading:
-                self.loading_spinner.classes(remove="hidden")
-            else:
-                self.loading_spinner.classes(add="hidden")
-
-    def clear_form(self) -> None:
-        """
-        @doc
-        Очистка формы авторизации.
-
-        Сбрасывает все поля формы к начальному состоянию.
-
-        Examples:
-          python> auth.clear_form()
-          python> # Все поля формы очищены
-        """
-
-        if self.username_input:
-            self.username_input.value = ""
-
-        if self.password_input:
-            self.password_input.value = ""
-
-        if self.remember_checkbox:
-            self.remember_checkbox.value = False
-
-    def focus_username(self) -> None:
-        """
-        @doc
-        Установка фокуса на поле логина.
-
-        Полезно после ошибок авторизации или инициализации формы.
-
-        Examples:
-          python> auth.focus_username()
-          python> # Курсор установлен в поле логина
-        """
-
-        if self.username_input:
-            self.username_input.run_method("focus")
 
 
-# ============================================================================
-# ДОПОЛНИТЕЛЬНЫЕ UI КОМПОНЕНТЫ
-# ============================================================================
 
 
-class AuthCard:
-    """
-    @doc
-    Обертка для формы авторизации в виде карточки Material Design.
 
-    Предоставляет готовый UI контейнер для AuthComponent
-    с логотипом, заголовком и стилизацией.
-
-    Examples:
-      python> card = AuthCard(api_client)
-      python> await card.create()
-    """
-
-    def __init__(self, api_client: APIClient, redirect_to: str = "/"):
-        self.api_client = api_client
-        self.redirect_to = redirect_to
-
-    async def create(self) -> None:
-        """Создание карточки авторизации"""
-
-        with ui.column().classes(
-            "w-full h-screen justify-center items-center bg-grey-1"
-        ):
-            with ui.card().classes("w-96 p-6 elevation-8"):
-                # Заголовок с иконкой
-                with ui.row().classes("w-full justify-center mb-4"):
-                    ui.icon("business", size="48px").classes("text-primary")
-
-                ui.label("A101 HR Profile Generator").classes(
-                    "text-h5 text-center w-full mb-2"
-                )
-                ui.label("Система генерации профилей должностей").classes(
-                    "text-subtitle2 text-center w-full text-grey-6 mb-6"
-                )
-
-                # Форма авторизации
-                auth_component = AuthComponent(self.api_client, self.redirect_to)
-                await auth_component.create()
-
-                # Дополнительная информация
-                with ui.expansion("Помощь", icon="help").classes("w-full mt-6"):
-                    ui.markdown(
-                        """
-          **Учетные записи по умолчанию:**
-          - **Администратор:** admin / admin123
-          - **HR сотрудник:** hr / hr123
-          
-          **Возможности системы:**
-          - Генерация профилей должностей с помощью AI
-          - Каталог организационной структуры  
-          - Экспорт в различных форматах
-          - Мониторинг качества генерации
-          """
-                    ).classes("text-caption")
-
-
-if __name__ == "__main__":
-    # Демонстрация компонента
-    print("✅ AuthComponent создан успешно!")
-    print("📍 Основные возможности:")
-    print("  - Material Design форма авторизации")
-    print("  - Валидация ввода")
-    print("  - Обработка ошибок API")
-    print("  - Индикаторы загрузки")
-    print("  - Интеграция с APIClient")

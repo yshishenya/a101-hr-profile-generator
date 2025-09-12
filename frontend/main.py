@@ -140,7 +140,7 @@ async def login_page(redirect_to: str = "/") -> None:
     # Настройка страницы
     ui.page_title("Авторизация - A101 HR Profile Generator")
 
-    with ui.column().classes("w-full h-screen justify-center items-center bg-grey-1"):
+    with ui.column().classes("w-full h-screen justify-center items-center"):
         with ui.card().classes("w-96 p-6"):
             # Логотип и заголовок
             with ui.row().classes("w-full justify-center mb-4"):

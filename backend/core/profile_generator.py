@@ -157,10 +157,11 @@ class ProfileGenerator:
 
             # 6. Сохранение результата
             if save_result and final_result["success"]:
-                saved_path = self._save_result(
+                saved_path, md_content = self._save_result(
                     final_result, department, position, profile_id
                 )
                 final_result["metadata"]["saved_path"] = str(saved_path)
+                final_result["markdown_content"] = md_content
                 logger.info(f"💾 Result saved to: {saved_path}")
 
             # 7. Трейсинг уже выполнен в LLMClient
@@ -296,7 +297,7 @@ class ProfileGenerator:
 
             # 2. Генерируем MD файл
             logger.info("📝 Auto-generating Markdown profile...")
-            md_content = self.md_generator.generate_from_json(result)
+            md_content = self.md_generator.generate_from_json(result["profile"])
 
             # 3. Сохраняем JSON и MD файлы в одну папку
             json_path, md_path = self.storage_service.save_profile_files(
@@ -311,14 +312,16 @@ class ProfileGenerator:
             logger.info(f"  📄 JSON: {json_path.name}")
             logger.info(f"  📝 MD: {md_path.name}")
 
-            return json_path  # Возвращаем путь к JSON файлу для обратной совместимости
+            # Возвращаем путь к JSON файлу и MD контент для обратной совместимости
+            return json_path, md_content
 
         except Exception as e:
             logger.error(f"❌ Error saving profile to hierarchical structure: {e}")
 
             # Fallback к старой системе в случае ошибки
             logger.warning("⚠️ Falling back to legacy file structure...")
-            return self._save_result_legacy(result, department, position)
+            legacy_path = self._save_result_legacy(result, department, position)
+            return legacy_path, None  # No MD content in legacy mode
 
     def _save_result_legacy(
         self, result: Dict[str, Any], department: str, position: str

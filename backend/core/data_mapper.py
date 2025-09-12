@@ -80,6 +80,111 @@ class OrganizationMapper:
 
         return positions
 
+    def get_department_headcount(self, department_name: str) -> Optional[int]:
+        """
+        Получение численности департамента для расчета количества подчиненных.
+
+        Args:
+            department_name: Название департамента
+
+        Returns:
+            Optional[int]: Численность или None если данных нет
+        """
+        headcount = organization_cache.get_department_headcount(department_name)
+        
+        if headcount is not None:
+            logger.debug(f"Headcount for '{department_name}': {headcount} people")
+        else:
+            logger.debug(f"No headcount data for department: {department_name}")
+
+        return headcount
+
+    def calculate_subordinates_count(self, department_name: str, position_title: str) -> Dict[str, int]:
+        """
+        Рассчитывает количество подчиненных на основе реальных данных о численности.
+        
+        Args:
+            department_name: Название департамента
+            position_title: Название должности
+            
+        Returns:
+            Dict[str, int]: {
+                "departments": количество подчиненных подразделений,
+                "direct_reports": количество прямых подчиненных
+            }
+        """
+        # Определяем уровень руководства по названию должности
+        position_lower = position_title.lower()
+        
+        # Получаем численность департамента
+        dept_headcount = self.get_department_headcount(department_name)
+        
+        if dept_headcount is None:
+            # Если нет данных, используем старую логику по количеству позиций
+            positions = self.get_positions_for_department(department_name)
+            estimated_headcount = len(positions) * 2  # Приблизительная оценка
+            logger.warning(f"No headcount data for '{department_name}', using estimate: {estimated_headcount}")
+        else:
+            estimated_headcount = dept_headcount
+            logger.debug(f"Using real headcount for '{department_name}': {estimated_headcount}")
+
+        # Логика расчета на основе уровня должности
+        if any(keyword in position_lower for keyword in [
+            "генеральный директор", "исполнительный директор", "операционный директор"
+        ]):
+            # Топ-менеджмент: управляет несколькими блоками/департаментами
+            return {"departments": min(estimated_headcount // 50, 8), "direct_reports": min(estimated_headcount // 20, 15)}
+            
+        elif any(keyword in position_lower for keyword in [
+            "директор по", "директор департамента", "коммерческий директор"
+        ]):
+            # Директора блоков/департаментов
+            return {"departments": min(estimated_headcount // 25, 5), "direct_reports": min(estimated_headcount // 10, 12)}
+            
+        elif any(keyword in position_lower for keyword in [
+            "руководитель департамента", "руководитель управления", "начальник отдела"
+        ]):
+            # Средний менеджмент
+            return {"departments": min(estimated_headcount // 15, 3), "direct_reports": min(estimated_headcount // 5, 8)}
+            
+        elif any(keyword in position_lower for keyword in [
+            "руководитель отдела", "руководитель группы", "лид"
+        ]):
+            # Линейный менеджмент
+            return {"departments": 0, "direct_reports": min(estimated_headcount // 3, 6)}
+            
+        else:
+            # Специалисты без подчиненных
+            return {"departments": 0, "direct_reports": 0}
+
+    def get_headcount_info(self, department_name: str) -> Dict[str, any]:
+        """
+        Получение полной информации о численности департамента.
+        
+        Args:
+            department_name: Название департамента
+            
+        Returns:
+            Dict с данными о численности, источнике и метаданных
+        """
+        dept_info = organization_cache.find_department(department_name)
+        
+        if not dept_info:
+            return {
+                "headcount": None,
+                "headcount_source": None,
+                "headcount_department": None,
+                "has_data": False
+            }
+            
+        dept_data = dept_info["node"]
+        return {
+            "headcount": dept_data.get("headcount"),
+            "headcount_source": dept_data.get("headcount_source"),
+            "headcount_department": dept_data.get("headcount_department"),
+            "has_data": dept_data.get("headcount") is not None
+        }
+
     def extract_relevant_structure(
         self, department_name: str, levels_up: int = 1, levels_down: int = 2
     ) -> dict:

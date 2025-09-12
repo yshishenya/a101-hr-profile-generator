@@ -55,44 +55,62 @@ class ProfileMarkdownGenerator:
           python> md = generator.generate_from_json({"position_title": "Аналитик BI"})
         """
         try:
-            profile = profile_data.get("profile", {})
+            # Если передана полная структура с "profile", извлекаем его
+            # Если передан прямой профиль, используем его как есть
+            if "profile" in profile_data:
+                profile = profile_data.get("profile", {})
+            else:
+                profile = profile_data
+            
 
             md_content = []
 
             # Заголовок документа
+            # Generating header...")
             md_content.append(self._generate_header(profile))
 
             # Основная информация
+            # Generating basic_info...")
             md_content.append(self._generate_basic_info(profile))
 
             # Области ответственности
+            # Generating responsibilities...")
             md_content.append(self._generate_responsibilities(profile))
 
             # Профессиональные навыки
+            # Generating skills...")
             md_content.append(self._generate_skills(profile))
 
             # Личностные качества
+            # Generating personal_qualities...")
             md_content.append(self._generate_personal_qualities(profile))
 
             # Корпоративные компетенции
+            # Generating corporate_competencies...")
             md_content.append(self._generate_corporate_competencies(profile))
 
             # Образование и опыт
+            # Generating education...")
             md_content.append(self._generate_education(profile))
 
             # Карьерное развитие (карьерограмма)
+            # Generating career_development...")
             md_content.append(self._generate_career_development(profile))
 
             # Обеспечение рабочего места
+            # Generating workplace_provisioning...")
             md_content.append(self._generate_workplace_provisioning(profile))
 
             # Метрики эффективности
+            # Generating performance_metrics...")
             md_content.append(self._generate_performance_metrics(profile))
 
             # Дополнительная информация
+            # Generating additional_info...")
             md_content.append(self._generate_additional_info(profile))
 
             # Метаданные
+            # Generating metadata...")
             md_content.append(self._generate_metadata(profile_data))
 
             return "\n\n".join(md_content)
@@ -168,8 +186,10 @@ class ProfileMarkdownGenerator:
         for i, area in enumerate(responsibilities, 1):
             # Название области
             if isinstance(area, dict):
-                area_name = area.get("area", area.get("title", f"Область {i}"))
-                if isinstance(area_name, list):
+                area_name = area.get("area")
+                if area_name is None:
+                    area_name = area.get("title", f"Область {i}")
+                elif isinstance(area_name, list):
                     area_name = area_name[0] if area_name else f"Область {i}"
 
                 content.append(f"\n### {i}. {area_name}")
@@ -179,6 +199,11 @@ class ProfileMarkdownGenerator:
                 if tasks:
                     for task in tasks:
                         content.append(f"- {task}")
+            elif isinstance(area, list):
+                # Если area это список, обрабатываем как список строк
+                content.append(f"\n### {i}. Область {i}")
+                for task in area:
+                    content.append(f"- {task}")
             else:
                 content.append(f"\n### {i}. {str(area)}")
 
@@ -204,38 +229,46 @@ class ProfileMarkdownGenerator:
                 specific_skills = skill_category.get(
                     "specific_skills", skill_category.get("skills", [])
                 )
+            elif isinstance(skill_category, list):
+                # Если skill_category это список, обрабатываем как список навыков
+                content.append(f"\n### Навыки")
+                specific_skills = skill_category
+            else:
+                # Если это строка или другой тип
+                content.append(f"\n### {str(skill_category)}")
+                specific_skills = []
 
-                if specific_skills and isinstance(specific_skills[0], dict):
-                    # Детальные навыки с уровнями
-                    content.append("\n| Навык | Уровень | Описание |")
-                    content.append("|-------|---------|----------|")
+            if specific_skills and len(specific_skills) > 0 and isinstance(specific_skills[0], dict):
+                # Детальные навыки с уровнями
+                content.append("\n| Навык | Уровень | Описание |")
+                content.append("|-------|---------|----------|")
 
-                    for skill in specific_skills:
-                        name = skill.get("skill_name", "Неизвестный навык")
-                        level = skill.get(
-                            "proficiency_level", skill.get("target_level", "Не указан")
-                        )
-                        description = skill.get(
-                            "proficiency_description", "Описание отсутствует"
-                        )
+                for skill in specific_skills:
+                    name = skill.get("skill_name", "Неизвестный навык")
+                    level = skill.get(
+                        "proficiency_level", skill.get("target_level", "Не указан")
+                    )
+                    description = skill.get(
+                        "proficiency_description", "Описание отсутствует"
+                    )
 
-                        # Конвертируем числовой уровень в текст
-                        if isinstance(level, int):
-                            level_map = {
-                                1: "Базовый",
-                                2: "Средний",
-                                3: "Продвинутый",
-                                4: "Экспертный",
-                            }
-                            level_text = level_map.get(level, f"Уровень {level}")
-                        else:
-                            level_text = str(level)
+                    # Конвертируем числовой уровень в текст
+                    if isinstance(level, int):
+                        level_map = {
+                            1: "Базовый",
+                            2: "Средний",
+                            3: "Продвинутый",
+                            4: "Экспертный",
+                        }
+                        level_text = level_map.get(level, f"Уровень {level}")
+                    else:
+                        level_text = str(level)
 
-                        content.append(f"| **{name}** | {level_text} | {description} |")
-                else:
-                    # Простой список навыков
-                    for skill in specific_skills:
-                        content.append(f"- {skill}")
+                    content.append(f"| **{name}** | {level_text} | {description} |")
+            else:
+                # Простой список навыков
+                for skill in specific_skills:
+                    content.append(f"- {skill}")
 
         return "\n".join(content)
 
@@ -251,7 +284,13 @@ class ProfileMarkdownGenerator:
         content.append("")
         for i in range(0, len(qualities), 3):
             row_qualities = qualities[i : i + 3]
-            quality_badges = [f"🔹 **{q.capitalize()}**" for q in row_qualities]
+            quality_badges = []
+            for q in row_qualities:
+                if isinstance(q, dict):
+                    quality_name = q.get("quality", q.get("name", "Качество"))
+                    quality_badges.append(f"🔹 **{quality_name.capitalize()}**")
+                else:
+                    quality_badges.append(f"🔹 **{str(q).capitalize()}**")
             content.append(" | ".join(quality_badges))
 
         return "\n".join(content)
@@ -268,7 +307,13 @@ class ProfileMarkdownGenerator:
         content.append("")
         for i in range(0, len(competencies), 2):
             row_competencies = competencies[i : i + 2]
-            competency_badges = [f"🎯 **{comp}**" for comp in row_competencies]
+            competency_badges = []
+            for comp in row_competencies:
+                if isinstance(comp, dict):
+                    comp_name = comp.get("competency", comp.get("name", "Компетенция"))
+                    competency_badges.append(f"🎯 **{comp_name}**")
+                else:
+                    competency_badges.append(f"🎯 **{str(comp)}**")
             content.append(" | ".join(competency_badges))
 
         return "\n".join(content)
@@ -368,16 +413,23 @@ class ProfileMarkdownGenerator:
         if source_positions:
             content.append("\n### 🚪 Входные позиции")
             
-            # Прямые предшественники
-            direct_predecessors = source_positions.get("direct_predecessors", [])
-            if direct_predecessors:
-                content.append("\n**Прямые предшественники:**")
-                for pos in direct_predecessors:
+            # Проверяем, какая структура у source_positions
+            if isinstance(source_positions, list):
+                # Новый формат: простой список позиций
+                content.append("\n**Предшествующие позиции:**")
+                for pos in source_positions:
                     content.append(f"- {pos}")
-            
-            # Смежные входы
-            cross_functional = source_positions.get("cross_functional_entrants", [])
-            if cross_functional:
+            elif isinstance(source_positions, dict):
+                # Старый формат: словарь с детализацией
+                # Прямые предшественники
+                direct_predecessors = source_positions.get("direct_predecessors", [])
+                if direct_predecessors:
+                    content.append("\n**Прямые предшественники:**")
+                    for pos in direct_predecessors:
+                        content.append(f"- {pos}")
+                
+                # Смежные входы
+                cross_functional = source_positions.get("cross_functional_entrants", [])
                 content.append("\n**Смежные переходы:**")
                 for pos in cross_functional:
                     content.append(f"- {pos}")
@@ -841,7 +893,12 @@ class ProfileMarkdownGenerator:
           python> filename = generator.generate_filename(profile_json)
         """
         try:
-            profile = profile_data.get("profile", {})
+            # Если передана полная структура с "profile", извлекаем его
+            # Если передан прямой профиль, используем его как есть  
+            if "profile" in profile_data:
+                profile = profile_data.get("profile", {})
+            else:
+                profile = profile_data
 
             # Извлекаем данные
             position = profile.get("position_title", "Unknown_Position")

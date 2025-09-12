@@ -132,13 +132,16 @@ class OrganizationCacheManager:
 
                     current_path = f"{path}/{name}" if path else name
 
-                    # Path-based индексация (НЕТ ПОТЕРЬ!)
+                    # Path-based индексация (НЕТ ПОТЕРЬ!) с данными о численности
                     self._path_index[current_path] = {
                         "name": name,
                         "path": current_path,
                         "data": data,
                         "level": len(current_path.split("/")) - 1,
                         "positions": data.get("positions", []),
+                        "headcount": data.get("headcount"),
+                        "headcount_source": data.get("headcount_source"),
+                        "headcount_department": data.get("headcount_department")
                     }
 
                     # Отслеживание дубликатов имен для поиска
@@ -195,6 +198,36 @@ class OrganizationCacheManager:
         if dept_info:
             return dept_info["node"].get("positions", [])
         return []
+
+    def get_department_headcount(self, department_name: str) -> Optional[int]:
+        """
+        Получение численности департамента
+
+        Args:
+            department_name: Название департамента
+
+        Returns:
+            Численность или None если данных нет
+        """
+        dept_info = self.find_department(department_name)
+        if dept_info:
+            return dept_info["node"].get("headcount")
+        return None
+
+    def get_unit_headcount(self, unit_path: str) -> Optional[int]:
+        """
+        Получение численности бизнес-единицы по полному пути
+
+        Args:
+            unit_path: Полный путь к бизнес-единице
+
+        Returns:
+            Численность или None если данных нет
+        """
+        unit_data = self._path_index.get(unit_path)
+        if unit_data:
+            return unit_data.get("headcount")
+        return None
 
     def get_all_departments(self) -> List[str]:
         """Получение списка всех департаментов"""
@@ -362,13 +395,14 @@ class OrganizationCacheManager:
         - Путь для API запросов
         - Количество позиций
         - Уровень в иерархии
+        - Данные о численности штата
 
         Returns:
             List[Dict[str, Any]]: Список элементов для dropdown поиска
 
         Examples:
             python> items = cache.get_searchable_items()
-            python> # [{'display_name': 'ДИТ (Блок ОД)', 'path': 'Блок ОД/ДИТ', ...}, ...]
+            python> # [{'display_name': 'ДИТ (Блок ОД) [45 чел.]', 'path': 'Блок ОД/ДИТ', ...}, ...]
         """
         searchable_items = []
 
@@ -377,8 +411,9 @@ class OrganizationCacheManager:
             name = unit_data["name"]
             positions_count = len(unit_data["positions"])
             level = unit_data["level"]
+            headcount = unit_data.get("headcount")
 
-            # Создаем отображаемое имя с контекстом
+            # Создаем отображаемое имя с контекстом и численностью
             if level == 0:  # Блок
                 display_name = name
             elif level == 1:  # Департамент
@@ -388,6 +423,10 @@ class OrganizationCacheManager:
                 context = " → ".join(path_parts[-2:]) if len(path_parts) > 1 else name
                 display_name = context
 
+            # Добавляем информацию о численности если есть
+            if headcount is not None:
+                display_name += f" [{headcount} чел.]"
+
             searchable_items.append(
                 {
                     "display_name": display_name,
@@ -396,9 +435,10 @@ class OrganizationCacheManager:
                     "positions_count": positions_count,
                     "level": level,
                     "hierarchy": " → ".join(path_parts),
-                    "positions": unit_data[
-                        "positions"
-                    ],  # Включаем позиции для frontend
+                    "positions": unit_data["positions"],  # Включаем позиции для frontend
+                    "headcount": headcount,  # НОВОЕ ПОЛЕ
+                    "headcount_source": unit_data.get("headcount_source"),  # НОВОЕ ПОЛЕ
+                    "headcount_department": unit_data.get("headcount_department")  # НОВОЕ ПОЛЕ
                 }
             )
 

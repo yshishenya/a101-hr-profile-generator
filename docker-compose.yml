@@ -16,10 +16,10 @@ services:
     volumes:
       # Монтируем код для разработки с hot-reload
       - ./backend:/app/backend
-      - ./data:/app/data
       - ./templates:/app/templates
       - ./docs:/app/docs
-      # Персистентные данные
+      # Персистентные данные с доступом с хоста (bind mounts)
+      - ./data:/app/data
       - ./generated_profiles:/app/generated_profiles
       - ./logs:/app/logs
     restart: unless-stopped
@@ -59,9 +59,9 @@ services:
     volumes:
       # Development mode - mount source code for hot reload
       - ./frontend:/app/frontend
-      # Static files and logs
+      # Static files and logs с доступом с хоста
       - ./logs:/app/logs
-      - frontend_static:/app/frontend/static
+      - ./frontend_static:/app/frontend/static
     depends_on:
       app:
         condition: service_healthy
@@ -80,7 +80,7 @@ networks:
     driver: bridge
 
 volumes:
-  a101hr_data:
-    driver: local
+  # Оставляем только volume для frontend static, остальное через bind mounts
   frontend_static:
     driver: local
+    name: a101hr_frontend_static

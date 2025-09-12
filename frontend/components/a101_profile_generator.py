@@ -912,6 +912,15 @@ class A101ProfileGenerator:
                                         position.get("category", "Не указана"),
                                     )
                                 )
+                                
+                            # Отображение численности если есть данные
+                            if position.get("headcount") is not None:
+                                with ui.row().classes("items-center gap-1"):
+                                    ui.icon("group", size="1rem")
+                                    ui.label(f"{position['headcount']} чел.")
+                                    # Показать источник данных в tooltip
+                                    if position.get("headcount_source"):
+                                        ui.tooltip(f"Источник: {position['headcount_source']}")
 
                     # Стрелка выбора
                     ui.icon("arrow_forward", size="1.5rem").classes("text-gray-400")
