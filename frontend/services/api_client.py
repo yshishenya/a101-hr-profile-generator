@@ -12,9 +12,9 @@ Examples:
 """
 
 import asyncio
+import json
 import logging
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import httpx
@@ -23,25 +23,6 @@ from nicegui import ui
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class LoginCredentials:
-    """Учетные данные для входа"""
-
-    username: str
-    password: str
-    remember_me: bool = False
-
-
-@dataclass
-class UserInfo:
-    """Информация о пользователе"""
-
-    id: int
-    username: str
-    full_name: str
-    is_active: bool
-    created_at: datetime
-    last_login: Optional[datetime] = None
 
 
 class APIError(Exception):
@@ -593,36 +574,6 @@ class APIClient:
     # CATALOG API (планируется)
     # ============================================================================
 
-    async def get_departments(self) -> Dict[str, Any]:
-        """Получение списка департаментов (будет реализовано)"""
-        return await self._make_request("GET", "/api/catalog/departments")
-
-    async def get_positions(self, department: str) -> Dict[str, Any]:
-        """Получение должностей в департаменте (будет реализовано)"""
-        return await self._make_request("GET", f"/api/catalog/positions/{department}")
-
-    # ============================================================================
-    # PROFILES API (планируется)
-    # ============================================================================
-
-    async def generate_profile(
-        self, department: str, position: str, employee_name: str = None
-    ) -> Dict[str, Any]:
-        """Генерация профиля должности (будет реализовано)"""
-        data = {"department": department, "position": position}
-        if employee_name:
-            data["employee_name"] = employee_name
-
-        return await self._make_request("POST", "/api/generation/generate", data=data)
-
-    async def get_profiles(self, limit: int = 20, page: int = 1) -> Dict[str, Any]:
-        """Получение списка профилей (будет реализовано)"""
-        params = {"limit": limit, "page": page}
-        return await self._make_request("GET", "/api/profiles/", params=params)
-
-    async def get_profile(self, profile_id: str) -> Dict[str, Any]:
-        """Получение конкретного профиля (будет реализовано)"""
-        return await self._make_request("GET", f"/api/profiles/{profile_id}")
 
     # ============================================================================
     # UTILITY METHODS
@@ -659,13 +610,13 @@ class APIClient:
         """
         return await self._make_request("GET", "/api/catalog/stats")
 
-    async def get_departments_list(self, force_refresh: bool = False) -> Dict[str, Any]:
+    async def get_departments(self, force_refresh: bool = False) -> Dict[str, Any]:
         """
         @doc
         Получение списка департаментов для navigation.
 
         Examples:
-          python> deps = await client.get_departments_list()
+          python> deps = await client.get_departments()
           python> print(f"Found {len(deps['data']['departments'])} departments")
         """
         params = {"force_refresh": force_refresh} if force_refresh else None
@@ -673,7 +624,7 @@ class APIClient:
             "GET", "/api/catalog/departments", params=params
         )
 
-    async def get_positions_for_department(
+    async def get_positions(
         self, department: str, force_refresh: bool = False
     ) -> Dict[str, Any]:
         """
@@ -681,7 +632,7 @@ class APIClient:
         Получение должностей для конкретного департамента.
 
         Examples:
-          python> positions = await client.get_positions_for_department("IT Department")
+          python> positions = await client.get_positions("IT Department")
           python> print(f"Found {len(positions['data']['positions'])} positions")
         """
         params = {"force_refresh": force_refresh} if force_refresh else None
