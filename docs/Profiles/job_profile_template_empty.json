@@ -2,13 +2,13 @@
   "position_title": "",
   "department_broad": "",
   "department_specific": "",
-  "category": "",
+  "position_category": "",
   "direct_manager": "",
   "subordinates": {
     "departments": 0,
     "people": ""
   },
-  "primary_activity": "",
+  "primary_activity_type": "",
   "responsibility_areas": [
     {
       "title": "",
@@ -24,27 +24,47 @@
   ],
   "corporate_competencies": [],
   "personal_qualities": [],
-  "education": {
+  "experience_and_education": {
     "previous_position_experience": "",
     "total_experience": "",
     "education_level": "",
     "specialties": "",
     "additional_education": null
   },
-  "career_path": {
-    "donor_positions": [],
-    "target_positions": []
+  "careerogram": {
+    "career_pathways": [
+      {
+        "pathway_type": "",
+        "entry_positions": [],
+        "advancement_positions": []
+      }
+    ]
   },
-  "technical_requirements": {
-    "software": [],
-    "equipment": []
+  "workplace_provisioning": {
+    "software_hardware": {
+      "software_systems": [],
+      "hardware_equipment": []
+    },
+    "access_permissions": []
   },
-  "additional_info": {
-    "promotion_conditions": "",
-    "promotion_decision": ""
+  "performance_metrics": {
+    "evaluation_methodology": "",
+    "success_indicators": [],
+    "development_plans": []
+  },
+  "additional_information": {
+    "working_conditions": {
+      "work_schedule": "",
+      "remote_work_options": "",
+      "business_travel": ""
+    },
+    "risk_factors": [],
+    "special_requirements": []
   },
   "metadata": {
     "prepared_by": "",
-    "creation_date": ""
+    "creation_date": "",
+    "version": "",
+    "profile_author": ""
   }
 }

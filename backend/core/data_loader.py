@@ -29,6 +29,7 @@ class DataLoader:
         # Инициализация маппинговых компонентов
         self.org_mapper = OrganizationMapper("data/structure.json")
         self.kpi_mapper = KPIMapper("data/KPI")
+        self.catalog_service = None  # Lazy initialization
 
         # Кеш для статических данных
         self._cache = {}
@@ -75,6 +76,14 @@ class DataLoader:
                     org_structure, ensure_ascii=False, indent=2
                 ),  # ~5K токенов
                 "department_path": department_path,
+                # ПОЛНАЯ ОРГАНИЗАЦИОННАЯ СТРУКТУРА с выделением цели
+                "OrgStructure": json.dumps(
+                    self._get_catalog_service().get_organization_structure_with_target(
+                        f"{department}/{position}"
+                    ),
+                    ensure_ascii=False,
+                    indent=2,
+                ),  # ~229K символов - полная структура с выделением
                 # ПОЗИЦИОННЫЕ ДАННЫЕ
                 "position": position,
                 "department": department,
@@ -119,6 +128,13 @@ class DataLoader:
                 )
 
         return self._cache[cache_key]
+    
+    def _get_catalog_service(self):
+        """Lazy initialization of CatalogService to avoid circular imports"""
+        if self.catalog_service is None:
+            from ..services.catalog_service import CatalogService
+            self.catalog_service = CatalogService()
+        return self.catalog_service
 
     def _load_org_structure_for_department(self, department: str) -> dict:
         """Загрузка организационной структуры для департамента из централизованного кеша"""

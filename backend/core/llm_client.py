@@ -11,7 +11,7 @@ LLM клиент для интеграции с Gemini 2.5 Flash через Lang
 import json
 import time
 import logging
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 from datetime import datetime
 from langfuse.openai import OpenAI
 from langfuse import Langfuse
@@ -454,16 +454,25 @@ class LLMClient:
             "completeness_score": 0.0,
         }
 
-        # Проверяем обязательные поля (синхронизировано со схемой JSON)
+        # Проверяем обязательные поля (синхронизировано с новой схемой JSON)
         required_fields = [
             "position_title",
             "department_broad",
             "department_specific",
-            "category",
-            "primary_activity",
+            "position_category",  # Переименовано с "category"
+            "direct_manager",  # Новое поле
+            "subordinates",  # Новое поле
+            "primary_activity_type",  # Переименовано с "primary_activity"
             "responsibility_areas",
             "professional_skills",
+            "corporate_competencies",  # Новое поле
             "personal_qualities",
+            "experience_and_education",  # Новое поле
+            "careerogram",  # Новое поле
+            "workplace_provisioning",  # Новое поле
+            "performance_metrics",  # Новое поле
+            "additional_information",  # Новое поле
+            "metadata",  # Новое поле
         ]
 
         missing_fields = []
@@ -471,11 +480,26 @@ class LLMClient:
         total_fields = len(required_fields)
         filled_fields = 0
 
+        # Валидация с поддержкой fallback для старых полей
         for field in required_fields:
-            if field not in profile:
+            # Поддержка fallback для переименованных полей
+            fallback_map = {
+                "position_category": "category",
+                "primary_activity_type": "primary_activity",
+                "experience_and_education": "education",
+                "careerogram": "career_path",
+                "workplace_provisioning": "technical_requirements",
+            }
+
+            field_value = profile.get(field)
+            # Если поле не найдено, проверяем fallback
+            if field_value is None and field in fallback_map:
+                field_value = profile.get(fallback_map[field])
+
+            if field_value is None:
                 missing_fields.append(field)
-            elif not profile[field] or (
-                isinstance(profile[field], (list, dict)) and len(profile[field]) == 0
+            elif not field_value or (
+                isinstance(field_value, (list, dict)) and len(field_value) == 0
             ):
                 empty_fields.append(field)
             else:
@@ -495,7 +519,14 @@ class LLMClient:
         # Подсчитываем полноту профиля
         validation_result["completeness_score"] = filled_fields / total_fields
 
-        # Проверяем специфичные поля
+        # Дополнительные проверки структуры для новых полей
+        self._validate_responsibility_areas(profile, validation_result)
+        self._validate_professional_skills(profile, validation_result)
+        self._validate_subordinates(profile, validation_result)
+        self._validate_careerogram(profile, validation_result)
+        self._validate_performance_metrics(profile, validation_result)
+
+        # Проверяем специфичные поля (legacy)
         if "basic_info" in profile and isinstance(profile["basic_info"], dict):
             basic_info = profile["basic_info"]
             if not basic_info.get("position_title"):
@@ -508,6 +539,152 @@ class LLMClient:
         )
 
         return validation_result
+
+    def _validate_responsibility_areas(
+        self, profile: Dict[str, Any], validation_result: Dict[str, Any]
+    ):
+        """Валидация структуры областей ответственности"""
+        if "responsibility_areas" in profile:
+            areas = profile["responsibility_areas"]
+            if isinstance(areas, list):
+                for i, area in enumerate(areas):
+                    if not isinstance(area, dict):
+                        validation_result["warnings"].append(
+                            f"Область ответственности {i+1} должна быть объектом"
+                        )
+                    else:
+                        # Поддержка как старого формата (title), так и нового (area)
+                        if "area" not in area and "title" not in area:
+                            validation_result["warnings"].append(
+                                f"Область ответственности {i+1} должна содержать 'area' или 'title'"
+                            )
+                        if "tasks" not in area:
+                            validation_result["warnings"].append(
+                                f"Область ответственности {i+1} должна содержать 'tasks'"
+                            )
+
+    def _validate_professional_skills(
+        self, profile: Dict[str, Any], validation_result: Dict[str, Any]
+    ):
+        """Валидация структуры профессиональных навыков"""
+        if "professional_skills" in profile:
+            skills = profile["professional_skills"]
+            if isinstance(skills, list):
+                for i, skill_category in enumerate(skills):
+                    if not isinstance(skill_category, dict):
+                        validation_result["warnings"].append(
+                            f"Категория навыков {i+1} должна быть объектом"
+                        )
+                    else:
+                        # Проверка наличия skill_category или category (fallback)
+                        if (
+                            "skill_category" not in skill_category
+                            and "category" not in skill_category
+                        ):
+                            validation_result["warnings"].append(
+                                f"Категория навыков {i+1} должна содержать 'skill_category'"
+                            )
+
+                        # Проверка specific_skills или skills (fallback)
+                        skills_field = skill_category.get(
+                            "specific_skills", skill_category.get("skills")
+                        )
+                        if not skills_field:
+                            validation_result["warnings"].append(
+                                f"Категория навыков {i+1} должна содержать 'specific_skills'"
+                            )
+                        elif isinstance(skills_field, list) and len(skills_field) > 0:
+                            # Проверяем структуру первого навыка для определения формата
+                            first_skill = skills_field[0]
+                            if isinstance(first_skill, dict):
+                                # Новый формат с детальными навыками
+                                for j, skill in enumerate(skills_field):
+                                    required_skill_fields = [
+                                        "skill_name",
+                                        "proficiency_level",
+                                        "proficiency_description",
+                                    ]
+                                    for field in required_skill_fields:
+                                        if field not in skill:
+                                            validation_result["warnings"].append(
+                                                f"Навык {j+1} в категории {i+1} должен содержать '{field}'"
+                                            )
+
+    def _validate_subordinates(
+        self, profile: Dict[str, Any], validation_result: Dict[str, Any]
+    ):
+        """Валидация структуры подчиненных"""
+        if "subordinates" in profile:
+            subordinates = profile["subordinates"]
+            if isinstance(subordinates, dict):
+                if "departments" not in subordinates:
+                    validation_result["warnings"].append(
+                        "Поле 'subordinates' должно содержать 'departments'"
+                    )
+                # Поддержка как direct_reports, так и people (fallback)
+                if (
+                    "direct_reports" not in subordinates
+                    and "people" not in subordinates
+                ):
+                    validation_result["warnings"].append(
+                        "Поле 'subordinates' должно содержать 'direct_reports'"
+                    )
+
+    def _validate_careerogram(
+        self, profile: Dict[str, Any], validation_result: Dict[str, Any]
+    ):
+        """Валидация структуры карьерограммы"""
+        # Поддержка и новой (careerogram) и старой (career_path) структуры
+        careerogram = profile.get("careerogram") or profile.get("career_path")
+        if careerogram and isinstance(careerogram, dict):
+            # Проверка новой структуры career_pathways
+            if "career_pathways" in careerogram:
+                career_pathways = careerogram["career_pathways"]
+                if isinstance(career_pathways, list):
+                    for i, pathway in enumerate(career_pathways):
+                        if not isinstance(pathway, dict):
+                            validation_result["warnings"].append(
+                                f"Карьерный путь {i+1} должен быть объектом"
+                            )
+                        else:
+                            required_pathway_fields = [
+                                "pathway_type",
+                                "entry_positions",
+                                "advancement_positions",
+                            ]
+                            for field in required_pathway_fields:
+                                if field not in pathway:
+                                    validation_result["warnings"].append(
+                                        f"Карьерный путь {i+1} должен содержать '{field}'"
+                                    )
+            else:
+                # Для старой структуры проверяем legacy поля
+                legacy_fields = ["donor_positions", "target_positions"]
+                missing_legacy = [
+                    field for field in legacy_fields if field not in careerogram
+                ]
+                if missing_legacy:
+                    validation_result["warnings"].append(
+                        f"Карьерограмма должна содержать {missing_legacy}"
+                    )
+
+    def _validate_performance_metrics(
+        self, profile: Dict[str, Any], validation_result: Dict[str, Any]
+    ):
+        """Валидация структуры метрик эффективности"""
+        if "performance_metrics" in profile:
+            metrics = profile["performance_metrics"]
+            if isinstance(metrics, dict):
+                required_fields = [
+                    "quantitative_kpis",
+                    "qualitative_indicators",
+                    "evaluation_frequency",
+                ]
+                for field in required_fields:
+                    if field not in metrics:
+                        validation_result["warnings"].append(
+                            f"performance_metrics должен содержать '{field}'"
+                        )
 
     def test_connection(self) -> Dict[str, Any]:
         """Тестирование подключения через Langfuse к OpenRouter API"""

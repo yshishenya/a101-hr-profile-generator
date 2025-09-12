@@ -11,10 +11,9 @@ Examples:
   python> generator.save_md_file("profile.md", md_content)
 """
 
-import json
 import os
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -75,14 +74,17 @@ class ProfileMarkdownGenerator:
             # Личностные качества
             md_content.append(self._generate_personal_qualities(profile))
 
+            # Корпоративные компетенции
+            md_content.append(self._generate_corporate_competencies(profile))
+
             # Образование и опыт
             md_content.append(self._generate_education(profile))
 
-            # Карьерное развитие
+            # Карьерное развитие (карьерограмма)
             md_content.append(self._generate_career_development(profile))
 
-            # Технические требования
-            md_content.append(self._generate_technical_requirements(profile))
+            # Обеспечение рабочего места
+            md_content.append(self._generate_workplace_provisioning(profile))
 
             # Метрики эффективности
             md_content.append(self._generate_performance_metrics(profile))
@@ -108,7 +110,7 @@ class ProfileMarkdownGenerator:
         if department:
             header += f"**Подразделение:** {department}\n\n"
 
-        header += f"---\n*Профиль должности создан системой A101 HR Profile Generator*"
+        header += "---\n*Профиль должности создан системой A101 HR Profile Generator*"
         return header
 
     def _generate_basic_info(self, profile: Dict[str, Any]) -> str:
@@ -254,11 +256,31 @@ class ProfileMarkdownGenerator:
 
         return "\n".join(content)
 
+    def _generate_corporate_competencies(self, profile: Dict[str, Any]) -> str:
+        """Генерирует корпоративные компетенции"""
+        content = ["## 🏢 Корпоративные компетенции"]
+
+        competencies = profile.get("corporate_competencies", [])
+        if not competencies:
+            return "\n".join(content + ["\n*Корпоративные компетенции не определены*"])
+
+        # Группируем компетенции по 2 в строку для лучшего отображения
+        content.append("")
+        for i in range(0, len(competencies), 2):
+            row_competencies = competencies[i : i + 2]
+            competency_badges = [f"🎯 **{comp}**" for comp in row_competencies]
+            content.append(" | ".join(competency_badges))
+
+        return "\n".join(content)
+
     def _generate_education(self, profile: Dict[str, Any]) -> str:
         """Генерирует требования к образованию"""
         content = ["## 🎓 Образование и опыт работы"]
 
-        education = profile.get("education_requirements", profile.get("education", {}))
+        education = profile.get(
+            "experience_and_education",
+            profile.get("education_requirements", profile.get("education", {})),
+        )
         if not education:
             return "\n".join(content + ["\n*Требования к образованию не определены*"])
 
@@ -268,7 +290,27 @@ class ProfileMarkdownGenerator:
         if "education_level" in education:
             edu_info.append(("Уровень образования", education["education_level"]))
 
-        # Специальности
+        # Область обучения (новое поле)
+        field_of_study = education.get("field_of_study")
+        if field_of_study:
+            edu_info.append(("Область обучения", field_of_study))
+
+        # Опыт работы (новые поля в новой схеме)
+        total_work_experience = education.get(
+            "total_work_experience", education.get("total_experience")
+        )
+        if total_work_experience:
+            edu_info.append(("Общий опыт работы", total_work_experience))
+
+        previous_position_experience = education.get("previous_position_experience")
+        if previous_position_experience:
+            edu_info.append(("Опыт на аналогичной позиции", previous_position_experience))
+
+        # Релевантный опыт (старое поле)
+        if "relevant_experience" in education:
+            edu_info.append(("Релевантный опыт", education["relevant_experience"]))
+
+        # Специальности (старое поле для совместимости)
         specializations = education.get(
             "preferred_specializations", education.get("specialties")
         )
@@ -279,14 +321,7 @@ class ProfileMarkdownGenerator:
                 spec_text = str(specializations)
             edu_info.append(("Предпочтительные специальности", spec_text))
 
-        # Опыт работы
-        if "total_experience" in education:
-            edu_info.append(("Общий опыт работы", education["total_experience"]))
-
-        if "relevant_experience" in education:
-            edu_info.append(("Релевантный опыт", education["relevant_experience"]))
-
-        # Дополнительные сертификаты
+        # Дополнительные сертификаты и образование
         certs = education.get(
             "additional_certifications", education.get("additional_education")
         )
@@ -308,71 +343,299 @@ class ProfileMarkdownGenerator:
         return "\n".join(content)
 
     def _generate_career_development(self, profile: Dict[str, Any]) -> str:
-        """Генерирует карьерное развитие"""
-        content = ["## 📈 Карьерное развитие"]
+        """Генерирует карьерограмму (карьерное развитие)"""
+        content = ["## 📈 Карьерограмма"]
 
-        career = profile.get("career_development", profile.get("career_path", {}))
-        if not career:
+        # Поддерживаем новую структуру careerogram и старую
+        # career_development/career_path
+        careerogram = profile.get("careerogram", {})
+        career_legacy = profile.get(
+            "career_development", profile.get("career_path", {})
+        )
+
+        # Объединяем данные
+        career_data = {**career_legacy, **careerogram}
+
+        if not career_data:
             return "\n".join(
                 content + ["\n*Информация о карьерном развитии не определена*"]
             )
 
-        # Входные позиции
-        entry_positions = career.get(
-            "career_entry_positions", career.get("donor_positions", [])
-        )
-        if entry_positions:
+        # Новая структура careerogram: source_positions и target_pathways
+        source_positions = career_data.get("source_positions", {})
+        target_pathways = career_data.get("target_pathways", {})
+        
+        if source_positions:
             content.append("\n### 🚪 Входные позиции")
-            for pos in entry_positions:
-                content.append(f"- {pos}")
+            
+            # Прямые предшественники
+            direct_predecessors = source_positions.get("direct_predecessors", [])
+            if direct_predecessors:
+                content.append("\n**Прямые предшественники:**")
+                for pos in direct_predecessors:
+                    content.append(f"- {pos}")
+            
+            # Смежные входы
+            cross_functional = source_positions.get("cross_functional_entrants", [])
+            if cross_functional:
+                content.append("\n**Смежные переходы:**")
+                for pos in cross_functional:
+                    content.append(f"- {pos}")
 
-        # Позиции роста
-        growth_positions = career.get(
-            "career_growth_positions", career.get("target_positions", [])
-        )
-        if growth_positions:
-            content.append("\n### 🚀 Карьерный рост")
-            for pos in growth_positions:
-                content.append(f"- {pos}")
+        if target_pathways:
+            content.append("\n### 🚀 Карьерные пути")
+            
+            # Вертикальный рост
+            vertical_growth = target_pathways.get("vertical_growth", [])
+            if vertical_growth:
+                content.append("\n#### ⬆️ Вертикальный рост")
+                for position in vertical_growth:
+                    if isinstance(position, dict):
+                        target = position.get("target_position", "Не указано")
+                        department = position.get("target_department", "")
+                        rationale = position.get("rationale", "")
+                        
+                        content.append(f"\n**{target}**")
+                        if department:
+                            content.append(f"*Департамент:* {department}")
+                        if rationale:
+                            content.append(f"*Обоснование:* {rationale}")
+                        
+                        # Развитие компетенций
+                        competency_bridge = position.get("competency_bridge", {})
+                        if competency_bridge:
+                            strengthen = competency_bridge.get("strengthen_skills", [])
+                            if strengthen:
+                                content.append("*Навыки для развития:*")
+                                for skill in strengthen:
+                                    content.append(f"- {skill}")
+                            
+                            acquire = competency_bridge.get("acquire_skills", [])
+                            if acquire:
+                                content.append("*Новые навыки:*")
+                                for skill in acquire:
+                                    content.append(f"- {skill}")
+                    else:
+                        content.append(f"- {position}")
 
-        # Приоритеты развития
-        dev_priorities = career.get("development_priorities", [])
+            # Горизонтальный рост
+            horizontal_growth = target_pathways.get("horizontal_growth", [])
+            if horizontal_growth:
+                content.append("\n#### ↔️ Горизонтальный рост")
+                for position in horizontal_growth:
+                    if isinstance(position, dict):
+                        target = position.get("target_position", "Не указано")
+                        department = position.get("target_department", "")
+                        rationale = position.get("rationale", "")
+                        
+                        content.append(f"\n**{target}**")
+                        if department:
+                            content.append(f"*Департамент:* {department}")
+                        if rationale:
+                            content.append(f"*Обоснование:* {rationale}")
+                        
+                        # Развитие компетенций
+                        competency_bridge = position.get("competency_bridge", {})
+                        if competency_bridge:
+                            strengthen = competency_bridge.get("strengthen_skills", [])
+                            if strengthen:
+                                content.append("*Навыки для развития:*")
+                                for skill in strengthen:
+                                    content.append(f"- {skill}")
+                            
+                            acquire = competency_bridge.get("acquire_skills", [])
+                            if acquire:
+                                content.append("*Новые навыки:*")
+                                for skill in acquire:
+                                    content.append(f"- {skill}")
+                    else:
+                        content.append(f"- {position}")
+
+            # Экспертный рост
+            expert_growth = target_pathways.get("expert_growth", [])
+            if expert_growth:
+                content.append("\n#### 🎯 Экспертный рост")
+                for position in expert_growth:
+                    if isinstance(position, dict):
+                        target = position.get("target_position", "Не указано")
+                        department = position.get("target_department", "")
+                        rationale = position.get("rationale", "")
+                        
+                        content.append(f"\n**{target}**")
+                        if department:
+                            content.append(f"*Департамент:* {department}")
+                        if rationale:
+                            content.append(f"*Обоснование:* {rationale}")
+                        
+                        # Развитие компетенций
+                        competency_bridge = position.get("competency_bridge", {})
+                        if competency_bridge:
+                            strengthen = competency_bridge.get("strengthen_skills", [])
+                            if strengthen:
+                                content.append("*Навыки для развития:*")
+                                for skill in strengthen:
+                                    content.append(f"- {skill}")
+                            
+                            acquire = competency_bridge.get("acquire_skills", [])
+                            if acquire:
+                                content.append("*Новые навыки:*")
+                                for skill in acquire:
+                                    content.append(f"- {skill}")
+                    else:
+                        content.append(f"- {position}")
+
+        # Если новая структура отсутствует, используем старую (обратная совместимость)
+        if not source_positions and not target_pathways:
+            # Старая структура: career_pathways
+            career_pathways = career_data.get("career_pathways", [])
+            if career_pathways:
+                for pathway in career_pathways:
+                    pathway_type = pathway.get("pathway_type", "Карьерный путь")
+                    content.append(f"\n### 🛤️ {pathway_type}")
+
+                    # Входные позиции для этого пути
+                    entry_positions = pathway.get("entry_positions", [])
+                    if entry_positions:
+                        content.append("\n**Входные позиции:**")
+                        for pos in entry_positions:
+                            content.append(f"- {pos}")
+
+                    # Позиции продвижения для этого пути
+                    advancement_positions = pathway.get("advancement_positions", [])
+                    if advancement_positions:
+                        content.append("\n**Позиции продвижения:**")
+                        for pos in advancement_positions:
+                            content.append(f"- {pos}")
+            else:
+                # Старая структура (для обратной совместимости)
+                entry_positions = career_data.get(
+                    "career_entry_positions", career_data.get("donor_positions", [])
+                )
+                if entry_positions:
+                    content.append("\n### 🚪 Входные позиции")
+                    for pos in entry_positions:
+                        content.append(f"- {pos}")
+
+                # Позиции роста
+                growth_positions = career_data.get(
+                    "career_growth_positions", career_data.get("target_positions", [])
+                )
+                if growth_positions:
+                    content.append("\n### 🚀 Карьерный рост")
+                    for pos in growth_positions:
+                        content.append(f"- {pos}")
+
+        # Приоритеты развития (может быть в любой структуре)
+        dev_priorities = career_data.get("development_priorities", [])
         if dev_priorities:
             content.append("\n### 🎯 Приоритеты развития")
             for priority in dev_priorities:
                 content.append(f"- {priority}")
 
         # Менторство
-        mentoring = career.get("mentoring_opportunities")
+        mentoring = career_data.get("mentoring_opportunities")
         if mentoring:
             content.append(f"\n### 👥 Возможности менторства\n{mentoring}")
 
         return "\n".join(content)
 
-    def _generate_technical_requirements(self, profile: Dict[str, Any]) -> str:
-        """Генерирует технические требования"""
-        content = ["## 💻 Техническое обеспечение"]
+    def _generate_workplace_provisioning(self, profile: Dict[str, Any]) -> str:
+        """Генерирует обеспечение рабочего места"""
+        content = ["## 💻 Обеспечение рабочего места"]
 
-        tech_req = profile.get("technical_requirements", {})
-        if not tech_req:
-            return "\n".join(content + ["\n*Технические требования не определены*"])
+        # Новая структура workplace_provisioning и старая
+        # technical_requirements для обратной совместимости
+        workplace = profile.get("workplace_provisioning", {})
+        tech_req_legacy = profile.get("technical_requirements", {})
 
-        # Программное обеспечение
-        software = tech_req.get("software_systems", tech_req.get("software", []))
-        if software:
+        # Объединяем данные
+        provisioning_data = {**tech_req_legacy, **workplace}
+
+        if not provisioning_data:
+            return "\n".join(
+                content + ["\n*Требования к обеспечению рабочего места не определены*"]
+            )
+
+        # Новая структура: прямые software и hardware секции
+        software_info = provisioning_data.get("software", {})
+        hardware_info = provisioning_data.get("hardware", {})
+        
+        if software_info:
             content.append("\n### 📱 Программное обеспечение")
-            for sw in software:
-                content.append(f"- {sw}")
+            
+            # Стандартный пакет
+            standard_package = software_info.get("standard_package", [])
+            if standard_package:
+                content.append("\n**Стандартный пакет:**")
+                for sw in standard_package:
+                    content.append(f"- {sw}")
+            
+            # Специализированные инструменты
+            specialized_tools = software_info.get("specialized_tools", [])
+            if specialized_tools:
+                content.append("\n**Специализированные инструменты:**")
+                for tool in specialized_tools:
+                    content.append(f"- {tool}")
 
-        # Оборудование
-        equipment = tech_req.get("equipment_tools", tech_req.get("equipment", []))
-        if equipment:
-            content.append("\n### 🖥️ Оборудование")
-            for eq in equipment:
-                content.append(f"- {eq}")
+        if hardware_info:
+            content.append("\n### 🖥️ Аппаратное обеспечение")
+            
+            # Стандартное рабочее место
+            standard_workstation = hardware_info.get("standard_workstation", "")
+            if standard_workstation:
+                content.append(f"\n**Стандартное рабочее место:** {standard_workstation}")
+            
+            # Специализированное оборудование
+            specialized_equipment = hardware_info.get("specialized_equipment", [])
+            if specialized_equipment:
+                content.append("\n**Специализированное оборудование:**")
+                for eq in specialized_equipment:
+                    # Проверяем, что это не "не требуется"
+                    if eq.lower() != "не требуется":
+                        content.append(f"- {eq}")
+                    else:
+                        content.append(f"- {eq}")
 
-        # Права доступа
-        permissions = tech_req.get("access_permissions", [])
+        # Обратная совместимость со старой структурой
+        if not software_info and not hardware_info:
+            # Программное и аппаратное обеспечение (старая структура)
+            software_hardware = provisioning_data.get("software_hardware", {})
+            if software_hardware:
+                # Программное обеспечение
+                software = software_hardware.get("software_systems", [])
+                if software:
+                    content.append("\n### 📱 Программное обеспечение")
+                    for sw in software:
+                        content.append(f"- {sw}")
+
+                # Аппаратное обеспечение
+                hardware = software_hardware.get("hardware_equipment", [])
+                if hardware:
+                    content.append("\n### 🖥️ Аппаратное обеспечение")
+                    for hw in hardware:
+                        content.append(f"- {hw}")
+            else:
+                # Еще более старая структура
+                # Программное обеспечение
+                software = provisioning_data.get(
+                    "software_systems", provisioning_data.get("software", [])
+                )
+                if software:
+                    content.append("\n### 📱 Программное обеспечение")
+                    for sw in software:
+                        content.append(f"- {sw}")
+
+                # Оборудование
+                equipment = provisioning_data.get(
+                    "equipment_tools", provisioning_data.get("equipment", [])
+                )
+                if equipment:
+                    content.append("\n### 🖥️ Оборудование")
+                    for eq in equipment:
+                        content.append(f"- {eq}")
+
+        # Права доступа (и в новой, и в старой структуре)
+        permissions = provisioning_data.get("access_permissions", [])
         if permissions:
             content.append("\n### 🔐 Права доступа")
             for perm in permissions:
@@ -381,31 +644,50 @@ class ProfileMarkdownGenerator:
         return "\n".join(content)
 
     def _generate_performance_metrics(self, profile: Dict[str, Any]) -> str:
-        """Генерирует метрики эффективности"""
+        """Генерирует показатели эффективности"""
         content = ["## 📊 Показатели эффективности"]
 
         metrics = profile.get("performance_metrics", {})
         if not metrics:
             return "\n".join(content + ["\n*Показатели эффективности не определены*"])
 
-        # Частота оценки
+        # Методология оценки (новое поле)
+        methodology = metrics.get("evaluation_methodology")
+        if methodology:
+            content.append(f"\n**Методология оценки:** {methodology}")
+
+        # Частота оценки (старое поле, сохраняем для совместимости)
         frequency = metrics.get("evaluation_frequency")
         if frequency:
             content.append(f"\n**Частота оценки:** {frequency}")
 
-        # Количественные KPI
+        # Показатели успеха (новое поле)
+        success_indicators = metrics.get("success_indicators", [])
+        if success_indicators:
+            content.append("\n### 🎯 Показатели успеха")
+            for indicator in success_indicators:
+                content.append(f"- {indicator}")
+
+        # Количественные KPI (старое поле, сохраняем для совместимости)
         quantitative = metrics.get("quantitative_kpis", [])
         if quantitative:
             content.append("\n### 📈 Количественные показатели")
             for kpi in quantitative:
                 content.append(f"- {kpi}")
 
-        # Качественные показатели
+        # Качественные показатели (старое поле, сохраняем для совместимости)
         qualitative = metrics.get("qualitative_indicators", [])
         if qualitative:
             content.append("\n### 📋 Качественные показатели")
             for indicator in qualitative:
                 content.append(f"- {indicator}")
+
+        # Планы развития (новое поле)
+        development_plans = metrics.get("development_plans", [])
+        if development_plans:
+            content.append("\n### 🚀 Планы развития")
+            for plan in development_plans:
+                content.append(f"- {plan}")
 
         return "\n".join(content)
 

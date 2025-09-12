@@ -728,7 +728,12 @@ class A101ProfileGenerator:
                                         "text-caption text-grey-6"
                                     )
                                 ui.label(
-                                    self.position_details.get("category", "Не указана")
+                                    self.position_details.get(
+                                        "position_category",
+                                        self.position_details.get(
+                                            "category", "Не указана"
+                                        ),
+                                    )
                                 ).classes("text-body2 q-ml-lg")
 
                         # Правая колонка - детальная информация о профилях
@@ -901,7 +906,12 @@ class A101ProfileGenerator:
 
                             with ui.row().classes("items-center gap-1"):
                                 ui.icon("category", size="1rem")
-                                ui.label(position["category"])
+                                ui.label(
+                                    position.get(
+                                        "position_category",
+                                        position.get("category", "Не указана"),
+                                    )
+                                )
 
                     # Стрелка выбора
                     ui.icon("arrow_forward", size="1.5rem").classes("text-gray-400")
@@ -985,7 +995,12 @@ class A101ProfileGenerator:
                                         "text-gray-500"
                                     )
                                     ui.label(
-                                        self.selected_position["category"]
+                                        self.selected_position.get(
+                                            "position_category",
+                                            self.selected_position.get(
+                                                "category", "Не указана"
+                                            ),
+                                        )
                                     ).classes("text-sm text-gray-700")
 
                         # Кнопка изменения
@@ -1338,7 +1353,6 @@ class A101ProfileGenerator:
         self._safe_close_dialog("generation_dialog")
         await self._show_generation_error("Превышено время ожидания генерации")
 
-
     async def _show_generation_error(self, error_message: str):
         """Показ ошибки генерации"""
         dialog = ui.dialog()
@@ -1403,10 +1417,10 @@ class A101ProfileGenerator:
                                 f"Департамент: {profile.get('department_specific', 'N/A')}"
                             )
                             ui.label(
-                                f"Категория: {profile.get('position_category', 'N/A')}"
+                                f"Категория: {profile.get('position_category', profile.get('category', 'N/A'))}"
                             )
                             ui.label(
-                                f"Тип деятельности: {profile.get('primary_activity_type', 'N/A')}"
+                                f"Тип деятельности: {profile.get('primary_activity_type', profile.get('primary_activity', 'N/A'))}"
                             )
 
                     # Области ответственности
