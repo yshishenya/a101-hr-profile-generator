@@ -128,11 +128,14 @@ class A101ProfileGenerator:
             return {"text": "Не определен", "color": "grey"}
 
     async def _load_hierarchical_suggestions(self):
-        """
-        Загрузка position-first предложений для contextual search.
-
-        Преобразует 567 бизнес-единиц в ~1689 позиций с умным контекстом
-        для различения дублированных должностей.
+        """Load hierarchical position-first suggestions for contextual search.
+        
+        This asynchronous function retrieves position suggestions from the organization
+        API,  handling user authentication and potential errors gracefully. It first
+        checks if the user  is authenticated; if not, it falls back to default
+        suggestions. Upon successful retrieval  of search items, it processes them to
+        create contextual position suggestions and updates  the dropdown options in the
+        NiceGUI interface.
         """
         try:
             logger.info(
@@ -601,12 +604,19 @@ class A101ProfileGenerator:
         await self._display_detailed_position_info()
 
     async def _load_position_details(self, position: str, department: str):
-        """
-        Загрузка детальной информации о позиции включая статус профилей.
-
+        """Load detailed information about a position, including profile statuses.
+        
+        This asynchronous function retrieves detailed information for a specified
+        position and department. It first fetches the position details from the API,
+        then retrieves the department hierarchy, and finally gathers existing profiles
+        associated with the position. The results are stored in the instance variables
+        `position_details`, `department_details`, and `position_profiles`. Error
+        handling is implemented to manage any exceptions that may occur during the API
+        calls.
+        
         Args:
-            position: Название позиции
-            department: Название департамента
+            position (str): The name of the position.
+            department (str): The name of the department.
         """
         try:
             # Получаем детальную информацию о позиции из каталога
@@ -1281,7 +1291,15 @@ class A101ProfileGenerator:
         ui.notify("🔄 Генератор сброшен", type="info")
 
     async def _poll_task_status(self, task_id: str):
-        """Polling статуса задачи генерации"""
+        """Polls the status of a generation task.
+        
+        This asynchronous function repeatedly checks the status of a task identified by
+        `task_id` for a maximum of 120 attempts. It retrieves the task status from the
+        API, updates the progress, and handles different outcomes such as completion or
+        failure. In case of errors, it logs the details and may attempt to reload
+        tokens  if an authentication error occurs. If the maximum attempts are reached
+        without  a successful result, it notifies the user of a timeout.
+        """
         max_attempts = 120  # 2 минуты максимум
         attempt = 0
 
@@ -2005,7 +2023,14 @@ class A101ProfileGenerator:
         ui.notify("Выберите формат для скачивания", type="info")
 
     def _preview_markdown(self, profile: Dict[str, Any]):
-        """Предпросмотр markdown файла - FastAPI best practices"""
+        """Previews a markdown file based on the provided profile.
+        
+        This function retrieves the markdown content associated with a given profile
+        ID.  It first checks for the presence of the profile ID and notifies the user
+        if it is missing.  Upon successful retrieval of the content, it displays the
+        markdown in a modal dialog.  The function also handles various exceptions,
+        providing user notifications and logging errors accordingly.
+        """
         try:
             profile_id = profile.get("profile_id")
             if not profile_id:
@@ -2112,7 +2137,7 @@ class A101ProfileGenerator:
             ui.notify("ID профиля не найден", type="negative")
 
     def _download_json_by_id(self, profile_id: str):
-        """Скачивание JSON по ID профиля"""
+        """Download JSON file by profile ID."""
         if profile_id:
             ui.notify(f"📥 Загрузка JSON файла...", type="info")
 
@@ -2163,7 +2188,7 @@ class A101ProfileGenerator:
                 ui.notify(f"❌ Ошибка скачивания: {str(e)}", type="negative")
 
     def _download_markdown_by_id(self, profile_id: str):
-        """Скачивание Markdown по ID профиля"""
+        """Downloads a Markdown file by profile ID."""
         if profile_id:
             ui.notify(f"📥 Загрузка Markdown файла...", type="info")
 

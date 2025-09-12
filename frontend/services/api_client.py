@@ -591,20 +591,11 @@ class APIClient:
         return self._access_token
 
     def get_auth_headers(self) -> Dict[str, str]:
-        """
-        @doc
-        Получение заголовков авторизации для внешних запросов.
-        
-        Используется для ручных HTTP запросов (например, скачивания файлов).
-        
-        Examples:
-          python> headers = client.get_auth_headers()
-          python> response = httpx.get(url, headers=headers)
-        """
+        """Retrieve authorization headers for external requests."""
         return self._get_auth_headers()
 
     def set_token(self, token: str, expires_in: int = 24 * 3600):
-        """Установка токена вручную"""
+        """Sets the access token and its expiration time."""
         self._access_token = token
         self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
 
@@ -686,16 +677,7 @@ class APIClient:
         )
 
     async def get_organization_search_items(self) -> Dict[str, Any]:
-        """
-        @doc
-        Получение элементов для поиска из организационной структуры.
-        
-        Возвращает все департаменты и позиции для автокомплита поиска.
-        
-        Examples:
-          python> items = await client.get_organization_search_items()
-          python> print(f"Total items: {len(items['data']['items'])}")
-        """
+        """Retrieve search items from the organizational structure."""
         return await self._make_request("GET", "/api/organization/search-items")
 
     async def get_profiles_list(
@@ -707,13 +689,13 @@ class APIClient:
         search: Optional[str] = None,
         status: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        @doc
-        Получение списка профилей с фильтрацией.
-
-        Examples:
-          python> profiles = await client.get_profiles_list(department="IT")
-          python> print(f"Found {profiles['pagination']['total']} profiles")
+        """Retrieve a list of profiles with optional filtering.
+        
+        This asynchronous function constructs a request to fetch profiles from the
+        API, allowing for optional filters such as department, position, search term,
+        and status. The parameters are used to build the query string for the GET
+        request to the endpoint "/api/profiles/", and pagination is handled through
+        the page and limit arguments.
         """
         params = {"page": page, "limit": limit}
         if department:
