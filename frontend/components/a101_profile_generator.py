@@ -150,9 +150,7 @@ class A101ProfileGenerator:
                 return
 
             # Получаем все элементы для поиска через organization endpoint
-            search_items_response = await self.api_client._make_request(
-                "GET", "/api/organization/search-items"
-            )
+            search_items_response = await self.api_client.get_organization_search_items()
 
             if not search_items_response.get("success"):
                 logger.warning(
@@ -612,9 +610,7 @@ class A101ProfileGenerator:
         """
         try:
             # Получаем детальную информацию о позиции из каталога
-            positions_response = await self.api_client._make_request(
-                "GET", f"/api/catalog/positions/{department}"
-            )
+            positions_response = await self.api_client.get_positions(department)
 
             # Ищем конкретную позицию в ответе
             self.position_details = None
@@ -626,9 +622,7 @@ class A101ProfileGenerator:
                         break
 
             # Получаем информацию о департаменте для полной иерархии
-            departments_response = await self.api_client._make_request(
-                "GET", "/api/catalog/departments"
-            )
+            departments_response = await self.api_client.get_departments()
 
             self.department_details = None
             if departments_response.get("success"):
@@ -1294,9 +1288,7 @@ class A101ProfileGenerator:
         while attempt < max_attempts:
             try:
                 # Получаем статус задачи
-                status_response = await self.api_client._make_request(
-                    "GET", f"/api/generation/{task_id}/status"
-                )
+                status_response = await self.api_client.get_generation_task_status(task_id)
 
                 if not status_response:
                     break
@@ -1312,9 +1304,7 @@ class A101ProfileGenerator:
 
                 if status == "completed":
                     # Получаем результат
-                    result_response = await self.api_client._make_request(
-                        "GET", f"/api/generation/{task_id}/result"
-                    )
+                    result_response = await self.api_client.get_generation_task_result(task_id)
 
                     self._safe_close_dialog("generation_dialog")
                     await self._show_generation_success(result_response.get("result"))
@@ -2030,7 +2020,7 @@ class A101ProfileGenerator:
             try:
                 import httpx
 
-                headers = self.api_client._get_auth_headers()
+                headers = self.api_client.get_auth_headers()
                 download_url = (
                     f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
                 )
@@ -2133,7 +2123,7 @@ class A101ProfileGenerator:
                 import threading
 
                 # Получаем файл напрямую с backend
-                headers = self.api_client._get_auth_headers()
+                headers = self.api_client.get_auth_headers()
                 download_url = f"{self.api_client.base_url}/api/profiles/{profile_id}/download/json"
 
                 # Синхронный запрос (просто и надежно)
@@ -2184,7 +2174,7 @@ class A101ProfileGenerator:
                 import threading
 
                 # Получаем файл напрямую с backend
-                headers = self.api_client._get_auth_headers()
+                headers = self.api_client.get_auth_headers()
                 download_url = (
                     f"{self.api_client.base_url}/api/profiles/{profile_id}/download/md"
                 )

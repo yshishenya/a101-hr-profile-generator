@@ -590,6 +590,19 @@ class APIClient:
         """Получение текущего токена"""
         return self._access_token
 
+    def get_auth_headers(self) -> Dict[str, str]:
+        """
+        @doc
+        Получение заголовков авторизации для внешних запросов.
+        
+        Используется для ручных HTTP запросов (например, скачивания файлов).
+        
+        Examples:
+          python> headers = client.get_auth_headers()
+          python> response = httpx.get(url, headers=headers)
+        """
+        return self._get_auth_headers()
+
     def set_token(self, token: str, expires_in: int = 24 * 3600):
         """Установка токена вручную"""
         self._access_token = token
@@ -671,6 +684,19 @@ class APIClient:
         return await self._make_request(
             "GET", "/api/catalog/search/positions", params=params
         )
+
+    async def get_organization_search_items(self) -> Dict[str, Any]:
+        """
+        @doc
+        Получение элементов для поиска из организационной структуры.
+        
+        Возвращает все департаменты и позиции для автокомплита поиска.
+        
+        Examples:
+          python> items = await client.get_organization_search_items()
+          python> print(f"Total items: {len(items['data']['items'])}")
+        """
+        return await self._make_request("GET", "/api/organization/search-items")
 
     async def get_profiles_list(
         self,
