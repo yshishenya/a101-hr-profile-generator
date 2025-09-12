@@ -77,8 +77,8 @@ class APIClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._access_token: Optional[str] = None
-        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
+        self._remember_me: bool = False
 
         # HTTP клиент с настройками
         self.client = httpx.AsyncClient(
@@ -90,65 +90,65 @@ class APIClient:
         self._load_tokens_from_storage()
 
     def _load_tokens_from_storage(self):
-        """Загрузка токенов из NiceGUI storage и cookies"""
+        """Загрузка токенов из NiceGUI storage и localStorage"""
         logger.debug("_load_tokens_from_storage: Starting token loading process")
 
         try:
             from nicegui import app
 
-            logger.debug(
-                f"_load_tokens_from_storage: app object available: {hasattr(app, 'storage')}"
-            )
-
-            # Сначала пробуем загрузить из NiceGUI storage
+            # Загружаем из NiceGUI storage
             if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                logger.debug("_load_tokens_from_storage: app.storage.user is available")
-                token_from_storage = app.storage.user.get("access_token")
-                logger.debug(
-                    f"_load_tokens_from_storage: NiceGUI storage token={'present' if token_from_storage else 'None/empty'}"
-                )
+                token_data = app.storage.user.get("token_data")
+                if token_data:
+                    self._access_token = token_data.get("access_token")
+                    expires_timestamp = token_data.get("expires_timestamp")
+                    self._remember_me = token_data.get("remember_me", False)
+                    
+                    # Восстанавливаем expires_at из timestamp
+                    if expires_timestamp:
+                        self._token_expires_at = datetime.fromtimestamp(expires_timestamp)
+                        
+                        # Проверяем не истек ли токен
+                        if datetime.now() >= self._token_expires_at:
+                            logger.info("Token expired, clearing from storage")
+                            self._clear_expired_token()
+                            return
+                    
+                    if self._access_token:
+                        logger.info("Loaded access token from NiceGUI storage")
+                        return
 
-                self._access_token = token_from_storage
-                if self._access_token:
-                    logger.info("Loaded access token from NiceGUI storage")
-                    return
-            else:
-                logger.debug(
-                    "_load_tokens_from_storage: app.storage.user not available"
-                )
-
-            # Если в storage нет, пробуем загрузить из cookies через browser storage
+            # Если remember_me был установлен, пробуем загрузить из localStorage
             try:
-                import asyncio
                 from nicegui import ui
-
-                logger.debug(
-                    "_load_tokens_from_storage: Attempting browser localStorage access"
-                )
-
-                # Пытаемся получить токен из localStorage если доступен
-                token_from_browser = None
                 if hasattr(ui, "run_javascript"):
-                    logger.debug(
-                        "_load_tokens_from_storage: ui.run_javascript available"
+                    token_data_str = ui.run_javascript(
+                        'localStorage.getItem("hr_token_data")', timeout=1.0
                     )
-                    token_from_browser = ui.run_javascript(
-                        'localStorage.getItem("hr_access_token")', timeout=1.0
-                    )
-                    logger.debug(
-                        f"_load_tokens_from_storage: browser token={'present' if token_from_browser else 'None/empty'}"
-                    )
-
-                if token_from_browser:
-                    self._access_token = token_from_browser
-                    # Синхронизируем обратно в NiceGUI storage
-                    if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                        app.storage.user["access_token"] = self._access_token
-                    logger.info("Loaded access token from browser localStorage")
-                else:
-                    logger.debug(
-                        "_load_tokens_from_storage: No token found in browser localStorage"
-                    )
+                    
+                    if token_data_str:
+                        import json
+                        token_data = json.loads(token_data_str)
+                        self._access_token = token_data.get("access_token")
+                        expires_timestamp = token_data.get("expires_timestamp")
+                        self._remember_me = token_data.get("remember_me", False)
+                        
+                        # Восстанавливаем expires_at из timestamp
+                        if expires_timestamp:
+                            self._token_expires_at = datetime.fromtimestamp(expires_timestamp)
+                            
+                            # Проверяем не истек ли токен
+                            if datetime.now() >= self._token_expires_at:
+                                logger.info("Token expired, clearing from localStorage")
+                                self._clear_expired_token()
+                                return
+                        
+                        if self._access_token:
+                            # Синхронизируем обратно в NiceGUI storage
+                            if hasattr(app, "storage") and hasattr(app.storage, "user"):
+                                app.storage.user["token_data"] = token_data
+                            logger.info("Loaded access token from localStorage")
+                            return
 
             except Exception as browser_e:
                 logger.debug(f"Could not load from browser storage: {browser_e}")
@@ -156,55 +156,74 @@ class APIClient:
         except Exception as e:
             logger.debug(f"Could not load tokens from storage: {e}")
 
-        # Если токен всё ещё не найден, пробуем загрузить из environment variables
+        # Fallback: загружаем из environment variables (только для разработки)
         if not self._access_token:
             import os
             test_token = os.getenv("TEST_JWT_TOKEN")
-            logger.debug(f"Checking TEST_JWT_TOKEN: {'present' if test_token else 'None/empty'}")
             if test_token:
                 self._access_token = test_token
                 logger.info("✅ Loaded TEST_JWT_TOKEN from environment variables")
                 
-                # Сохраняем в storage для последующих запросов (избегаем циклический вызов)
+                # Сохраняем в NiceGUI storage без localStorage (test token)
                 try:
                     from nicegui import app
                     if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                        app.storage.user["access_token"] = self._access_token
-                        app.storage.user["authenticated"] = True
-                        logger.debug("Saved token to NiceGUI storage")
+                        app.storage.user["token_data"] = {
+                            "access_token": self._access_token,
+                            "remember_me": False,
+                            "expires_timestamp": None  # Test token не истекает
+                        }
                 except Exception as save_e:
                     logger.debug(f"Could not save token to storage: {save_e}")
-            else:
-                logger.debug("TEST_JWT_TOKEN not found in environment variables")
 
-        # Final state logging
         logger.debug(
             f"_load_tokens_from_storage: Final token state={'present' if self._access_token else 'None/empty'}"
         )
 
     def _save_tokens_to_storage(self):
-        """Сохранение токенов в NiceGUI storage и browser localStorage"""
+        """Сохранение токенов с учетом remember_me"""
         try:
             from nicegui import app
+            import json
 
+            if not self._access_token:
+                return
+
+            # Подготавливаем данные токена
+            token_data = {
+                "access_token": self._access_token,
+                "remember_me": self._remember_me,
+                "expires_timestamp": self._token_expires_at.timestamp() if self._token_expires_at else None
+            }
+
+            # Всегда сохраняем в NiceGUI storage (session storage)
             if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                if self._access_token:
-                    app.storage.user["access_token"] = self._access_token
-                    app.storage.user["authenticated"] = True
+                app.storage.user["token_data"] = token_data
+                app.storage.user["authenticated"] = True
 
-                    # Также сохраняем в browser localStorage для persistance
-                    try:
-                        from nicegui import ui
+            # Если remember_me=True, также сохраняем в localStorage
+            if self._remember_me:
+                try:
+                    from nicegui import ui
+                    if hasattr(ui, "run_javascript"):
+                        token_data_str = json.dumps(token_data)
+                        ui.run_javascript(
+                            f'localStorage.setItem("hr_token_data", {json.dumps(token_data_str)})'
+                        )
+                        logger.debug("Saved token to localStorage (remember_me=True)")
+                except Exception as browser_e:
+                    logger.debug(f"Could not save to localStorage: {browser_e}")
+            else:
+                # Если remember_me=False, убираем из localStorage
+                try:
+                    from nicegui import ui
+                    if hasattr(ui, "run_javascript"):
+                        ui.run_javascript('localStorage.removeItem("hr_token_data")')
+                        logger.debug("Removed token from localStorage (remember_me=False)")
+                except Exception as browser_e:
+                    logger.debug(f"Could not remove from localStorage: {browser_e}")
 
-                        if hasattr(ui, "run_javascript"):
-                            ui.run_javascript(
-                                f'localStorage.setItem("hr_access_token", "{self._access_token}")'
-                            )
-                            logger.debug("Saved token to browser localStorage")
-                    except Exception as browser_e:
-                        logger.debug(f"Could not save to browser storage: {browser_e}")
-
-                logger.info("Saved tokens to storage")
+            logger.info(f"Saved tokens to storage (remember_me={self._remember_me})")
         except Exception as e:
             logger.debug(f"Could not save tokens to storage: {e}")
 
@@ -315,29 +334,88 @@ class APIClient:
             raise APIError(f"Неожиданная ошибка: {str(e)}")
 
     async def _ensure_valid_token(self) -> bool:
-        """Проверка и обновление токена при необходимости"""
-
-        # DEBUG: Log token state
+        """Проверка и автоматическое обновление токена при необходимости"""
         logger.debug(
             f"_ensure_valid_token: self._access_token={'present' if self._access_token else 'None/empty'}"
         )
-        logger.debug(
-            f"_ensure_valid_token: token type={type(self._access_token)}, value='{self._access_token}'"
-        )
 
         if not self._access_token:
-            logger.warning(
-                "_ensure_valid_token: No access token available - returning False"
-            )
+            logger.warning("_ensure_valid_token: No access token available")
             return False
 
-        # Проверяем срок действия
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
-            logger.info("Access token expired, attempting refresh")
-            return await self.refresh_token()
+        # Проверяем срок действия токена
+        if self._token_expires_at:
+            now = datetime.now()
+            
+            # Если токен истек
+            if now >= self._token_expires_at:
+                logger.info("Access token expired, attempting refresh")
+                return await self._refresh_token_internal()
+            
+            # Если токен истекает в ближайшие 5 минут - обновляем превентивно
+            elif (self._token_expires_at - now).total_seconds() < 300:
+                logger.info("Access token expires soon, refreshing preemptively")
+                return await self._refresh_token_internal()
 
-        logger.debug("_ensure_valid_token: Token is valid - returning True")
+        logger.debug("_ensure_valid_token: Token is valid")
         return True
+        
+    async def _refresh_token_internal(self) -> bool:
+        """Внутренний метод для обновления токена через /api/auth/refresh"""
+        try:
+            # Используем текущий токен для запроса обновления
+            headers = {"Authorization": f"Bearer {self._access_token}"}
+            
+            response = await self.client.request(
+                method="POST",
+                url=f"{self.base_url}/api/auth/refresh",
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data.get("access_token"):
+                    self._access_token = data["access_token"]
+                    
+                    # Обновляем время истечения
+                    expires_in = data.get("expires_in", 24 * 3600)
+                    self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                    
+                    # Сохраняем обновленный токен
+                    self._save_tokens_to_storage()
+                    
+                    logger.info("Successfully refreshed access token")
+                    return True
+                    
+            logger.error(f"Token refresh failed: {response.status_code}")
+            self._clear_expired_token()
+            return False
+            
+        except Exception as e:
+            logger.error(f"Token refresh error: {e}")
+            self._clear_expired_token()
+            return False
+            
+    def _clear_expired_token(self):
+        """Очищаем истекший токен из всех хранилищ"""
+        self._access_token = None
+        self._token_expires_at = None
+        
+        try:
+            from nicegui import app, ui
+            
+            # Очищаем NiceGUI storage
+            if hasattr(app, "storage") and hasattr(app.storage, "user"):
+                app.storage.user.pop("token_data", None)
+                app.storage.user.pop("authenticated", None)
+            
+            # Очищаем localStorage
+            if hasattr(ui, "run_javascript"):
+                ui.run_javascript('localStorage.removeItem("hr_token_data")')
+                
+        except Exception as e:
+            logger.debug(f"Could not clear expired token: {e}")
 
     # ============================================================================
     # AUTHENTICATION API
@@ -369,18 +447,19 @@ class APIClient:
                 "POST", "/api/auth/login", data=login_data, require_auth=False
             )
 
-            # Сохраняем токены
+            # Сохраняем токены с учетом remember_me
             if response.get("access_token"):
                 self._access_token = response["access_token"]
+                self._remember_me = remember_me
 
-                # Рассчитываем время истечения токена (default 24 hours)
+                # Рассчитываем время истечения токена
                 expires_in = response.get("expires_in", 24 * 3600)  # seconds
                 self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
 
-                # Сохраняем в NiceGUI storage
+                # Сохраняем с учетом remember_me
                 self._save_tokens_to_storage()
 
-                logger.info(f"Successfully logged in user: {username}")
+                logger.info(f"Successfully logged in user: {username} (remember_me={remember_me})")
 
             return response
 
@@ -403,37 +482,44 @@ class APIClient:
         try:
             response = await self._make_request("POST", "/api/auth/logout")
 
-            # Очищаем токены
-            self._access_token = None
-            self._refresh_token = None
-            self._token_expires_at = None
-
-            # Очищаем localStorage
-            try:
-                from nicegui import ui
-
-                if hasattr(ui, "run_javascript"):
-                    ui.run_javascript('localStorage.removeItem("hr_access_token")')
-                    logger.debug("Cleared token from browser localStorage")
-            except Exception as e:
-                logger.debug(f"Could not clear browser storage: {e}")
+            # Очищаем все данные токенов
+            self._clear_all_tokens()
 
             logger.info("Successfully logged out")
             return response
 
         except APIError as e:
             # Даже если backend logout не удался, очищаем локальные данные
-            self._access_token = None
-            self._refresh_token = None
-            self._token_expires_at = None
-
+            self._clear_all_tokens()
             logger.debug(f"Logout failed on backend (clearing local data): {e.message}")
             return {"success": True, "message": "Локальный выход выполнен"}
+            
+    def _clear_all_tokens(self):
+        """Полная очистка всех токенов и связанных данных"""
+        self._access_token = None
+        self._token_expires_at = None
+        self._remember_me = False
+
+        try:
+            from nicegui import app, ui
+            
+            # Очищаем NiceGUI storage
+            if hasattr(app, "storage") and hasattr(app.storage, "user"):
+                app.storage.user.pop("token_data", None)
+                app.storage.user.pop("authenticated", None)
+            
+            # Очищаем localStorage
+            if hasattr(ui, "run_javascript"):
+                ui.run_javascript('localStorage.removeItem("hr_token_data")')
+                logger.debug("Cleared tokens from all storages")
+                
+        except Exception as e:
+            logger.debug(f"Could not clear token storages: {e}")
 
     async def refresh_token(self) -> bool:
         """
         @doc
-        Обновление JWT токена.
+        Публичный метод для обновления JWT токена.
 
         Получает новый access token с использованием текущего токена.
         Возвращает True если обновление успешно.
@@ -442,24 +528,7 @@ class APIClient:
           python> success = await client.refresh_token()
           python> if success: print("Token refreshed")
         """
-
-        try:
-            response = await self._make_request("POST", "/api/auth/refresh")
-
-            if response.get("access_token"):
-                self._access_token = response["access_token"]
-
-                expires_in = response.get("expires_in", 24 * 3600)
-                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
-
-                logger.info("Successfully refreshed access token")
-                return True
-
-            return False
-
-        except APIError as e:
-            logger.error(f"Token refresh failed: {e.message}")
-            return False
+        return await self._refresh_token_internal()
 
     async def validate_token(self, token: Optional[str] = None) -> bool:
         """
