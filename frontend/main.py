@@ -12,9 +12,6 @@ Examples:
 """
 
 from nicegui import ui, app
-from fastapi import Request
-from fastapi.responses import RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 import asyncio
 
@@ -23,16 +20,20 @@ logger = logging.getLogger(__name__)
 # Импортируем компоненты и сервисы
 try:
     # Relative imports для запуска как модуль
-    from .components.auth_component import AuthComponent
-    from .components.a101_profile_generator import A101ProfileGenerator
-    from .components.header_component import HeaderComponent
+    from .components.ui.auth_component import AuthComponent
+    from .components.ui.header_component import HeaderComponent
+    from .components.ui.stats_component import StatsComponent
+    # Модулярные компоненты
+    from .pages.generator_page import GeneratorPage
     from .services.api_client import APIClient
     from .utils.config import FrontendConfig
 except ImportError:
     # Absolute imports для прямого запуска
-    from components.auth_component import AuthComponent
-    from components.a101_profile_generator import A101ProfileGenerator
-    from components.header_component import HeaderComponent
+    from components.ui.auth_component import AuthComponent
+    from components.ui.header_component import HeaderComponent
+    from components.ui.stats_component import StatsComponent
+    # Модулярные компоненты
+    from pages.generator_page import GeneratorPage
     from services.api_client import APIClient
     from utils.config import FrontendConfig
 
@@ -42,11 +43,6 @@ config = FrontendConfig()
 # Глобальный API клиент
 api_client = APIClient(base_url=config.BACKEND_URL)
 
-# Глобальная ссылка на генератор профилей
-profile_generator = None
-
-# Список страниц, не требующих авторизации
-UNRESTRICTED_PAGES = {"/login"}
 
 
 async def on_successful_login():
@@ -78,44 +74,6 @@ async def on_successful_login():
         logger.error(f"❌ Error loading dashboard stats: {e}")
 
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    """
-    @doc
-    Middleware для проверки авторизации пользователей.
-
-    Перенаправляет неавторизованных пользователей на страницу входа.
-    Проверяет валидность JWT токена через backend API.
-
-    Examples:
-      python> # Автоматически используется в NiceGUI app
-      python> app.add_middleware(AuthMiddleware)
-    """
-
-    async def dispatch(self, request: Request, call_next):
-        # Пропускаем статические файлы и API NiceGUI
-        if (
-            request.url.path.startswith("/_nicegui")
-            or request.url.path.startswith("/static")
-            or request.url.path in UNRESTRICTED_PAGES
-        ):
-            return await call_next(request)
-
-        # Проверяем авторизацию
-        if not app.storage.user.get("authenticated", False):
-            return RedirectResponse(f"/login?redirect_to={request.url.path}")
-
-        # Проверяем валидность токена
-        token = app.storage.user.get("access_token")
-        if token and not await api_client.validate_token(token):
-            # Токен невалиден, очищаем сессию
-            app.storage.user.clear()
-            return RedirectResponse(f"/login?redirect_to={request.url.path}")
-
-        return await call_next(request)
-
-
-# Добавляем middleware к приложению
-app.add_middleware(AuthMiddleware)
 
 
 @ui.page("/login")
@@ -174,22 +132,20 @@ async def main_page() -> None:
       python> # Автоматическая проверка через middleware
     """
 
+    # Проверка авторизации
+    if not app.storage.user.get("authenticated", False):
+        ui.navigate.to("/login?redirect_to=/")
+        return
+
     # Unified header component
     header = HeaderComponent(api_client)
     await header.render(current_page="home")
 
     # Главный контент - Dashboard
     with ui.column().classes("w-full max-w-7xl mx-auto p-4"):
-        # Простой dashboard со статистикой
+        # Dashboard со статистикой
         try:
-            try:
-                # Relative imports для запуска как модуль
-                from .components.stats_component import StatsComponent
-            except ImportError:
-                # Absolute imports для прямого запуска
-                from components.stats_component import StatsComponent
-
-            # Создаем статистику
+            # Создаем компонент статистики
             stats = StatsComponent(api_client, style="dashboard")
             await stats.render()
 
@@ -221,12 +177,12 @@ async def main_page() -> None:
                 ui.markdown(
                     f"""
         ### ❌ Ошибка загрузки dashboard: {e}
-        
+
         Попробуйте:
         - Обновить страницу
         - Проверить подключение к серверу
         - Обратиться к администратору
-        
+
         ### Быстрые ссылки:
         - [Генератор профилей](/generator)
         - [Все профили](/profiles)
@@ -247,9 +203,14 @@ async def generator_page() -> None:
     - Запуска и отслеживания процесса генерации
 
     Examples:
-      python> # Доступна только авторизованным пользователей
+      python> # Доступна только авторизованным пользователям
       python> # URL: /generator
     """
+
+    # Проверка авторизации
+    if not app.storage.user.get("authenticated", False):
+        ui.navigate.to("/login?redirect_to=/generator")
+        return
 
     ui.page_title("🎯 Генератор профилей - A101 HR")
 
@@ -259,15 +220,9 @@ async def generator_page() -> None:
 
     # Main content with unified styling - убираем max-width для более широкого поля поиска
     with ui.column().classes("w-full mx-auto p-4").style("max-width: none !important;"):
-        # Create generator component without duplicate header
-        global profile_generator
-        profile_generator = A101ProfileGenerator(api_client)
-
-        # Если пользователь уже авторизован, загружаем данные
-        if app.storage.user.get("authenticated", False):
-            await profile_generator.load_initial_data()
-
-        await profile_generator.render_content()
+        # Создаем и рендерим новую композитную страницу
+        generator_page_content = GeneratorPage(api_client)
+        await generator_page_content.render()
 
 
 async def logout() -> None:
@@ -325,6 +280,76 @@ def main():
         show=config.DEBUG,  # Автоматически открыть браузер в debug режиме
         storage_secret=config.STORAGE_SECRET,  # Для app.storage.user
     )
+
+
+@ui.page("/profiles")
+async def profiles_page():
+    """
+    @doc
+    Страница списка всех созданных профилей.
+
+    Заглушка - будет разработана позднее.
+
+    Examples:
+      python> # Переход по /profiles показывает заглушку
+    """
+    # Проверка авторизации
+    if not app.storage.user.get("authenticated", False):
+        ui.navigate.to("/login")
+        return
+
+    # Заголовок страницы
+    header_comp = HeaderComponent(api_client)
+    await header_comp.create()
+
+    # Основное содержимое
+    with ui.column().classes("w-full max-w-6xl mx-auto p-6 gap-6"):
+        ui.label("📋 Список профилей").classes("text-h4 font-bold text-primary")
+
+        with ui.card().classes("w-full p-8"):
+            with ui.column().classes("items-center gap-4"):
+                ui.icon("🚧", size="4rem").classes("text-orange-500")
+                ui.label("🚧 Страница в разработке").classes("text-h5 font-medium")
+                ui.label("Здесь будет список всех созданных профилей должностей.").classes("text-body1 text-center")
+
+                with ui.row().classes("gap-4 mt-4"):
+                    ui.button("← Назад к генератору",
+                            on_click=lambda: ui.navigate.to("/generator")).props("outlined")
+
+
+@ui.page("/analytics")
+async def analytics_page():
+    """
+    @doc
+    Страница аналитики и статистики.
+
+    Заглушка - будет разработана позднее.
+
+    Examples:
+      python> # Переход по /analytics показывает заглушку
+    """
+    # Проверка авторизации
+    if not app.storage.user.get("authenticated", False):
+        ui.navigate.to("/login")
+        return
+
+    # Заголовок страницы
+    header_comp = HeaderComponent(api_client)
+    await header_comp.create()
+
+    # Основное содержимое
+    with ui.column().classes("w-full max-w-6xl mx-auto p-6 gap-6"):
+        ui.label("📈 Статистика и аналитика").classes("text-h4 font-bold text-primary")
+
+        with ui.card().classes("w-full p-8"):
+            with ui.column().classes("items-center gap-4"):
+                ui.icon("🚧", size="4rem").classes("text-orange-500")
+                ui.label("🚧 Страница в разработке").classes("text-h5 font-medium")
+                ui.label("Здесь будут графики, метрики и аналитика по генерации профилей.").classes("text-body1 text-center")
+
+                with ui.row().classes("gap-4 mt-4"):
+                    ui.button("← Назад к генератору",
+                            on_click=lambda: ui.navigate.to("/generator")).props("outlined")
 
 
 if __name__ in {"__main__", "__mp_main__"}:

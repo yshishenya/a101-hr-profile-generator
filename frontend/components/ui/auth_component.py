@@ -14,7 +14,7 @@ import asyncio
 from typing import Optional, Callable, Awaitable
 
 from nicegui import ui, app
-from ..services.api_client import APIClient, APIError, handle_api_error
+from ...services.api_client import APIClient, APIError, handle_api_error
 
 
 class AuthComponent:
@@ -140,20 +140,12 @@ class AuthComponent:
             result = await self.api_client.login(username, password, remember_me)
 
             if result.get("success"):
-                # Сохраняем данные в сессию
-                app.storage.user.update(
-                    {
-                        "authenticated": True,
-                        "access_token": result.get("access_token"),
-                        "token_type": result.get("token_type", "bearer"),
-                        "user_info": result.get("user_info", {}),
-                        "expires_in": result.get("expires_in", 24 * 3600),
-                    }
-                )
-
-                # КРИТИЧЕСКИ ВАЖНО: Обновляем токены в глобальном api_client
-                # После сохранения в storage, заставляем api_client перезагрузить токены
-                self.api_client.reload_tokens_from_storage()
+                # APIClient уже сохранил токены в storage в своем методе login()
+                # Сохраняем только минимально необходимые данные для UI
+                app.storage.user.update({
+                    "authenticated": True,
+                    "user_info": result.get("user_info", {}),
+                })
 
                 # Уведомляем об успехе
                 user_info = result.get("user_info", {})
@@ -222,8 +214,16 @@ class AuthComponent:
         if len(username) < 3:
             return "Логин должен содержать минимум 3 символа"
 
-        if len(password) < 3:  # Более мягкое требование для демо
-            return "Пароль должен содержать минимум 3 символа"
+        # Продакшн-готовые требования к паролю
+        if len(password) < 8:
+            return "Пароль должен содержать минимум 8 символов"
+        
+        # Дополнительные требования безопасности
+        if not any(c.isdigit() for c in password):
+            return "Пароль должен содержать минимум одну цифру"
+        
+        if not any(c.isalpha() for c in password):
+            return "Пароль должен содержать минимум одну букву"
 
         return None
 

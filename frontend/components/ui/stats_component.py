@@ -67,85 +67,76 @@ class StatsComponent:
         await self._load_and_update()
         self._setup_refresh()
 
-    async def _render_dashboard(self):
-        """Единообразная статистика для dashboard"""
+    async def _render_unified(self, style: str = "dashboard"):
+        """Объединенный метод рендеринга - устраняет дублирование
+        
+        Args:
+            style: "стиль" рендеринга - "dashboard", "compact", "minimal"
+        """
+        if style == "minimal":
+            # Минимальный стиль для header
+            with ui.row().classes("items-center gap-3"):
+                ui.icon("analytics", size="1rem").classes("text-white opacity-70")
+                self.positions_label = ui.label("1,553").classes(
+                    "text-body2 text-white font-medium"
+                )
+                ui.label("должностей").classes("text-body2 text-white opacity-60")
+                ui.label("•").classes("text-white opacity-40")
+                self.profiles_label = ui.label("2").classes(
+                    "text-body2 text-white font-medium"
+                )
+                ui.label("профилей").classes("text-body2 text-white opacity-60")
+                return
+                
+        # Карточка стиль (dashboard/compact)
+        card_padding = "p-4" if style == "dashboard" else "p-3"
         with ui.card().classes("w-full mb-4 shadow-sm"):
-            with ui.card_section().classes("p-4"):
+            with ui.card_section().classes(card_padding):
                 # Заголовок
-                with ui.row().classes("items-center justify-between mb-4"):
-                    ui.label("📊 Статистика системы").classes(
-                        "text-h6 text-primary font-medium"
-                    )
-                    self.status_chip = ui.chip("Загрузка", color="grey").props(
-                        "size=sm"
-                    )
+                header_class = "items-center justify-between" + (" mb-4" if style == "dashboard" else "")
+                with ui.row().classes(header_class):
+                    title = "📊 Статистика системы" if style == "dashboard" else "📊 Система"
+                    ui.label(title).classes("text-h6 text-primary font-medium")
+                    
+                    chip_text = "Загрузка" if style == "dashboard" else "Готов"
+                    chip_color = "grey" if style == "dashboard" else "positive"
+                    chip_size = "size=sm" if style == "dashboard" else "size=xs"
+                    self.status_chip = ui.chip(chip_text, color=chip_color).props(chip_size)
 
-                # Основные метрики в строку - ЕДИНООБРАЗНО
-                with ui.row().classes("w-full justify-between gap-4"):
+                # Метрики
+                metrics_class = "w-full justify-between" + (" gap-4" if style == "dashboard" else " mt-3")
+                with ui.row().classes(metrics_class):
+                    # Определяем классы для стилей
+                    number_class = "text-h4 font-bold text-primary" if style == "dashboard" else "text-h6 font-bold text-primary"
+                    label_class = "text-body2 text-grey-6" if style == "dashboard" else "text-caption text-grey-6"
+                    
                     # Должности
                     with ui.column().classes("items-center"):
-                        self.positions_label = ui.label("1,553").classes(
-                            "text-h4 font-bold text-primary"
-                        )
-                        ui.label("должностей").classes("text-body2 text-grey-6")
+                        self.positions_label = ui.label("1,553").classes(number_class)
+                        ui.label("должностей").classes(label_class)
 
                     # Профили
                     with ui.column().classes("items-center"):
-                        self.profiles_label = ui.label("2").classes(
-                            "text-h4 font-bold text-primary"
-                        )
-                        ui.label("создано").classes("text-body2 text-grey-6")
+                        self.profiles_label = ui.label("2").classes(number_class)
+                        ui.label("создано").classes(label_class)
 
-                    # Покрытие - без прогресс бара
+                    # Покрытие
                     with ui.column().classes("items-center"):
-                        self.progress_text = ui.label("0.1%").classes(
-                            "text-h4 font-bold text-primary"
-                        )
-                        ui.label("покрытие").classes("text-body2 text-grey-6")
+                        self.progress_text = ui.label("0.1%").classes(number_class)
+                        ui.label("покрытие").classes(label_class)
 
+    # Простые обертки для обратной совместимости
+    async def _render_dashboard(self):
+        """Полная статистика для dashboard"""
+        await self._render_unified("dashboard")
+        
     async def _render_compact(self):
-        """Компактная единообразная статистика для генератора"""
-        with ui.card().classes("w-full mb-4 shadow-sm"):
-            with ui.card_section().classes("p-3"):
-                with ui.row().classes("items-center justify-between"):
-                    ui.label("📊 Система").classes("text-h6 text-primary font-medium")
-                    self.status_chip = ui.chip("Готов", color="positive").props(
-                        "size=xs"
-                    )
-
-                # Единообразные метрики в строку
-                with ui.row().classes("w-full justify-between mt-3"):
-                    with ui.column().classes("items-center"):
-                        self.positions_label = ui.label("1,553").classes(
-                            "text-h6 font-bold text-primary"
-                        )
-                        ui.label("должностей").classes("text-caption text-grey-6")
-
-                    with ui.column().classes("items-center"):
-                        self.profiles_label = ui.label("2").classes(
-                            "text-h6 font-bold text-primary"
-                        )
-                        ui.label("создано").classes("text-caption text-grey-6")
-
-                    with ui.column().classes("items-center"):
-                        self.progress_text = ui.label("0.1%").classes(
-                            "text-h6 font-bold text-primary"
-                        )
-                        ui.label("покрытие").classes("text-caption text-grey-6")
-
+        """Компактная статистика для генератора"""
+        await self._render_unified("compact")
+        
     async def _render_minimal(self):
         """Минимальная статистика для header"""
-        with ui.row().classes("items-center gap-3"):
-            ui.icon("analytics", size="1rem").classes("text-white opacity-70")
-            self.positions_label = ui.label("1,553").classes(
-                "text-body2 text-white font-medium"
-            )
-            ui.label("должностей").classes("text-body2 text-white opacity-60")
-            ui.label("•").classes("text-white opacity-40")
-            self.profiles_label = ui.label("2").classes(
-                "text-body2 text-white font-medium"
-            )
-            ui.label("профилей").classes("text-body2 text-white opacity-60")
+        await self._render_unified("minimal")
 
     async def _load_and_update(self):
         """Загрузка и обновление данных"""
