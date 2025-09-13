@@ -31,7 +31,12 @@ from ..utils.validators import (
     validate_status,
     validate_profile_update_request,
 )
-from ..utils.exceptions import NotFoundError, ValidationError, DatabaseError
+from ..utils.exceptions import (
+    NotFoundError,
+    ValidationError,
+    DatabaseError,
+    ServiceUnavailableError,
+)
 from ..core.storage_service import ProfileStorageService
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile Management"])
@@ -97,7 +102,8 @@ async def get_profiles(
               "created_by_username": "admin",
               "actions": {
                 "download_json": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/json",
-                "download_md": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md"
+                "download_md": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md",
+                "download_docx": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/docx"
               }
             }
           ],
@@ -260,6 +266,7 @@ async def get_profiles(
                 "actions": {
                     "download_json": f"/api/profiles/{row['profile_id']}/download/json",
                     "download_md": f"/api/profiles/{row['profile_id']}/download/md",
+                    "download_docx": f"/api/profiles/{row['profile_id']}/download/docx",
                 },
             }
             profiles.append(profile)
@@ -366,7 +373,8 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
           "created_by_username": "admin",
           "actions": {
             "download_json": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/json",
-            "download_md": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md"
+            "download_md": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/md",
+            "download_docx": "/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/docx"
           }
         }
 
@@ -429,6 +437,7 @@ async def get_profile(profile_id: str, current_user: dict = Depends(get_current_
             "actions": {
                 "download_json": f"/api/profiles/{row['id']}/download/json",
                 "download_md": f"/api/profiles/{row['id']}/download/md",
+                "download_docx": f"/api/profiles/{row['id']}/download/docx",
             },
         }
 
@@ -1037,6 +1046,134 @@ async def download_profile_json(
         )
 
 
+@router.get("/{profile_id}/download/docx")
+async def download_profile_docx(
+    profile_id: str, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Скачать DOCX файл профиля
+
+    Скачивает профиль в формате Microsoft Word (DOCX) из файловой системы.
+    DOCX файл содержит профессионально отформатированный профиль готовый
+    для редактирования и корпоративного документооборота.
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля для скачивания
+
+    **Response:** Файл Microsoft Word для скачивания
+    - Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - Content-Disposition: attachment
+    - Имя файла: profile_{position}_{profile_id_short}.docx
+
+    **Authentication:** Требуется Bearer Token
+
+    **File Location Logic:**
+    - DOCX файлы хранятся рядом с JSON в /generated_profiles/{department}/
+    - Путь вычисляется детерминистично по profile_id + created_at
+    - Имя файла: {position}_{timestamp}.docx
+
+    **DOCX Content Features:**
+    - Корпоративные стили A101 (синий цвет, структурированные таблицы)
+    - Профессиональные таблицы для навыков, KPI, инструментов
+    - Заголовки с иконками и правильным форматированием
+    - Метаданные генерации в подвале документа
+    - Готовый для редактирования и печати формат
+
+    **Error Cases:**
+    - 404: Профиль не найден в базе данных
+    - 404: DOCX файл не найден в файловой системе
+    - 401: Невалидный токен авторизации
+
+    Examples:
+        bash>
+        # 1. Успешное скачивание DOCX файла
+        curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/docx" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+          --output "profile.docx"
+
+        # Response (200 OK): Скачивание файла начнется автоматически
+        # Headers:
+        # Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+        # Content-Disposition: attachment; filename="profile_Старший_аналитик_данных_4aec3e73.docx"
+
+        # 2. Ошибка - файл не найден (профиль существует, но DOCX файл удален)
+        curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/download/docx" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (404 Not Found):
+        {
+          "detail": {
+            "error": "Profile DOCX file not found at /generated_profiles/Группа_анализа_данных/Старший_аналитик_данных_20250110_143022.docx",
+            "error_code": "RESOURCE_NOT_FOUND",
+            "resource": "file",
+            "resource_id": "/generated_profiles/Группа_анализа_данных/Старший_аналитик_данных_20250110_143022.docx"
+          }
+        }
+    """
+    # Валидация profile_id
+    profile_id = validate_profile_id(profile_id)
+
+    try:
+        conn = get_db_manager().get_connection()
+        cursor = conn.cursor()
+
+        # Получаем информацию о профиле из БД
+        cursor.execute(
+            """
+            SELECT id, department, position, created_at
+            FROM profiles
+            WHERE id = ?
+        """,
+            (profile_id,),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        # Вычисляем путь к DOCX файлу детерминистически
+        created_at = datetime.fromisoformat(row["created_at"])
+        _, _, docx_path = storage_service.get_profile_paths(
+            profile_id=row["id"],
+            department=row["department"],
+            position=row["position"],
+            created_at=created_at,
+        )
+
+        # Проверяем существование файла
+        if not docx_path.exists():
+            raise NotFoundError(
+                f"Profile DOCX file not found at {docx_path}",
+                resource="file",
+                resource_id=str(docx_path),
+            )
+
+        # Возвращаем файл для скачивания
+        return FileResponse(
+            path=str(docx_path),
+            filename=f"profile_{row['position']}_{profile_id[:8]}.docx",
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment"},
+        )
+
+    except (NotFoundError, ValidationError):
+        raise
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to fetch profile {profile_id}: {str(e)}",
+            operation="SELECT",
+            table="profiles",
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error downloading profile {profile_id}: {str(e)}",
+            operation="FILE_ACCESS",
+            table="profiles",
+        )
+
+
 @router.get("/{profile_id}/download/md")
 async def download_profile_md(
     profile_id: str, current_user: dict = Depends(get_current_user)
@@ -1172,7 +1309,7 @@ async def download_profile_md(
 
         # Вычисляем путь к MD файлу детерминистически
         created_at = datetime.fromisoformat(row["created_at"])
-        _, md_path = storage_service.get_profile_paths(
+        _, md_path, _ = storage_service.get_profile_paths(
             profile_id=row["id"],
             department=row["department"],
             position=row["position"],

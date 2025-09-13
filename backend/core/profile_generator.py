@@ -21,6 +21,7 @@ from .prompt_manager import PromptManager
 from .config import config
 from .markdown_service import ProfileMarkdownService
 from .storage_service import ProfileStorageService
+from .docx_service import initialize_docx_service
 
 # from langfuse.decorators import observe  # Временно убрали из-за проблем с версией
 
@@ -58,9 +59,16 @@ class ProfileGenerator:
         # Инициализируем компоненты
         self.data_loader = DataLoader(str(self.base_data_path))
         self.md_generator = ProfileMarkdownService()
+        self.docx_service = initialize_docx_service()
         self.storage_service = ProfileStorageService(
             str(self.base_data_path / "generated_profiles")
         )
+
+        # Логируем состояние DOCX сервиса
+        if self.docx_service:
+            logger.info("✅ DOCX Service initialized successfully")
+        else:
+            logger.warning("⚠️ DOCX Service not available (python-docx not installed)")
 
         # Инициализируем LLMClient (он сам получит настройки из config)
         try:
@@ -299,11 +307,37 @@ class ProfileGenerator:
             logger.info("📝 Auto-generating Markdown profile...")
             md_content = self.md_generator.generate_from_json(result["profile"])
 
-            # 3. Сохраняем JSON и MD файлы в одну папку
-            json_path, md_path = self.storage_service.save_profile_files(
+            # 3. Генерируем DOCX файл
+            docx_temp_path = None
+            if self.docx_service:
+                logger.info("📄 Auto-generating DOCX profile...")
+                import tempfile
+                import os
+
+                # Создаем временный файл без контекстного менеджера
+                temp_fd, temp_docx_path = tempfile.mkstemp(suffix=".docx")
+                os.close(temp_fd)  # Закрываем файловый дескriptor, но файл остается
+
+                try:
+                    docx_temp_path = self.docx_service.create_docx_from_json(
+                        json_data=result, output_path=temp_docx_path
+                    )
+                    logger.info(f"✅ DOCX временный файл создан: {docx_temp_path}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка создания DOCX: {e}")
+                    # Удаляем временный файл в случае ошибки
+                    try:
+                        os.unlink(temp_docx_path)
+                    except:
+                        pass
+                    docx_temp_path = None
+
+            # 4. Сохраняем JSON, MD и DOCX файлы в одну папку
+            json_path, md_path, docx_path = self.storage_service.save_profile_files(
                 directory=profile_dir,
                 json_content=result,
                 md_content=md_content,
+                docx_content=docx_temp_path,
                 profile_id=profile_id,
             )
 
@@ -311,6 +345,19 @@ class ProfileGenerator:
             logger.info(f"  📁 Directory: {profile_dir}")
             logger.info(f"  📄 JSON: {json_path.name}")
             logger.info(f"  📝 MD: {md_path.name}")
+            if docx_temp_path:
+                logger.info(f"  📋 DOCX: {docx_path.name}")
+            else:
+                logger.info("  📋 DOCX: not generated")
+
+            # Очищаем временный DOCX файл
+            if docx_temp_path:
+                try:
+                    if os.path.exists(docx_temp_path):
+                        os.unlink(docx_temp_path)
+                        logger.debug(f"🧹 Cleaned up temp DOCX: {docx_temp_path}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to cleanup temp DOCX: {e}")
 
             # Возвращаем путь к JSON файлу и MD контент для обратной совместимости
             return json_path, md_content

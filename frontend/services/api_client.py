@@ -73,6 +73,7 @@ class APIClient:
 
         # Загружаем токены из NiceGUI storage
         self._load_tokens_from_storage()
+        print("DIAGNOSTIC: APIClient initialized!")
 
     def _ensure_locks(self):
         """Инициализация asyncio locks для предотвращения race conditions"""
@@ -575,6 +576,22 @@ class APIClient:
         """Получение текущего токена"""
         return self._access_token
 
+    async def _get_auth_headers_async(self) -> Dict[str, str]:
+        """
+        @doc
+        Получение заголовков авторизации для внешних запросов (асинхронная версия).
+
+        Используется для ручных HTTP запросов (например, скачивания файлов).
+
+        Examples:
+          python> headers = await client._get_auth_headers_async()
+          python> response = httpx.get(url, headers=headers)
+        """
+        # Убедимся, что токен валиден перед получением заголовков
+        if await self._ensure_valid_token():
+            return {"Authorization": f"Bearer {self._access_token}"}
+        return {}
+
     def _get_auth_headers(self) -> Dict[str, str]:
         """
         @doc
@@ -674,6 +691,61 @@ class APIClient:
           python> print(f"Profile: {profile['position']}")
         """
         return await self._make_request("GET", f"/api/profiles/{profile_id}")
+
+    async def download_profile_json(self, profile_id: str) -> bytes:
+        print(f"DIAGNOSTIC: Attempting to download JSON for profile {profile_id}")
+        """
+        @doc
+        Скачивание профиля в JSON формате.
+
+        Args:
+            profile_id: ID профиля для скачивания
+
+        Returns:
+            bytes: Содержимое JSON файла
+
+        Examples:
+          python> data = await client.download_profile_json("profile123")
+          python> # Получены байты JSON файла
+        """
+        url = f"{self.base_url}/api/profiles/{profile_id}/download/json"
+        headers = await self._get_auth_headers_async()
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=self.timeout)
+                response.raise_for_status()
+                return response.content
+        except httpx.HTTPStatusError as e:
+            raise APIError(f"Ошибка скачивания: {e.response.status_code}", status_code=e.response.status_code)
+        except Exception as e:
+            raise APIError(f"Ошибка сети при скачивании: {e}")
+
+    async def download_profile_markdown(self, profile_id: str) -> bytes:
+        """
+        @doc
+        Скачивание профиля в Markdown формате.
+
+        Args:
+            profile_id: ID профиля для скачивания
+
+        Returns:
+            bytes: Содержимое Markdown файла
+
+        Examples:
+          python> data = await client.download_profile_markdown("profile123")
+          python> # Получены байты Markdown файла
+        """
+        url = f"{self.base_url}/api/profiles/{profile_id}/download/md"
+        headers = await self._get_auth_headers_async()
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=self.timeout)
+                response.raise_for_status()
+                return response.content
+        except httpx.HTTPStatusError as e:
+            raise APIError(f"Ошибка скачивания: {e.response.status_code}", status_code=e.response.status_code)
+        except Exception as e:
+            raise APIError(f"Ошибка сети при скачивании: {e}")
 
     async def start_profile_generation(
         self,
@@ -844,6 +916,7 @@ def handle_api_error(error: APIError, context: str = "API request") -> None:
         )
 
     async def download_profile_json(self, profile_id: str) -> bytes:
+        print(f"DIAGNOSTIC: Attempting to download JSON for profile {profile_id}")
         """
         @doc
         Скачивание профиля в JSON формате.
@@ -859,7 +932,7 @@ def handle_api_error(error: APIError, context: str = "API request") -> None:
           python> # Получены байты JSON файла
         """
         url = f"{self.base_url}/api/profiles/{profile_id}/download/json"
-        headers = self._get_auth_headers()
+        headers = await self._get_auth_headers_async()  # Обновлено: сделано асинхронным
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers, timeout=self.timeout)
@@ -886,7 +959,7 @@ def handle_api_error(error: APIError, context: str = "API request") -> None:
           python> # Получены байты Markdown файла
         """
         url = f"{self.base_url}/api/profiles/{profile_id}/download/md"
-        headers = self._get_auth_headers()
+        headers = await self._get_auth_headers_async()  # Обновлено: сделано асинхронным
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers, timeout=self.timeout)

@@ -1,16 +1,16 @@
 ================================================================================
 CIRCULAR DEPENDENCY ANALYSIS REPORT
 ================================================================================
-Generated: 2025-09-13T00:05:02.063838
+Generated: 2025-09-13T02:12:17.008142
 Backend Path: /home/yan/A101/HR/backend
 
 SUMMARY
 ----------------------------------------
 Total Modules Analyzed: 37
-Total Dependencies: 227
+Total Dependencies: 225
 Circular Dependencies: 0
 Architectural Violations: 0
-External Dependencies: 38
+External Dependencies: 36
 
 ✅ NO CIRCULAR DEPENDENCIES FOUND
 
@@ -44,13 +44,11 @@ Modules with Most Dependencies (High Fan-out):
 
 External Dependencies:
   - __future__
-  - abc
   - argparse
   - asyncio
   - collections
   - contextlib
   - datetime
-  - dotenv
   - enum
   - fastapi
   - fastapi.exceptions
@@ -129,7 +127,7 @@ backend.api.middleware
   → backend.api.security_middleware
 
 backend.api.middleware.auth_middleware
-  → backend.api.services.auth_service
+  → backend.api.core.interfaces
   → backend.datetime
   → backend.fastapi
   → backend.fastapi.responses
@@ -137,7 +135,7 @@ backend.api.middleware.auth_middleware
   → backend.starlette.middleware.base
 
 backend.api.middleware.logging_middleware
-  → backend.api.services.auth_service
+  → backend.api.core.interfaces
   → backend.datetime
   → backend.fastapi
   → backend.fastapi.responses
@@ -180,7 +178,6 @@ backend.core
   → backend.profile_generator
 
 backend.core.config
-  → backend.dotenv
   → backend.os
   → backend.pathlib
   → backend.sys
@@ -202,6 +199,9 @@ backend.core.data_mapper
   → backend.logging
   → backend.pathlib
   → backend.re
+  → backend.typing
+
+backend.core.interfaces
   → backend.typing
 
 backend.core.llm_client
@@ -312,6 +312,7 @@ backend.models.schemas
 backend.services.auth_service
   → backend.asyncio
   → backend.core.config
+  → backend.core.interfaces
   → backend.datetime
   → backend.jose
   → backend.logging
@@ -319,7 +320,6 @@ backend.services.auth_service
   → backend.models.schemas
   → backend.passlib.context
   → backend.typing
-  → backend.utils.interfaces
   → backend.uuid
 
 backend.services.catalog_service
@@ -354,10 +354,6 @@ backend.utils.exception_handlers
 
 backend.utils.exceptions
   → backend.fastapi
-  → backend.typing
-
-backend.utils.interfaces
-  → backend.abc
   → backend.typing
 
 backend.utils.position_utils
@@ -401,11 +397,12 @@ SERVICES LAYER (Level 3)
 
 CORE LAYER (Level 2)
   Can import from: models, utils
-  Modules (10):
+  Modules (11):
     - backend.core
     - backend.core.config
     - backend.core.data_loader
     - backend.core.data_mapper
+    - backend.core.interfaces
     - backend.core.llm_client
     - backend.core.markdown_service
     - backend.core.organization_cache
@@ -422,11 +419,10 @@ MODELS LAYER (Level 1)
 
 UTILS LAYER (Level 0)
   Can import from: 
-  Modules (7):
+  Modules (6):
     - backend.utils
     - backend.utils.exception_handlers
     - backend.utils.exceptions
-    - backend.utils.interfaces
     - backend.utils.position_utils
     - backend.utils.request_utils
     - backend.utils.validators

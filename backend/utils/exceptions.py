@@ -362,6 +362,45 @@ class RateLimitError(BaseAppException):
         )
 
 
+class ServiceUnavailableError(BaseAppException):
+    """
+    @doc Ошибки недоступности сервиса или компонента
+
+    Examples:
+        python>
+        # Сервис недоступен
+        raise ServiceUnavailableError("DOCX generation unavailable", 
+                                    service="docx_service",
+                                    suggestion="Install python-docx")
+    """
+
+    def __init__(
+        self,
+        message: str,
+        service: Optional[str] = None,
+        suggestion: Optional[str] = None,
+        **kwargs,
+    ):
+        details = kwargs.pop("details", {})
+        if service:
+            details["service"] = service
+        if suggestion:
+            details["suggestion"] = suggestion
+
+        # Handle extra kwargs by adding them to details
+        internal_message = kwargs.pop("internal_message", None)
+        for key, value in kwargs.items():
+            details[key] = value
+
+        super().__init__(
+            status_code=503,  # Service Unavailable
+            message=message,
+            error_code="SERVICE_UNAVAILABLE",
+            details=details,
+            internal_message=internal_message or message,
+        )
+
+
 # Convenience exception mapping for common HTTP status codes
 EXCEPTION_MAP = {
     400: ValidationError,

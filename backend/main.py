@@ -60,24 +60,8 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("✅ Langfuse мониторинг настроен")
 
-        # Инициализируем глобальный менеджер базы данных
-        db_manager = initialize_db_manager(config.database_path)
-        logger.info("✅ Database manager initialized successfully")
-        
-        # Создаем схему БД и начальные данные
-        db_manager.create_schema()
-        db_manager.seed_initial_data(
-            admin_username=config.ADMIN_USERNAME,
-            admin_password=config.ADMIN_PASSWORD,
-            admin_full_name=config.ADMIN_FULL_NAME,
-            hr_username=config.HR_USERNAME,
-            hr_password=config.HR_PASSWORD,
-            hr_full_name=config.HR_FULL_NAME
-        )
-        logger.info("✅ Database schema and initial data ready")
-
-        # Инициализируем сервисы после инициализации базы данных
-        auth_service = initialize_auth_service()
+        # Database and auth service already initialized for middleware dependency injection
+        # Just initialize remaining services
         catalog_service = initialize_catalog_service()
 
         # Инициализируем централизованный кеш организационной структуры
@@ -105,6 +89,24 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Shutting down HR Profile Generator API...")
     app_components.clear()
 
+
+# Early initialization for dependency injection
+# Database must be initialized first for auth service
+db_manager = initialize_db_manager(config.database_path)
+db_manager.create_schema()
+db_manager.seed_initial_data(
+    admin_username=config.ADMIN_USERNAME,
+    admin_password=config.ADMIN_PASSWORD,
+    admin_full_name=config.ADMIN_FULL_NAME,
+    hr_username=config.HR_USERNAME,
+    hr_password=config.HR_PASSWORD,
+    hr_full_name=config.HR_FULL_NAME
+)
+logger.info("✅ Database initialized for early dependency injection")
+
+# Initialize auth service for middleware dependency injection
+auth_service = initialize_auth_service()
+logger.info("✅ AuthService initialized for middleware")
 
 # Создание FastAPI приложения
 app = FastAPI(
@@ -149,8 +151,8 @@ app.add_middleware(
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.TRUSTED_HOSTS)
 
 
-# Добавление custom middleware
-app.add_middleware(RequestLoggingMiddleware)
+# Добавление custom middleware with dependency injection
+app.add_middleware(RequestLoggingMiddleware, auth_service=auth_service)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Настройка глобальных обработчиков исключений

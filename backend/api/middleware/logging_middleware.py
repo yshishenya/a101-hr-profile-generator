@@ -16,7 +16,7 @@ from datetime import datetime
 import time
 import logging
 
-from ...services.auth_service import auth_service
+from ...core.interfaces import AuthInterface
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +27,20 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
     Расширенная версия базового логирования из main.py.
     Размещен в API layer так как обрабатывает HTTP requests.
+    
+    Now uses dependency injection with AuthInterface to avoid layer violations.
 
     Examples:
         python>
-        app.add_middleware(RequestLoggingMiddleware)
+        auth_service = AuthenticationService()
+        app.add_middleware(RequestLoggingMiddleware, auth_service=auth_service)
         # 📥 GET /api/profiles - user:admin from 127.0.0.1
         # 📤 GET /api/profiles - ✅ 200 - user:admin - 0.123s
     """
 
-    def __init__(self, app):
+    def __init__(self, app, auth_service: AuthInterface = None):
         super().__init__(app)
+        self.auth_service = auth_service
 
     async def dispatch(self, request: Request, call_next):
         """
@@ -64,8 +68,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
             try:
-                if auth_service is not None:
-                    user_data = auth_service.verify_token(token)
+                if self.auth_service is not None:
+                    user_data = self.auth_service.verify_token(token)
                     if user_data:
                         user_info = f"user:{user_data['username']}"
             except Exception:

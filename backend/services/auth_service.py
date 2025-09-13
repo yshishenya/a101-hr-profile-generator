@@ -18,7 +18,7 @@ from passlib.context import CryptContext
 from ..models.database import get_db_manager
 from ..models.schemas import LoginRequest, LoginResponse, UserInfo
 from ..core.config import config
-from ..utils.interfaces import AuthInterface
+from ..core.interfaces import AuthInterface
 import logging
 
 logger = logging.getLogger(__name__)

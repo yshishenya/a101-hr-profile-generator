@@ -1,9 +1,9 @@
 {
-  "analysis_date": "2025-09-13T00:05:02.066653",
+  "analysis_date": "2025-09-13T02:12:17.010020",
   "backend_path": "/home/yan/A101/HR/backend",
   "summary": {
     "total_modules": 37,
-    "total_dependencies": 227,
+    "total_dependencies": 225,
     "circular_dependencies_count": 0,
     "architectural_violations_count": 0
   },
@@ -11,252 +11,250 @@
   "architectural_violations": [],
   "dependency_graph": {
     "backend.main": [
-      "backend.models.database",
-      "backend.fastapi.middleware.cors",
-      "backend.services.auth_service",
-      "backend.fastapi.staticfiles",
-      "backend.fastapi",
-      "backend.api.middleware",
-      "backend.contextlib",
-      "backend.api.catalog",
       "backend.api.dashboard",
-      "backend.core.organization_cache",
-      "backend.services.catalog_service",
-      "backend.api.generation",
-      "backend.fastapi.middleware.trustedhost",
-      "backend.typing",
-      "backend.core.config",
-      "backend.api.auth",
-      "backend.fastapi.responses",
-      "backend.utils.exception_handlers",
+      "backend.fastapi.middleware.cors",
+      "backend.logging",
       "backend.datetime",
       "backend.api.organization",
+      "backend.typing",
       "backend.uvicorn",
+      "backend.fastapi.staticfiles",
+      "backend.api.generation",
+      "backend.utils.exception_handlers",
+      "backend.services.auth_service",
+      "backend.api.catalog",
+      "backend.models.database",
+      "backend.core.config",
+      "backend.core.organization_cache",
+      "backend.services.catalog_service",
+      "backend.api.middleware",
       "backend.os",
+      "backend.fastapi.responses",
+      "backend.fastapi.middleware.trustedhost",
+      "backend.contextlib",
       "backend.api.profiles",
-      "backend.logging"
+      "backend.fastapi",
+      "backend.api.auth"
     ],
     "backend.models.schemas": [
-      "backend.datetime",
-      "backend.pydantic",
-      "backend.uuid",
       "backend.typing",
-      "backend.enum"
+      "backend.enum",
+      "backend.uuid",
+      "backend.pydantic",
+      "backend.datetime"
     ],
     "backend.models.database": [
       "backend.pathlib",
-      "backend.datetime",
       "backend.passlib.context",
-      "backend.json",
-      "backend.logging",
-      "backend.uuid",
       "backend.typing",
-      "backend.sqlite3"
+      "backend.sqlite3",
+      "backend.json",
+      "backend.uuid",
+      "backend.logging",
+      "backend.datetime"
     ],
     "backend.api.profiles": [
+      "backend.utils.validators",
+      "backend.typing",
+      "backend.sqlite3",
       "backend.fastapi.responses",
       "backend.models.database",
-      "backend.datetime",
-      "backend.core.storage_service",
-      "backend.json",
-      "backend.utils.validators",
-      "backend.fastapi",
       "backend.utils.exceptions",
-      "backend.models.schemas",
-      "backend.typing",
-      "backend.core.config",
       "backend.api.auth",
-      "backend.sqlite3"
+      "backend.core.storage_service",
+      "backend.core.config",
+      "backend.json",
+      "backend.fastapi",
+      "backend.datetime",
+      "backend.models.schemas"
     ],
     "backend.api.auth": [
-      "backend.services.auth_service",
-      "backend.fastapi",
       "backend.fastapi.security",
-      "backend.models.schemas",
-      "backend.logging"
+      "backend.services.auth_service",
+      "backend.logging",
+      "backend.fastapi",
+      "backend.models.schemas"
     ],
     "backend.api.dashboard": [
-      "backend.models.database",
-      "backend.datetime",
-      "backend.services.catalog_service",
-      "backend.logging",
-      "backend.fastapi",
       "backend.typing",
-      "backend.core.config",
+      "backend.sqlite3",
+      "backend.models.database",
       "backend.api.auth",
-      "backend.sqlite3"
+      "backend.core.config",
+      "backend.logging",
+      "backend.services.catalog_service",
+      "backend.fastapi",
+      "backend.datetime"
     ],
     "backend.api.organization": [
+      "backend.typing",
+      "backend.logging",
       "backend.services.catalog_service",
       "backend.fastapi",
-      "backend.models.schemas",
-      "backend.typing",
       "backend.api.auth",
-      "backend.logging"
+      "backend.models.schemas"
     ],
     "backend.api.catalog": [
+      "backend.typing",
+      "backend.logging",
       "backend.services.catalog_service",
       "backend.fastapi",
-      "backend.models.schemas",
-      "backend.typing",
       "backend.api.auth",
-      "backend.logging"
+      "backend.models.schemas"
     ],
     "backend.api.generation": [
-      "backend.models.database",
-      "backend.datetime",
-      "backend.json",
-      "backend.fastapi",
       "backend.core.profile_generator",
-      "backend.pydantic",
-      "backend.uuid",
       "backend.typing",
-      "backend.core.config",
+      "backend.models.database",
       "backend.api.auth",
-      "backend.logging"
+      "backend.core.config",
+      "backend.json",
+      "backend.uuid",
+      "backend.logging",
+      "backend.fastapi",
+      "backend.pydantic",
+      "backend.datetime"
     ],
     "backend.services.catalog_service": [
+      "backend.typing",
       "backend.models.database",
-      "backend.datetime",
+      "backend.asyncio",
       "backend.core.organization_cache",
       "backend.time",
+      "backend.logging",
       "backend.utils.position_utils",
-      "backend.asyncio",
-      "backend.typing",
-      "backend.logging"
+      "backend.datetime"
     ],
     "backend.services.auth_service": [
-      "backend.models.database",
-      "backend.datetime",
       "backend.passlib.context",
-      "backend.logging",
-      "backend.models.schemas",
-      "backend.utils.interfaces",
-      "backend.asyncio",
-      "backend.uuid",
       "backend.typing",
+      "backend.jose",
+      "backend.models.database",
       "backend.core.config",
-      "backend.jose"
+      "backend.uuid",
+      "backend.core.interfaces",
+      "backend.logging",
+      "backend.asyncio",
+      "backend.datetime",
+      "backend.models.schemas"
+    ],
+    "backend.core.interfaces": [
+      "backend.typing"
     ],
     "backend.core.data_loader": [
       "backend.pathlib",
-      "backend.datetime",
-      "backend.core.organization_cache",
-      "backend.json",
-      "backend.utils.position_utils",
-      "backend.core.data_mapper",
       "backend.typing",
-      "backend.logging"
+      "backend.core.data_mapper",
+      "backend.json",
+      "backend.core.organization_cache",
+      "backend.logging",
+      "backend.utils.position_utils",
+      "backend.datetime"
     ],
     "backend.core.organization_cache": [
       "backend.pathlib",
+      "backend.typing",
+      "backend.threading",
       "backend.collections",
       "backend.json",
-      "backend.threading",
-      "backend.typing",
       "backend.logging"
     ],
     "backend.core.config": [
       "backend.pathlib",
+      "backend.typing",
       "backend.os",
-      "backend.sys",
-      "backend.dotenv",
-      "backend.typing"
+      "backend.sys"
     ],
     "backend.core.profile_generator": [
       "backend.pathlib",
-      "backend.datetime",
-      "backend.core.storage_service",
-      "backend.json",
-      "backend.core.prompt_manager",
-      "backend.os",
-      "backend.core.markdown_service",
-      "backend.core.llm_client",
-      "backend.core.data_loader",
-      "backend.asyncio",
-      "backend.uuid",
       "backend.typing",
+      "backend.core.markdown_service",
+      "backend.os",
+      "backend.core.storage_service",
       "backend.core.config",
-      "backend.logging"
+      "backend.json",
+      "backend.uuid",
+      "backend.core.data_loader",
+      "backend.core.llm_client",
+      "backend.logging",
+      "backend.core.prompt_manager",
+      "backend.asyncio",
+      "backend.datetime"
     ],
     "backend.core": [
-      "backend.data_mapper",
-      "backend.profile_generator",
       "backend.data_loader",
-      "backend.llm_client"
+      "backend.profile_generator",
+      "backend.llm_client",
+      "backend.data_mapper"
     ],
     "backend.core.markdown_service": [
-      "backend.os",
       "backend.typing",
-      "backend.datetime",
-      "backend.logging"
+      "backend.logging",
+      "backend.os",
+      "backend.datetime"
     ],
     "backend.core.prompt_manager": [
       "backend.pathlib",
-      "backend.datetime",
-      "backend.hashlib",
+      "backend.typing",
+      "backend.os",
       "backend.re",
       "backend.json",
-      "backend.os",
-      "backend.typing",
-      "backend.logging"
+      "backend.logging",
+      "backend.hashlib",
+      "backend.datetime"
     ],
     "backend.core.storage_service": [
       "backend.pathlib",
-      "backend.datetime",
-      "backend.core.organization_cache",
+      "backend.typing",
+      "backend.os",
       "backend.re",
       "backend.json",
-      "backend.os",
-      "backend.typing",
-      "backend.logging"
+      "backend.core.organization_cache",
+      "backend.logging",
+      "backend.datetime"
     ],
     "backend.core.data_mapper": [
       "backend.pathlib",
-      "backend.re",
-      "backend.core.organization_cache",
-      "backend.json",
       "backend.typing",
+      "backend.re",
+      "backend.json",
+      "backend.core.organization_cache",
       "backend.logging"
     ],
     "backend.core.llm_client": [
-      "backend.datetime",
-      "backend.time",
-      "backend.json",
-      "backend.os",
       "backend.langfuse",
-      "backend.langfuse.openai",
       "backend.typing",
-      "backend.core.config",
+      "backend.langfuse.openai",
       "backend.langfuse.decorators",
-      "backend.logging"
+      "backend.os",
+      "backend.core.config",
+      "backend.json",
+      "backend.time",
+      "backend.logging",
+      "backend.datetime"
     ],
     "backend.utils.request_utils": [
       "backend.typing",
       "backend.fastapi",
       "backend.logging"
     ],
-    "backend.utils.interfaces": [
-      "backend.typing",
-      "backend.abc"
-    ],
     "backend.utils.exception_handlers": [
-      "backend.fastapi.responses",
-      "backend.datetime",
-      "backend.traceback",
-      "backend.fastapi.exceptions",
-      "backend.fastapi",
-      "backend.utils.exceptions",
-      "backend.pydantic",
-      "backend.uuid",
       "backend.typing",
-      "backend.logging"
+      "backend.fastapi.responses",
+      "backend.fastapi.exceptions",
+      "backend.utils.exceptions",
+      "backend.traceback",
+      "backend.uuid",
+      "backend.logging",
+      "backend.fastapi",
+      "backend.pydantic",
+      "backend.datetime"
     ],
     "backend.utils.validators": [
-      "backend.utils.exceptions",
-      "backend.uuid",
+      "backend.re",
       "backend.typing",
-      "backend.re"
+      "backend.uuid",
+      "backend.utils.exceptions"
     ],
     "backend.utils.position_utils": [
       "backend.typing",
@@ -267,34 +265,34 @@
       "backend.fastapi"
     ],
     "backend.tools.xlsx_dump": [
-      "backend.__future__",
       "backend.pathlib",
-      "backend.openpyxl",
-      "backend.argparse",
+      "backend.typing",
       "backend.json",
-      "backend.typing"
+      "backend.__future__",
+      "backend.argparse",
+      "backend.openpyxl"
     ],
     "backend.api.middleware.auth_middleware": [
       "backend.fastapi.responses",
-      "backend.datetime",
+      "backend.api.core.interfaces",
       "backend.starlette.middleware.base",
+      "backend.logging",
       "backend.fastapi",
-      "backend.api.services.auth_service",
-      "backend.logging"
+      "backend.datetime"
     ],
     "backend.api.middleware.logging_middleware": [
       "backend.fastapi.responses",
-      "backend.datetime",
-      "backend.time",
+      "backend.api.core.interfaces",
       "backend.starlette.middleware.base",
+      "backend.time",
+      "backend.logging",
       "backend.fastapi",
-      "backend.api.services.auth_service",
-      "backend.logging"
+      "backend.datetime"
     ],
     "backend.api.middleware": [
-      "backend.api.logging_middleware",
+      "backend.api.auth_middleware",
       "backend.api.security_middleware",
-      "backend.api.auth_middleware"
+      "backend.api.logging_middleware"
     ],
     "backend.api.middleware.security_middleware": [
       "backend.starlette.middleware.base",
@@ -491,14 +489,14 @@
         "module": "fastapi.staticfiles",
         "from_module": "StaticFiles",
         "alias": null,
-        "line_number": 223,
+        "line_number": 225,
         "is_relative": false
       },
       {
         "module": "os",
         "from_module": null,
         "alias": null,
-        "line_number": 224,
+        "line_number": 226,
         "is_relative": false
       }
     ],
@@ -1560,7 +1558,7 @@
         "is_relative": true
       },
       {
-        "module": "utils.interfaces",
+        "module": "core.interfaces",
         "from_module": "AuthInterface",
         "alias": null,
         "line_number": 21,
@@ -1582,6 +1580,36 @@
       }
     ],
     "backend.services": [],
+    "backend.core.interfaces": [
+      {
+        "module": "typing",
+        "from_module": "Protocol",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Optional",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Dict",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      },
+      {
+        "module": "typing",
+        "from_module": "Any",
+        "alias": null,
+        "line_number": 13,
+        "is_relative": false
+      }
+    ],
     "backend.core.data_loader": [
       {
         "module": "json",
@@ -1760,13 +1788,6 @@
         "from_module": "Path",
         "alias": null,
         "line_number": 10,
-        "is_relative": false
-      },
-      {
-        "module": "dotenv",
-        "from_module": "load_dotenv",
-        "alias": null,
-        "line_number": 14,
         "is_relative": false
       },
       {
@@ -2325,43 +2346,6 @@
         "is_relative": false
       }
     ],
-    "backend.utils.interfaces": [
-      {
-        "module": "abc",
-        "from_module": "ABC",
-        "alias": null,
-        "line_number": 14,
-        "is_relative": false
-      },
-      {
-        "module": "abc",
-        "from_module": "abstractmethod",
-        "alias": null,
-        "line_number": 14,
-        "is_relative": false
-      },
-      {
-        "module": "typing",
-        "from_module": "Dict",
-        "alias": null,
-        "line_number": 15,
-        "is_relative": false
-      },
-      {
-        "module": "typing",
-        "from_module": "Any",
-        "alias": null,
-        "line_number": 15,
-        "is_relative": false
-      },
-      {
-        "module": "typing",
-        "from_module": "Optional",
-        "alias": null,
-        "line_number": 15,
-        "is_relative": false
-      }
-    ],
     "backend.utils.exception_handlers": [
       {
         "module": "logging",
@@ -2739,8 +2723,8 @@
         "is_relative": false
       },
       {
-        "module": "services.auth_service",
-        "from_module": "auth_service",
+        "module": "core.interfaces",
+        "from_module": "AuthInterface",
         "alias": null,
         "line_number": 19,
         "is_relative": true
@@ -2790,8 +2774,8 @@
         "is_relative": false
       },
       {
-        "module": "services.auth_service",
-        "from_module": "auth_service",
+        "module": "core.interfaces",
+        "from_module": "AuthInterface",
         "alias": null,
         "line_number": 19,
         "is_relative": true

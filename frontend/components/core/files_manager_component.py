@@ -1,6 +1,7 @@
 """
 @doc
-FilesManagerComponent - Компонент управления файлами профилей для A101 HR Profile Generator.
+FilesManagerComponent - Компонент управления файлами профилей
+для A101 HR Profile Generator.
 
 Единственная ответственность: скачивание файлов профилей через чистый API слой.
 Убирает прямые HTTP запросы из UI компонентов, обеспечивая правильную архитектуру.
@@ -19,7 +20,7 @@ import logging
 import tempfile
 import os
 import threading
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from nicegui import ui
 
@@ -87,10 +88,16 @@ class FilesManagerComponent:
             # Информация о поддерживаемых форматах
             with ui.card().classes("w-full"):
                 with ui.card_section():
-                    ui.label("📋 Поддерживаемые форматы:").classes("text-subtitle2 mb-2")
+                    ui.label("📋 Поддерживаемые форматы:").classes(
+                        "text-subtitle2 mb-2"
+                    )
                     with ui.column().classes("gap-1"):
-                        ui.label("• JSON - полные данные профиля для анализа").classes("text-body2")
-                        ui.label("• Markdown - отформатированный документ для печати").classes("text-body2")
+                        ui.label("• JSON - полные данные профиля для анализа").classes(
+                            "text-body2"
+                        )
+                        ui.label(
+                            "• Markdown - отформатированный документ для печати"
+                        ).classes("text-body2")
 
         return files_container
 
@@ -123,11 +130,9 @@ class FilesManagerComponent:
             if format_type == "json":
                 file_data = await self.api_client.download_profile_json(profile_id)
                 file_extension = "json"
-                content_type = "application/json"
             else:  # markdown
                 file_data = await self.api_client.download_profile_markdown(profile_id)
                 file_extension = "md"
-                content_type = "text/markdown"
 
             # Закрываем диалог прогресса
             self._hide_download_progress()
@@ -145,8 +150,7 @@ class FilesManagerComponent:
             self._schedule_cleanup(temp_path)
 
             ui.notify(
-                f"✅ {format_type.upper()} файл скачан: {filename}",
-                type="positive"
+                f"✅ {format_type.upper()} файл скачан: {filename}", type="positive"
             )
 
             logger.info(f"File download completed: {filename} for profile {profile_id}")
@@ -154,10 +158,7 @@ class FilesManagerComponent:
         except Exception as e:
             self._hide_download_progress()
             logger.error(f"Error downloading {format_type} file: {e}")
-            ui.notify(
-                f"❌ Ошибка скачивания {format_type}: {str(e)}",
-                type="negative"
-            )
+            ui.notify(f"❌ Ошибка скачивания {format_type}: {str(e)}", type="negative")
 
     def _show_download_progress(self, profile_id: str, format_type: str):
         """
@@ -202,7 +203,9 @@ class FilesManagerComponent:
             self.download_progress_dialog.close()
             self.download_progress_dialog = None
 
-    async def _create_temp_file(self, file_data: bytes, profile_id: str, extension: str) -> str:
+    async def _create_temp_file(
+        self, file_data: bytes, profile_id: str, extension: str
+    ) -> str:
         """
         @doc
         Создание временного файла для скачивания.
@@ -222,9 +225,7 @@ class FilesManagerComponent:
         try:
             # Создаем временный файл
             with tempfile.NamedTemporaryFile(
-                mode="wb",
-                suffix=f"_{profile_id[:8]}.{extension}",
-                delete=False
+                mode="wb", suffix=f"_{profile_id[:8]}.{extension}", delete=False
             ) as tmp_file:
                 tmp_file.write(file_data)
                 temp_path = tmp_file.name
@@ -252,15 +253,16 @@ class FilesManagerComponent:
           python> files_manager._schedule_cleanup("/tmp/file.json", 30)
           python> # Файл будет удален через 30 секунд
         """
+
         def cleanup():
             try:
                 if os.path.exists(temp_path):
                     os.unlink(temp_path)
                     logger.info(f"Cleaned up temp file: {temp_path}")
-                
+
                 # Убираем из отслеживания
                 self.temp_files.discard(temp_path)
-                
+
             except Exception as e:
                 logger.error(f"Error cleaning up temp file {temp_path}: {e}")
 
@@ -289,17 +291,22 @@ class FilesManagerComponent:
         success_count = 0
         for i, profile_id in enumerate(profile_ids, 1):
             try:
-                ui.notify(f"📥 Скачивание {i}/{len(profile_ids)}: {profile_id[:8]}...", type="info")
+                ui.notify(
+                    f"📥 Скачивание {i}/{len(profile_ids)}: {profile_id[:8]}...",
+                    type="info",
+                )
                 await self.download_file(profile_id, format_type)
                 success_count += 1
-                
+
                 # Небольшая пауза между скачиваниями
                 if i < len(profile_ids):
                     await asyncio.sleep(1)
-                    
+
             except Exception as e:
                 logger.error(f"Error downloading file {profile_id}: {e}")
-                ui.notify(f"❌ Ошибка скачивания {profile_id[:8]}: {str(e)}", type="negative")
+                ui.notify(
+                    f"❌ Ошибка скачивания {profile_id[:8]}: {str(e)}", type="negative"
+                )
 
         # Итоговое уведомление
         if success_count == len(profile_ids):
@@ -307,7 +314,7 @@ class FilesManagerComponent:
         else:
             ui.notify(
                 f"⚠️ Скачано {success_count} из {len(profile_ids)} файлов",
-                type="warning"
+                type="warning",
             )
 
     async def preview_markdown(self, profile_id: str):
@@ -327,7 +334,7 @@ class FilesManagerComponent:
 
             # Скачиваем Markdown через API
             markdown_data = await self.api_client.download_profile_markdown(profile_id)
-            markdown_content = markdown_data.decode('utf-8')
+            markdown_content = markdown_data.decode("utf-8")
 
             # Показываем в диалоге
             with ui.dialog() as dialog:
@@ -335,9 +342,9 @@ class FilesManagerComponent:
                     # Заголовок
                     with ui.card_section().classes("bg-primary text-white"):
                         with ui.row().classes("w-full justify-between items-center"):
-                            ui.label(f"📄 Предпросмотр Markdown: {profile_id[:12]}...").classes(
-                                "text-h6"
-                            )
+                            ui.label(
+                                f"📄 Предпросмотр Markdown: {profile_id[:12]}..."
+                            ).classes("text-h6")
                             ui.button(icon="close", on_click=dialog.close).props(
                                 "flat round text-color=white"
                             )
@@ -352,7 +359,7 @@ class FilesManagerComponent:
                         ui.button(
                             "Скачать",
                             icon="download",
-                            on_click=lambda: self.download_file(profile_id, "markdown")
+                            on_click=lambda: self.download_file(profile_id, "markdown"),
                         ).props("color=primary")
                         ui.button("Закрыть", on_click=dialog.close).props("outlined")
 
@@ -386,6 +393,48 @@ class FilesManagerComponent:
         if cleaned_count > 0:
             logger.info(f"Cleaned up {cleaned_count} temporary files")
 
+    def download_file_sync(self, profile_id: str, format_type: str):
+        """
+        @doc
+        Синхронный wrapper для async download_file метода.
+
+        Создает background task для async операции, совместимо с NiceGUI best practices.
+        НЕ создает UI элементы в background task - только выполняет скачивание.
+
+        Args:
+            profile_id: ID профиля для скачивания
+            format_type: Формат файла ("json" или "markdown")
+
+        Examples:
+          python> files_manager.download_file_sync("profile123", "json")
+          # Запущено асинхронное скачивание без UI блокировки
+        """
+        import asyncio
+        import threading
+
+        def run_download():
+            """Запуск async download в отдельном thread pool."""
+            try:
+                # Создаем новый event loop для этого thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                # Запускаем скачивание
+                loop.run_until_complete(self.download_file(profile_id, format_type))
+
+            except Exception as e:
+                logger.error(f"Background download failed: {e}")
+            finally:
+                loop.close()
+
+        # Запускаем в background thread (НЕ в UI context)
+        thread = threading.Thread(target=run_download, daemon=True)
+        thread.start()
+
+        logger.info(
+            f"Started background download for profile {profile_id} ({format_type})"
+        )
+
     def get_download_status(self) -> Dict[str, Any]:
         """
         @doc
@@ -401,5 +450,5 @@ class FilesManagerComponent:
         return {
             "temp_files_count": len(self.temp_files),
             "is_downloading": bool(self.download_progress_dialog),
-            "temp_files": list(self.temp_files)
+            "temp_files": list(self.temp_files),
         }

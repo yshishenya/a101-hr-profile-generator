@@ -70,10 +70,10 @@ class ProfileStorageService:
 
     def get_profile_paths(
         self, profile_id: str, department: str, position: str, created_at: datetime
-    ) -> Tuple[Path, Path]:
+    ) -> Tuple[Path, Path, Path]:
         """
         @doc
-        Детерминистическое вычисление путей к JSON и MD файлам профиля.
+        Детерминистическое вычисление путей к JSON, MD и DOCX файлам профиля.
 
         Вычисляет пути на основе данных из БД без обращения к файловой системе.
         Использует кешированную организационную структуру для построения иерархии.
@@ -85,7 +85,7 @@ class ProfileStorageService:
           created_at: Время создания профиля
 
         Returns:
-          Tuple[Path, Path]: Пути к JSON и MD файлам
+          Tuple[Path, Path, Path]: Пути к JSON, MD и DOCX файлам
 
         Examples:
           python> json_path, md_path = storage.get_profile_paths(
@@ -125,8 +125,9 @@ class ProfileStorageService:
         # Пути к файлам
         json_path = full_path / f"{instance_name}.json"
         md_path = full_path / f"{instance_name}.md"
+        docx_path = full_path / f"{instance_name}.docx"
 
-        return json_path, md_path
+        return json_path, md_path, docx_path
 
     def sanitize_path_component(self, name: str) -> str:
         """
@@ -248,20 +249,22 @@ class ProfileStorageService:
         directory: Path,
         json_content: Dict[str, Any],
         md_content: str,
+        docx_content: Optional[str] = None,
         profile_id: Optional[str] = None,
-    ) -> Tuple[Path, Path]:
+    ) -> Tuple[Path, Path, Path]:
         """
         @doc
-        Сохраняет JSON и MD файлы профиля в указанную директорию.
+        Сохраняет JSON, MD и DOCX файлы профиля в указанную директорию.
 
         Args:
           directory: Путь к директории профиля
           json_content: Содержимое JSON профиля
           md_content: Содержимое MD файла
+          docx_content: Путь к созданному DOCX файлу (optional)
           profile_id: ID профиля для связи с БД
 
         Returns:
-          Tuple[Path, Path]: Пути к JSON и MD файлам
+          Tuple[Path, Path, Path]: Пути к JSON, MD и DOCX файлам
 
         Examples:
           python> json_path, md_path = storage.save_profile_files(dir_path, data, md)
@@ -273,6 +276,7 @@ class ProfileStorageService:
             # Пути к файлам
             json_path = directory / f"{instance_name}.json"
             md_path = directory / f"{instance_name}.md"
+            docx_path = directory / f"{instance_name}.docx"
 
             # Метаинформация о файловых путях теперь не сохраняется -
             # пути вычисляются детерминистически через get_profile_paths()
@@ -285,8 +289,37 @@ class ProfileStorageService:
             with open(md_path, "w", encoding="utf-8") as f:
                 f.write(md_content)
 
-            logger.info(f"✅ Saved profile files: {json_path.name}, {md_path.name}")
-            return json_path, md_path
+            # Сохраняем DOCX если предоставлен
+            if docx_content:
+                import shutil
+                import os
+
+                logger.info(f"📄 Copying DOCX from {docx_content} to {docx_path}")
+
+                if not os.path.exists(docx_content):
+                    logger.error(f"❌ Source DOCX file does not exist: {docx_content}")
+                    raise FileNotFoundError(
+                        f"Source DOCX file not found: {docx_content}"
+                    )
+
+                source_size = os.path.getsize(docx_content)
+                logger.info(f"📊 Source DOCX size: {source_size} bytes")
+
+                shutil.copy2(docx_content, docx_path)
+
+                if os.path.exists(docx_path):
+                    dest_size = os.path.getsize(docx_path)
+                    logger.info(
+                        f"✅ DOCX copied successfully: {docx_path.name} ({dest_size} bytes)"
+                    )
+                else:
+                    logger.error(f"❌ DOCX copy failed: destination file not created")
+                    raise FileNotFoundError(f"Failed to copy DOCX to {docx_path}")
+
+            logger.info(
+                f"✅ Saved profile files: {json_path.name}, {md_path.name}, {docx_path.name if docx_content else 'no DOCX'}"
+            )
+            return json_path, md_path, docx_path
 
         except Exception as e:
             logger.error(f"❌ Error saving profile files: {e}")

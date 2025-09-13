@@ -16,7 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from datetime import datetime
 import logging
 
-from ...services.auth_service import auth_service
+from ...core.interfaces import AuthInterface
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
     Examples:
         python>
-        app.add_middleware(JWTAuthMiddleware, auth_service=auth_service)
+        middleware = JWTAuthMiddleware(app, auth_service)
         # Все API endpoints будут проверять JWT автоматически
     """
 
@@ -46,8 +46,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/static",
     }
 
-    def __init__(self, app):
+    def __init__(self, app, auth_service: AuthInterface):
         super().__init__(app)
+        self.auth_service = auth_service
 
     async def dispatch(self, request: Request, call_next):
         """
@@ -89,7 +90,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         token = auth_header.split(" ")[1]
 
         # Проверяем токен через services layer (допустимо в API layer)
-        if auth_service is None:
+        if self.auth_service is None:
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={
@@ -100,7 +101,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        user_data = auth_service.verify_token(token)
+        user_data = self.auth_service.verify_token(token)
 
         if not user_data:
             return JSONResponse(

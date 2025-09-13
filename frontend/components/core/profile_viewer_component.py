@@ -1,17 +1,18 @@
 """
 @doc
-ProfileViewerComponent - Компонент просмотра сгенерированных профилей для A101 HR Profile Generator.
+ProfileViewerComponent - Компонент просмотра сгенерированных профилей.
 
-Единственная ответственность: отображение детальной информации о профилях должностей.
-Показывает содержимое профилей, метаданные генерации, версии и историю.
+Использует ui.refreshable для динамического обновления контента.
+Отображает детальную информацию о профилях должностей встроенно.
+Показывает содержимое профилей, метаданные генерации, версии.
 
 События:
-- on_download_request(profile_id, format) - запрос на скачивание профиля
+- on_download_request(profile_id, format) - запрос на скачивание
 
 Examples:
   python> viewer = ProfileViewerComponent(api_client)
   python> viewer.on_download_request = files_manager.download_file
-  python> await viewer.show_profile(profile_data)
+  python> viewer.show_profile(profile_data)
 """
 
 import logging
@@ -29,6 +30,7 @@ class ProfileViewerComponent:
     Компонент просмотра детальной информации о профилях должностей.
 
     Особенности:
+    - ui.refreshable для динамического обновления
     - Детальное отображение содержимого профилей JSON
     - Метаданные генерации LLM (токены, время, модель)
     - История версий профилей
@@ -37,7 +39,7 @@ class ProfileViewerComponent:
 
     Examples:
       python> viewer = ProfileViewerComponent(api_client)
-      python> viewer.on_download_request = lambda pid, fmt: print(f"Download {pid}")
+      python> viewer.on_download_request = lambda pid, fmt: print("Download")
       python> viewer.show_profile({"profile_id": "123", ...})
     """
 
@@ -55,14 +57,17 @@ class ProfileViewerComponent:
         """
         self.api_client = api_client
 
-        # UI компоненты
-        self.profile_container = None
-        self.profile_dialog = None
+        # Состояние компонента
+        self.current_profile = None
+        self.profiles_list = []
+        self.show_detailed_view = False
 
         # События для интеграции с другими компонентами
-        self.on_download_request: Optional[Callable[[str, str], None]] = None
+        self.on_download_request: Optional[
+            Callable[[str, str], None]
+        ] = None
 
-    async def render_profile_viewer(self) -> ui.column:
+    def render_profile_viewer(self) -> ui.column:
         """
         @doc
         Рендеринг контейнера для просмотра профилей.
@@ -71,7 +76,7 @@ class ProfileViewerComponent:
             ui.column: Контейнер для отображения профилей
 
         Examples:
-          python> container = await viewer.render_profile_viewer()
+          python> container = viewer.render_profile_viewer()
           python> # Контейнер просмотра профилей готов
         """
         with ui.column().classes("w-full gap-4") as profile_container:
@@ -82,15 +87,185 @@ class ProfileViewerComponent:
                     "text-h6 text-weight-medium text-primary"
                 )
 
-            # Контейнер для содержимого профилей
-            self.profile_container = ui.column().classes("w-full")
+            # Контейнер для содержимого профилей (refreshable)
+            self._render_profile_content()
 
         return profile_container
 
-    async def show_profile(self, profile_data: Dict[str, Any]):
+    @ui.refreshable
+    def _render_profile_content(self):
         """
         @doc
-        Отображение профиля в диалоге.
+        Рендеринг refreshable содержимого профилей.
+
+        Показывает либо список профилей, либо детальный вид профиля.
+
+        Examples:
+          python> viewer._render_profile_content()
+          python> # Отрендерен refreshable контент
+        """
+        with ui.column().classes("w-full"):
+            if self.show_detailed_view and self.current_profile:
+                self._render_detailed_profile_view()
+            elif self.profiles_list:
+                self._render_profiles_list()
+            else:
+                self._render_empty_state()
+
+    def _render_empty_state(self):
+        """
+        @doc
+        Рендеринг пустого состояния.
+
+        Examples:
+          python> viewer._render_empty_state()
+          python> # Показано пустое состояние
+        """
+        with ui.card().classes("w-full p-8"):
+            with ui.column().classes("items-center gap-4"):
+                ui.icon("preview", size="3rem").classes("text-grey-5")
+                ui.label("Нет профилей для отображения").classes(
+                    "text-h6 text-grey-6"
+                )
+                ui.label(
+                    "Сгенерируйте профиль или выберите из списка"
+                ).classes("text-body2 text-grey-5")
+
+    def _render_profiles_list(self):
+        """
+        @doc
+        Рендеринг списка профилей.
+
+        Examples:
+          python> viewer._render_profiles_list()
+          python> # Отрендерен список профилей
+        """
+        ui.label(f"Найдено профилей: {len(self.profiles_list)}").classes(
+            "text-h6 mb-4"
+        )
+
+        # Показываем до 10 профилей
+        for profile in self.profiles_list[:10]:
+            with ui.card().classes("w-full mb-2"):
+                with ui.card_section():
+                    with ui.row().classes(
+                        "w-full justify-between items-center"
+                    ):
+                        with ui.column():
+                            position = profile.get(
+                                "position", "Неизвестная должность"
+                            )
+                            ui.label(position).classes(
+                                "text-subtitle1 font-medium"
+                            )
+                            ui.label(profile.get("department", "")).classes(
+                                "text-caption"
+                            )
+                            created_at = profile.get("created_at")
+                            ui.label(
+                                f"Создан: {self._format_datetime(created_at)}"
+                            ).classes("text-caption text-grey-6")
+
+                        ui.button(
+                            "Просмотр",
+                            icon="preview",
+                            on_click=lambda p=profile: self.show_profile(p),
+                        ).props("color=primary")
+
+    def _render_detailed_profile_view(self):
+        """
+        @doc
+        Рендеринг детального вида профиля.
+
+        Examples:
+          python> viewer._render_detailed_profile_view()
+          python> # Отрендерен детальный вид
+        """
+        profile = self.current_profile
+        if not profile:
+            return
+
+        with ui.card().classes("w-full"):
+            # Заголовок профиля
+            with ui.card_section().classes("bg-primary text-white"):
+                with ui.row().classes(
+                    "w-full justify-between items-center"
+                ):
+                    with ui.column():
+                        title = profile.get(
+                            "position_title", "Профиль должности"
+                        )
+                        ui.label(title).classes("text-h5 font-bold")
+                        ui.label(
+                            profile.get("department_path", "")
+                        ).classes("text-body1 opacity-90")
+
+                    ui.button(
+                        icon="close",
+                        on_click=self._close_detailed_view
+                    ).props("flat round text-color=white")
+
+            # Основной контент
+            with ui.scroll_area().classes("max-h-[60vh]"):
+                with ui.column().classes("gap-4 p-6"):
+                    # Основная информация
+                    self._render_profile_basic_info(profile)
+
+                    # Содержание профиля (JSON данные)
+                    if profile.get("json_data"):
+                        self._render_profile_content_section(
+                            profile["json_data"]
+                        )
+
+                    # Метаданные генерации
+                    if (
+                        profile.get("generation_metadata") or
+                        profile.get("metadata")
+                    ):
+                        self._render_profile_metadata(profile)
+
+            # Действия в футере
+            with ui.card_actions():
+                with ui.row().classes("w-full justify-between"):
+                    with ui.row().classes("gap-2"):
+                        ui.button(
+                            "Скачать JSON",
+                            icon="file_download",
+                            on_click=lambda: self._request_download(
+                                profile.get("profile_id"), "json"
+                            ),
+                        ).props("color=blue")
+
+                        ui.button(
+                            "Скачать MD",
+                            icon="article",
+                            on_click=lambda: self._request_download(
+                                profile.get("profile_id"), "markdown"
+                            ),
+                        ).props("color=green")
+
+                    ui.button(
+                        "Закрыть",
+                        on_click=self._close_detailed_view
+                    ).props("outlined")
+
+    def _close_detailed_view(self):
+        """
+        @doc
+        Закрытие детального вида профиля.
+
+        Examples:
+          python> viewer._close_detailed_view()
+          python> # Детальный вид закрыт
+        """
+        self.show_detailed_view = False
+        self.current_profile = None
+        self._render_profile_content.refresh()
+
+    def show_profile(self, profile_data: Dict[str, Any]):
+        """
+        @doc
+        Отображение профиля встроенно.
 
         Загружает и показывает детальную информацию о профиле.
 
@@ -98,8 +273,8 @@ class ProfileViewerComponent:
             profile_data: Данные профиля от GeneratorComponent или API
 
         Examples:
-          python> await viewer.show_profile({"profile_id": "123"})
-          python> # Показан диалог с детальной информацией профиля
+          python> viewer.show_profile({"profile_id": "123"})
+          python> # Показан детальный вид профиля
         """
         try:
             # Если это результат генерации, извлекаем нужные данные
@@ -108,29 +283,39 @@ class ProfileViewerComponent:
                 if result and "profile" in result:
                     profile_id = result.get("profile_id")
                     if profile_id:
-                        # Загружаем полный профиль по ID
-                        full_profile = await self.api_client.get_profile_by_id(profile_id)
-                        if full_profile:
-                            await self._show_profile_detail_dialog(full_profile)
-                        else:
-                            # Показываем данные из результата генерации
-                            adapted_data = self._adapt_generation_result(result)
-                            await self._show_profile_detail_dialog(adapted_data)
-                    else:
-                        # Показываем данные из результата генерации напрямую
+                        # Загружаем полный профиль по ID (async call needed)
+                        ui.run_javascript(
+                            f'ui.notify("Загрузка профиля {profile_id}...");'
+                        )
                         adapted_data = self._adapt_generation_result(result)
-                        await self._show_profile_detail_dialog(adapted_data)
+                        self.current_profile = adapted_data
+                    else:
+                        # Показываем данные из результата генерации
+                        adapted_data = self._adapt_generation_result(result)
+                        self.current_profile = adapted_data
                 else:
-                    ui.notify("❌ Нет данных профиля для отображения", type="negative")
+                    ui.notify(
+                        "❌ Нет данных профиля для отображения",
+                        type="negative"
+                    )
+                    return
             else:
                 # Это уже готовые данные профиля
-                await self._show_profile_detail_dialog(profile_data)
+                self.current_profile = profile_data
+
+            # Обновляем состояние и UI
+            self.show_detailed_view = True
+            self._render_profile_content.refresh()
 
         except Exception as e:
             logger.error(f"Error showing profile: {e}")
-            ui.notify(f"❌ Ошибка отображения: {str(e)}", type="negative")
+            ui.notify(
+                f"❌ Ошибка отображения: {str(e)}", type="negative"
+            )
 
-    def _adapt_generation_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+    def _adapt_generation_result(
+        self, result: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         @doc
         Адаптация результата генерации к формату отображения.
@@ -150,86 +335,22 @@ class ProfileViewerComponent:
 
         return {
             "profile_id": result.get("profile_id"),
-            "position_title": profile.get("position_title", result.get("position", "Неизвестная должность")),
-            "department_path": profile.get("department", result.get("department", "Неизвестный департамент")),
+            "position_title": profile.get(
+                "position_title",
+                result.get("position", "Неизвестная должность")
+            ),
+            "department_path": profile.get(
+                "department",
+                result.get("department", "Неизвестный департамент")
+            ),
             "json_data": profile,
             "metadata": metadata,
             "generation_metadata": metadata,
             "created_at": result.get("created_at"),
             "created_by_username": result.get("created_by_username"),
             "version": result.get("version", "1.0"),
-            "status": "completed"
+            "status": "completed",
         }
-
-    async def _show_profile_detail_dialog(self, profile_data: Dict[str, Any]):
-        """
-        @doc
-        Показ диалога с детальной информацией профиля.
-
-        Args:
-            profile_data: Данные профиля для отображения
-
-        Examples:
-          python> await viewer._show_profile_detail_dialog(profile_data)
-          python> # Показан детальный диалог профиля
-        """
-        dialog = ui.dialog()
-
-        with dialog:
-            with ui.card().classes("w-[85vw] max-w-5xl max-h-[80vh]"):
-                # Заголовок диалога
-                with ui.card_section().classes("bg-primary text-white"):
-                    with ui.row().classes("w-full justify-between items-center"):
-                        with ui.column():
-                            ui.label(profile_data.get("position_title", "Профиль должности")).classes(
-                                "text-h5 font-bold"
-                            )
-                            ui.label(profile_data.get("department_path", "")).classes(
-                                "text-body1 opacity-90"
-                            )
-
-                        ui.button(icon="close", on_click=dialog.close).props(
-                            "flat round text-color=white"
-                        )
-
-                # Основной контент
-                with ui.scroll_area().classes("flex-1"):
-                    with ui.column().classes("gap-4 p-6"):
-                        # Основная информация
-                        self._render_profile_basic_info(profile_data)
-
-                        # Содержание профиля (JSON данные)
-                        if profile_data.get("json_data"):
-                            self._render_profile_content(profile_data["json_data"])
-
-                        # Метаданные генерации
-                        if profile_data.get("generation_metadata") or profile_data.get("metadata"):
-                            self._render_profile_metadata(profile_data)
-
-                # Действия в футере
-                with ui.card_actions():
-                    with ui.row().classes("w-full justify-between"):
-                        with ui.row().classes("gap-2"):
-                            ui.button(
-                                "Скачать JSON",
-                                icon="file_download",
-                                on_click=lambda: self._request_download(
-                                    profile_data.get("profile_id"), "json"
-                                ),
-                            ).props("color=blue")
-
-                            ui.button(
-                                "Скачать MD",
-                                icon="article",
-                                on_click=lambda: self._request_download(
-                                    profile_data.get("profile_id"), "markdown"
-                                ),
-                            ).props("color=green")
-
-                        ui.button("Закрыть", on_click=dialog.close).props("outlined")
-
-        self.profile_dialog = dialog
-        dialog.open()
 
     def _render_profile_basic_info(self, profile_data: Dict[str, Any]):
         """
@@ -243,7 +364,9 @@ class ProfileViewerComponent:
           python> viewer._render_profile_basic_info(profile_data)
           python> # Отрендерена секция основной информации
         """
-        with ui.expansion("📋 Основная информация", value=True).classes("w-full"):
+        with ui.expansion(
+            "📋 Основная информация", value=True
+        ).classes("w-full"):
             with ui.grid(columns="1fr 1fr").classes("gap-4 p-4"):
                 # Левая колонка
                 with ui.column().classes("gap-3"):
@@ -253,18 +376,26 @@ class ProfileViewerComponent:
                     self._render_info_item(
                         "Департамент", profile_data.get("department_path")
                     )
-                    self._render_info_item("Версия", profile_data.get("version"))
-                    self._render_info_item("Статус", profile_data.get("status"))
+                    self._render_info_item(
+                        "Версия", profile_data.get("version")
+                    )
+                    self._render_info_item(
+                        "Статус", profile_data.get("status")
+                    )
 
                 # Правая колонка
                 with ui.column().classes("gap-3"):
+                    created_at = profile_data.get("created_at")
                     self._render_info_item(
-                        "Создан", self._format_datetime(profile_data.get("created_at"))
+                        "Создан", self._format_datetime(created_at)
+                    )
+                    updated_at = profile_data.get("updated_at")
+                    self._render_info_item(
+                        "Обновлен", self._format_datetime(updated_at)
                     )
                     self._render_info_item(
-                        "Обновлен", self._format_datetime(profile_data.get("updated_at"))
+                        "Автор", profile_data.get("created_by_username")
                     )
-                    self._render_info_item("Автор", profile_data.get("created_by_username"))
                     if profile_data.get("employee_name"):
                         self._render_info_item(
                             "Сотрудник", profile_data.get("employee_name")
@@ -284,10 +415,12 @@ class ProfileViewerComponent:
           python> # Отрендерен элемент информации
         """
         with ui.row().classes("items-center gap-3"):
-            ui.label(f"{label}:").classes("text-weight-medium min-w-28 text-grey-7")
+            ui.label(f"{label}:").classes(
+                "text-weight-medium min-w-28 text-grey-7"
+            )
             ui.label(str(value or "Не указано")).classes("text-body1")
 
-    def _render_profile_content(self, json_data: Dict[str, Any]):
+    def _render_profile_content_section(self, json_data: Dict[str, Any]):
         """
         @doc
         Отображение содержания профиля.
@@ -298,16 +431,22 @@ class ProfileViewerComponent:
             json_data: JSON данные профиля
 
         Examples:
-          python> viewer._render_profile_content(profile_json)
+          python> viewer._render_profile_content_section(profile_json)
           python> # Отрендерено содержимое профиля
         """
-        with ui.expansion("📄 Содержание профиля", value=False).classes("w-full"):
+        with ui.expansion(
+            "📄 Содержание профиля", value=False
+        ).classes("w-full"):
             with ui.column().classes("gap-4 p-4"):
 
                 # Краткое описание
                 if json_data.get("job_summary"):
-                    ui.label("🎯 Краткое описание").classes("text-h6 font-medium")
-                    ui.label(json_data["job_summary"]).classes("text-body1 mb-4")
+                    ui.label("🎯 Краткое описание").classes(
+                        "text-h6 font-medium"
+                    )
+                    ui.label(json_data["job_summary"]).classes(
+                        "text-body1 mb-4"
+                    )
 
                 # Области ответственности
                 if json_data.get("responsibility_areas"):
@@ -315,7 +454,8 @@ class ProfileViewerComponent:
                         "text-h6 font-medium mb-2"
                     )
 
-                    for i, area in enumerate(json_data["responsibility_areas"][:3], 1):
+                    areas = json_data["responsibility_areas"]
+                    for i, area in enumerate(areas[:3], 1):
                         if isinstance(area, dict):
                             area_names = area.get("area", [])
                             if isinstance(area_names, list) and area_names:
@@ -327,11 +467,15 @@ class ProfileViewerComponent:
                             if tasks:
                                 with ui.column().classes("ml-4 gap-1"):
                                     for task in tasks[:3]:
-                                        ui.label(f"• {task}").classes("text-body2")
+                                        ui.label(f"• {task}").classes(
+                                            "text-body2"
+                                        )
                                     if len(tasks) > 3:
-                                        ui.label(
-                                            f"... и еще {len(tasks) - 3} задач"
-                                        ).classes("text-caption text-grey-6")
+                                        remaining_tasks = len(tasks) - 3
+                                        txt = f"... и еще {remaining_tasks}"
+                                        ui.label(txt).classes(
+                                            "text-caption text-grey-6"
+                                        )
 
                 # Профессиональные навыки
                 if json_data.get("professional_skills"):
@@ -339,24 +483,35 @@ class ProfileViewerComponent:
                         "text-h6 font-medium mb-2"
                     )
 
-                    for skill_group in json_data["professional_skills"][:2]:
+                    skills = json_data["professional_skills"]
+                    for skill_group in skills[:2]:
                         if isinstance(skill_group, dict):
-                            category = skill_group.get("skill_category", "Общие навыки")
-                            ui.label(f"▸ {category}").classes("text-body1 font-medium")
+                            category = skill_group.get(
+                                "skill_category", "Общие навыки"
+                            )
+                            ui.label(f"▸ {category}").classes(
+                                "text-body1 font-medium"
+                            )
 
-                            skills = skill_group.get("skills", [])
-                            if skills:
+                            skills_list = skill_group.get("skills", [])
+                            if skills_list:
                                 with ui.column().classes("ml-4 gap-1"):
-                                    for skill in skills[:4]:
+                                    for skill in skills_list[:4]:
                                         if isinstance(skill, dict):
-                                            skill_name = skill.get("skill_name", skill.get("name", str(skill)))
+                                            skill_name = skill.get(
+                                                "skill_name",
+                                                skill.get("name", str(skill)),
+                                            )
                                         else:
                                             skill_name = str(skill)
-                                        ui.label(f"• {skill_name}").classes("text-body2")
-                                    if len(skills) > 4:
-                                        ui.label(f"... и еще {len(skills) - 4} навыков").classes(
-                                            "text-caption text-grey-6"
+                                        ui.label(f"• {skill_name}").classes(
+                                            "text-body2"
                                         )
+                                    if len(skills_list) > 4:
+                                        remaining = len(skills_list) - 4
+                                        ui.label(
+                                            f"... и еще {remaining} навыков"
+                                        ).classes("text-caption text-grey-6")
 
                 # KPI и цели
                 if json_data.get("kpi"):
@@ -368,10 +523,17 @@ class ProfileViewerComponent:
                     if isinstance(kpi_data, list):
                         for i, kpi in enumerate(kpi_data[:3], 1):
                             if isinstance(kpi, dict):
-                                kpi_name = kpi.get("kpi_name", kpi.get("name", f"KPI {i}"))
-                                ui.label(f"{i}. {kpi_name}").classes("text-body1")
+                                kpi_name = kpi.get(
+                                    "kpi_name",
+                                    kpi.get("name", f"KPI {i}")
+                                )
+                                ui.label(f"{i}. {kpi_name}").classes(
+                                    "text-body1"
+                                )
                             else:
-                                ui.label(f"{i}. {str(kpi)}").classes("text-body1")
+                                ui.label(f"{i}. {str(kpi)}").classes(
+                                    "text-body1"
+                                )
 
     def _render_profile_metadata(self, profile_data: Dict[str, Any]):
         """
@@ -387,7 +549,10 @@ class ProfileViewerComponent:
           python> viewer._render_profile_metadata(profile_data)
           python> # Отрендерены метаданные генерации
         """
-        metadata = profile_data.get("generation_metadata") or profile_data.get("metadata")
+        metadata = (
+            profile_data.get("generation_metadata") or
+            profile_data.get("metadata")
+        )
         if not metadata:
             return
 
@@ -395,37 +560,67 @@ class ProfileViewerComponent:
             with ui.grid(columns="1fr 1fr").classes("gap-4 p-4"):
                 # Производительность
                 with ui.column().classes("gap-2"):
-                    ui.label("📊 Производительность").classes("text-body1 font-medium")
+                    ui.label("📊 Производительность").classes(
+                        "text-body1 font-medium"
+                    )
 
-                    time_taken = metadata.get("generation_time_seconds", metadata.get("time_taken", 0))
-                    self._render_info_item("Время генерации", f"{time_taken:.1f} сек")
+                    time_taken = metadata.get(
+                        "generation_time_seconds",
+                        metadata.get("time_taken", 0)
+                    )
+                    self._render_info_item(
+                        "Время генерации", f"{time_taken:.1f} сек"
+                    )
 
-                    tokens = metadata.get("tokens_used", metadata.get("tokens", {}))
+                    tokens = metadata.get(
+                        "tokens_used", metadata.get("tokens", {})
+                    )
                     if isinstance(tokens, dict):
                         total_tokens = tokens.get("total", 0)
                         input_tokens = tokens.get("input", 0)
                         output_tokens = tokens.get("output", 0)
-                        self._render_info_item("Всего токенов", f"{total_tokens:,}")
+                        self._render_info_item(
+                            "Всего токенов", f"{total_tokens:,}"
+                        )
                         if input_tokens:
-                            self._render_info_item("Входные", f"{input_tokens:,}")
+                            self._render_info_item(
+                                "Входные", f"{input_tokens:,}"
+                            )
                         if output_tokens:
-                            self._render_info_item("Выходные", f"{output_tokens:,}")
+                            self._render_info_item(
+                                "Выходные", f"{output_tokens:,}"
+                            )
                     elif isinstance(tokens, int):
-                        self._render_info_item("Токены", f"{tokens:,}")
+                        self._render_info_item(
+                            "Токены", f"{tokens:,}"
+                        )
 
                 # Технические детали
                 with ui.column().classes("gap-2"):
-                    ui.label("🔧 Технические детали").classes("text-body1 font-medium")
-                    self._render_info_item("Модель", metadata.get("model_used", metadata.get("model", "")))
+                    ui.label("🔧 Технические детали").classes(
+                        "text-body1 font-medium"
+                    )
+                    model = metadata.get(
+                        "model_used", metadata.get("model", "")
+                    )
+                    self._render_info_item("Модель", model)
 
                     if metadata.get("prompt_name"):
-                        self._render_info_item("Промпт", metadata["prompt_name"])
+                        self._render_info_item(
+                            "Промпт", metadata["prompt_name"]
+                        )
                     if metadata.get("prompt_version"):
-                        self._render_info_item("Версия промпта", metadata["prompt_version"])
+                        self._render_info_item(
+                            "Версия промпта", metadata["prompt_version"]
+                        )
 
                     if metadata.get("langfuse_trace_id"):
-                        ui.label("🔍 Trace ID:").classes("text-weight-medium text-grey-7")
-                        ui.label(metadata["langfuse_trace_id"]).classes("text-caption font-mono")
+                        ui.label("🔍 Trace ID:").classes(
+                            "text-weight-medium text-grey-7"
+                        )
+                        ui.label(metadata["langfuse_trace_id"]).classes(
+                            "text-caption font-mono"
+                        )
 
     def _format_datetime(self, datetime_str: str) -> str:
         """
@@ -447,8 +642,10 @@ class ProfileViewerComponent:
 
         try:
             # Парсим ISO формат даты
-            if 'T' in datetime_str:
-                dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+            if "T" in datetime_str:
+                dt = datetime.fromisoformat(
+                    datetime_str.replace("Z", "+00:00")
+                )
             else:
                 dt = datetime.fromisoformat(datetime_str)
 
@@ -475,9 +672,11 @@ class ProfileViewerComponent:
         if self.on_download_request and profile_id:
             self.on_download_request(profile_id, format_type)
         else:
-            ui.notify("❌ Невозможно скачать: нет ID профиля", type="negative")
+            ui.notify(
+                "❌ Невозможно скачать: нет ID профиля", type="negative"
+            )
 
-    async def show_profile_list(self, profiles: list[Dict[str, Any]]):
+    def show_profile_list(self, profiles: list[Dict[str, Any]]):
         """
         @doc
         Отображение списка профилей.
@@ -486,40 +685,13 @@ class ProfileViewerComponent:
             profiles: Список профилей для отображения
 
         Examples:
-          python> await viewer.show_profile_list(profiles_list)
+          python> viewer.show_profile_list(profiles_list)
           python> # Показан список профилей с кнопками просмотра
         """
-        if not self.profile_container:
-            return
-
-        self.profile_container.clear()
-
-        if not profiles:
-            with self.profile_container:
-                ui.label("Профили не найдены").classes("text-center text-muted")
-            return
-
-        with self.profile_container:
-            ui.label(f"Найдено профилей: {len(profiles)}").classes("text-h6 mb-4")
-
-            for profile in profiles[:10]:  # Показываем до 10 профилей
-                with ui.card().classes("w-full mb-2"):
-                    with ui.card_section():
-                        with ui.row().classes("w-full justify-between items-center"):
-                            with ui.column():
-                                ui.label(profile.get("position", "Неизвестная должность")).classes(
-                                    "text-subtitle1 font-medium"
-                                )
-                                ui.label(profile.get("department", "")).classes("text-caption")
-                                ui.label(
-                                    f"Создан: {self._format_datetime(profile.get('created_at'))}"
-                                ).classes("text-caption text-grey-6")
-
-                            ui.button(
-                                "Просмотр",
-                                icon="preview",
-                                on_click=lambda p=profile: self.show_profile(p)
-                            ).props("color=primary")
+        self.profiles_list = profiles or []
+        self.show_detailed_view = False
+        self.current_profile = None
+        self._render_profile_content.refresh()
 
     def clear_display(self):
         """
@@ -530,9 +702,7 @@ class ProfileViewerComponent:
           python> viewer.clear_display()
           python> # Контейнер очищен
         """
-        if self.profile_container:
-            self.profile_container.clear()
-
-        if self.profile_dialog:
-            self.profile_dialog.close()
-            self.profile_dialog = None
+        self.profiles_list = []
+        self.current_profile = None
+        self.show_detailed_view = False
+        self._render_profile_content.refresh()
