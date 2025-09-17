@@ -49,7 +49,7 @@ class ProfileStorageService:
         Находит полный организационный путь к департаменту через централизованный кеш.
 
         Args:
-          target_department: Название целевого департамента/группы
+          target_department: Название целевого департамента/группы или полный путь
 
         Returns:
           List[str]: Полный путь от блока до департамента, или None
@@ -62,10 +62,23 @@ class ProfileStorageService:
             # Используем относительный импорт в core
             from .organization_cache import organization_cache
 
-            return organization_cache.find_department_path(target_department)
+            # Если target_department содержит "/", это полный путь из IT Generator
+            if "/" in target_department:
+                # Извлекаем последний компонент (реальное название департамента)
+                actual_department = target_department.split("/")[-1].strip()
+                result = organization_cache.find_department_path(actual_department)
+                if result:
+                    return result
+                # Если не найден, парсим весь путь как компоненты
+                return [comp.strip() for comp in target_department.split("/") if comp.strip()]
+            else:
+                # Прямой поиск по названию
+                return organization_cache.find_department_path(target_department)
         except ImportError as e:
             logger.error(f"Failed to import organization_cache: {e}")
-            # Fallback: возвращаем простую структуру
+            # Fallback: если есть "/", разбиваем на компоненты
+            if "/" in target_department:
+                return [comp.strip() for comp in target_department.split("/") if comp.strip()]
             return [target_department]
 
     def get_profile_paths(
@@ -103,15 +116,12 @@ class ProfileStorageService:
             )
             org_path = [department]
 
-        # Создаем путь: base/Блок/Департамент/.../Группа/Должность/Должность_Timestamp/
+        # Создаем путь: base/Блок/Департамент/.../Группа/Экземпляр_Профиля/
         path_components = [self.sanitize_path_component(comp) for comp in org_path]
 
-        # Добавляем папку должности
-        position_clean = self.sanitize_path_component(position)
-        path_components.append(position_clean)
-
-        # Добавляем папку экземпляра профиля
+        # Создаем папку экземпляра профиля (БЕЗ дублирования папки должности)
         timestamp_str = created_at.strftime("%Y%m%d_%H%M%S")
+        position_clean = self.sanitize_path_component(position)
         # Используем profile_id для уникальности (первые 8 символов)
         short_id = profile_id[:8] if len(profile_id) > 8 else profile_id
         instance_name = f"{position_clean}_{timestamp_str}_{short_id}"
@@ -213,15 +223,12 @@ class ProfileStorageService:
             logger.warning(f"⚠️ Department path not found for: {department}")
             org_path = [department]  # Fallback к простому пути
 
-        # Создаем путь: base/Блок/Департамент/.../Группа/Должность/Должность_Timestamp/
+        # Создаем путь: base/Блок/Департамент/.../Группа/Экземпляр_Профиля/
         path_components = [self.sanitize_path_component(comp) for comp in org_path]
 
-        # Добавляем папку должности
-        position_clean = self.sanitize_path_component(position)
-        path_components.append(position_clean)
-
-        # Добавляем папку экземпляра профиля
+        # Создаем папку экземпляра профиля (БЕЗ дублирования папки должности)
         timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+        position_clean = self.sanitize_path_component(position)
         instance_name = f"{position_clean}_{timestamp_str}"
         if profile_id:
             # Добавляем короткий ID для уникальности
