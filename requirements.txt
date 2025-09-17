@@ -21,6 +21,9 @@ python-dotenv>=1.0.0
 pandas>=2.1.0
 openpyxl>=3.1.0
 
+# Document generation
+python-docx>=1.1.0
+
 # LLM monitoring and OpenAI client
 langfuse
 openai>=1.0.0
