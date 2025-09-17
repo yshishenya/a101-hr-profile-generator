@@ -93,7 +93,7 @@ class GeneratorPage:
             # 3. Секция просмотра (изначально пустая)
             with ui.card().classes("w-full"):
                 with ui.card_section():
-                    await self.viewer.render_profile_viewer()
+                    self.viewer.render_profile_viewer()
 
             # 4. Секция управления файлами (может быть скрыта или упрощена)
             with ui.card().classes("w-full"):
