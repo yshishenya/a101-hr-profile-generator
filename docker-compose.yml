@@ -80,7 +80,7 @@ networks:
     driver: bridge
 
 volumes:
-  # Оставляем только volume для frontend static, остальное через bind mounts
+  # Volume для frontend static
   frontend_static:
     driver: local
     name: a101hr_frontend_static
