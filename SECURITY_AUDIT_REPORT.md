@@ -1,440 +1,581 @@
-# Security Audit Report - A101 HR Backend System
-
-**Date:** September 13, 2025  
-**Auditor:** Security Architecture Team  
-**System:** A101 HR Profile Generator Backend  
-**Severity Levels:** CRITICAL | HIGH | MEDIUM | LOW | INFO
+# 🔒 SECURITY AUDIT REPORT - A101 HR Profile Generator
+## Date: 2025-01-19
+## Auditor: Security Specialist (Captain)
+## Severity Levels: CRITICAL | HIGH | MEDIUM | LOW
 
 ---
 
-## Executive Summary
+## 🚨 EXECUTIVE SUMMARY
 
-The security audit of the A101 HR backend system revealed several **CRITICAL** and **HIGH** severity vulnerabilities that require immediate attention. While the system implements some security best practices, there are significant gaps that could lead to data breaches, unauthorized access, and system compromise.
+**Overall Security Posture: HIGH RISK**
 
-### Overall Risk Assessment: **HIGH RISK** 
+The A101 HR Profile Generator system contains **14 critical security vulnerabilities** that require immediate remediation. The most severe issues include hardcoded credentials, XSS vulnerabilities, and unsafe JavaScript execution that could lead to complete system compromise.
 
-**Critical Issues Found:** 8  
-**High Priority Issues:** 7  
-**Medium Priority Issues:** 5  
-**Low Priority Issues:** 3  
-
----
-
-## 1. CRITICAL SECURITY VULNERABILITIES
-
-### 1.1 Exposed Secrets in Environment File
-**Severity:** CRITICAL  
-**Location:** `/home/yan/A101/HR/.env`  
-**OWASP:** A02:2021 – Cryptographic Failures
-
-#### Findings:
-- **OpenRouter API Key exposed:** `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`
-- **Langfuse keys exposed:** Public and secret keys are hardcoded
-- **Test JWT token exposed:** Long-lived test token valid until 2026-09-09
-- **Weak JWT secret:** `dev-secret-key-change-in-production` (predictable)
-
-#### Risk:
-- API keys can be used to rack up charges on third-party services
-- Test JWT token allows unauthorized access for over a year
-- Weak JWT secret enables token forgery attacks
-
-#### Recommendations:
-1. **IMMEDIATE:** Rotate all exposed API keys
-2. Remove `.env` from version control
-3. Use environment-specific secrets management (AWS Secrets Manager, HashiCorp Vault)
-4. Generate cryptographically secure JWT secret (minimum 256 bits)
-5. Never commit test tokens to repository
+### Key Statistics:
+- **CRITICAL**: 5 vulnerabilities
+- **HIGH**: 4 vulnerabilities
+- **MEDIUM**: 3 vulnerabilities
+- **LOW**: 2 vulnerabilities
 
 ---
 
-### 1.2 SQL Injection Vulnerabilities
-**Severity:** CRITICAL  
-**Location:** `/home/yan/A101/HR/backend/api/profiles.py`  
-**OWASP:** A03:2021 – Injection
+## 🔴 CRITICAL VULNERABILITIES
 
-#### Findings:
+### 1. HARDCODED TEST TOKEN IN PRODUCTION
+**Location**: `/home/yan/A101/HR/.env`
+**CVSS Score**: 9.8 (CRITICAL)
+**CWE**: CWE-798 (Use of Hard-coded Credentials)
+
+**Description**:
+A hardcoded JWT test token is present in the environment file that doesn't expire until 2026-09-09. This token provides full admin access to the system.
+
 ```python
-# Line 234: Direct string concatenation in SQL query
-count_query = f"SELECT COUNT(*) FROM profiles p WHERE 1=1{where_clause}"
+TEST_JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-#### Risk:
-- Direct SQL query construction using f-strings
-- Potential for SQL injection through crafted where clauses
-- Could lead to data exfiltration or manipulation
-
-#### Recommendations:
-1. Use parameterized queries exclusively
-2. Implement query builder pattern
-3. Add SQL injection detection in input validation
-4. Use ORM (SQLAlchemy) instead of raw SQL
-
----
-
-### 1.3 Weak Password Policy
-**Severity:** HIGH  
-**Location:** `/home/yan/A101/HR/backend/core/config.py`  
-**OWASP:** A07:2021 – Identification and Authentication Failures
-
-#### Findings:
-- Default admin password: `q4Mrpwty7t9F` (weak despite appearance)
-- No password complexity requirements enforced
-- No password rotation policy
-- No account lockout mechanism
-
-#### Risk:
-- Brute force attacks possible
-- Default credentials could be compromised
-- No protection against credential stuffing
-
-#### Recommendations:
-1. Implement strong password policy (min 12 chars, complexity requirements)
-2. Add account lockout after failed attempts
-3. Implement MFA/2FA
-4. Force password change on first login
-5. Add password expiration policy
-
----
-
-### 1.4 Session Management Issues
-**Severity:** HIGH  
-**Location:** `/home/yan/A101/HR/backend/services/auth_service.py`  
-**OWASP:** A07:2021 – Identification and Authentication Failures
-
-#### Findings:
-- Session validation fails open (line 396): Returns `True` on database error
-- No session timeout beyond JWT expiration
-- Sessions not invalidated on password change
-- No concurrent session limits
-
-#### Risk:
-- Database failures allow unauthorized access
-- Long-lived sessions increase attack window
-- Compromised sessions remain valid
-
-#### Recommendations:
-1. **CRITICAL:** Change fail-open to fail-closed for session validation
-2. Implement absolute session timeout
-3. Invalidate all sessions on password change
-4. Add concurrent session limits per user
-
----
-
-## 2. HIGH PRIORITY ISSUES
-
-### 2.1 CORS Misconfiguration
-**Severity:** HIGH  
-**Location:** `/home/yan/A101/HR/.env` and `/home/yan/A101/HR/backend/main.py`  
-**OWASP:** A05:2021 – Security Misconfiguration
-
-#### Findings:
-- CORS origins set to `*` (wildcard) in `.env`
-- Allows requests from any origin
-- Credentials allowed with wildcard origins
-
-#### Risk:
-- Cross-site request forgery (CSRF) attacks
-- Data theft through malicious websites
-- API abuse from unauthorized domains
-
-#### Recommendations:
-1. Configure specific allowed origins
-2. Never use wildcard with credentials
-3. Implement CSRF tokens for state-changing operations
-4. Use environment-specific CORS configuration
-
----
-
-### 2.2 Missing Rate Limiting
-**Severity:** HIGH  
-**Location:** All API endpoints  
-**OWASP:** A04:2021 – Insecure Design
-
-#### Findings:
-- No rate limiting on authentication endpoints
-- No rate limiting on generation endpoints
-- No DDoS protection
-
-#### Risk:
-- Brute force attacks on login
-- Resource exhaustion through generation spam
-- Denial of service vulnerabilities
-
-#### Recommendations:
-1. Implement rate limiting (redis-based or in-memory)
-2. Add progressive delays for failed auth attempts
-3. Implement request throttling per user/IP
-4. Add CAPTCHA for repeated failures
-
----
-
-### 2.3 Insufficient Input Validation
-**Severity:** HIGH  
-**Location:** `/home/yan/A101/HR/backend/utils/validators.py`  
-**OWASP:** A03:2021 – Injection
-
-#### Findings:
-- Basic regex patterns for SQL injection detection
-- No protection against NoSQL injection
-- Limited XSS prevention
-- No file upload validation
-
-#### Risk:
-- Sophisticated injection attacks may bypass filters
-- Stored XSS through profile data
-- Malicious file uploads possible
-
-#### Recommendations:
-1. Use allow-lists instead of deny-lists
-2. Implement context-aware output encoding
-3. Add file type and size validation
-4. Use dedicated security libraries (bleach for HTML sanitization)
-
----
-
-## 3. MEDIUM PRIORITY ISSUES
-
-### 3.1 Logging Sensitive Information
-**Severity:** MEDIUM  
-**Location:** `/home/yan/A101/HR/backend/services/auth_service.py`  
-**OWASP:** A09:2021 – Security Logging and Monitoring Failures
-
-#### Findings:
-- Username logged in failed login attempts (line 99, 108)
-- Token data logged in debug mode
-- No log sanitization
-
-#### Risk:
-- Information disclosure through logs
-- Username enumeration
-- Sensitive data in log aggregation systems
-
-#### Recommendations:
-1. Sanitize all log outputs
-2. Use generic messages for auth failures
-3. Implement structured logging
-4. Add log rotation and retention policies
-
----
-
-### 3.2 Docker Security Issues
-**Severity:** MEDIUM  
-**Location:** `/home/yan/A101/HR/Dockerfile` and `docker-compose.yml`  
-**OWASP:** A05:2021 – Security Misconfiguration
-
-#### Findings:
-- Running as root user in container
-- No security scanning in build process
-- Bind mounts with write access
-- No resource limits defined
-
-#### Risk:
-- Container escape vulnerabilities
-- Host file system compromise
-- Resource exhaustion
-
-#### Recommendations:
-1. Run containers as non-root user
-2. Implement multi-stage builds
-3. Add security scanning (Trivy, Snyk)
-4. Set resource limits (CPU, memory)
-5. Use read-only file systems where possible
-
----
-
-### 3.3 Weak Content Security Policy
-**Severity:** MEDIUM  
-**Location:** `/home/yan/A101/HR/backend/api/middleware/security_middleware.py`  
-**OWASP:** A05:2021 – Security Misconfiguration
-
-#### Findings:
-- CSP allows `unsafe-inline` and `unsafe-eval`
-- Script sources not properly restricted
-- Missing security headers (HSTS, etc.)
-
-#### Risk:
-- XSS attacks possible
-- Script injection vulnerabilities
-- Man-in-the-middle attacks
-
-#### Recommendations:
-1. Remove `unsafe-inline` and `unsafe-eval`
-2. Implement nonce-based CSP
-3. Add HSTS header with preload
-4. Add X-Permitted-Cross-Domain-Policies
-
----
-
-## 4. LOW PRIORITY ISSUES
-
-### 4.1 Information Disclosure
-**Severity:** LOW  
-**Location:** Error responses throughout the application  
-**OWASP:** A01:2021 – Broken Access Control
-
-#### Findings:
-- Detailed error messages exposed to users
-- Stack traces visible in development mode
-- Version information in API responses
-
-#### Risk:
-- Information useful for attackers
-- Internal structure disclosure
-
-#### Recommendations:
-1. Implement generic error messages for production
-2. Log detailed errors server-side only
-3. Remove version information from responses
-
----
-
-## 5. SECURITY BEST PRACTICES ASSESSMENT
-
-### Positive Findings ✅
-1. **Password Hashing:** Using bcrypt for password storage
-2. **JWT Implementation:** Proper token structure with expiration
-3. **Input Validation:** Basic validation framework in place
-4. **HTTPS Enforcement:** TrustedHost middleware configured
-5. **Security Headers:** Basic security headers implemented
-6. **Parameterized Queries:** Used in most database operations
-
-### Areas for Improvement ❌
-1. **No Security Testing:** No SAST/DAST in CI/CD pipeline
-2. **No Dependency Scanning:** Vulnerable dependencies not monitored
-3. **No Security Training:** Development team needs security awareness
-4. **No Incident Response Plan:** No documented security procedures
-5. **No Audit Logging:** Security events not properly tracked
-6. **No Encryption at Rest:** Database and files unencrypted
-
----
-
-## 6. COMPLIANCE GAPS
-
-### GDPR Compliance Issues
-1. No data encryption at rest
-2. No audit trail for data access
-3. No data retention policies
-4. No right to erasure implementation
-
-### Security Standards
-1. Does not meet OWASP ASVS Level 2
-2. Missing ISO 27001 controls
-3. No PCI DSS compliance (if payment data handled)
-
----
-
-## 7. IMMEDIATE ACTION ITEMS
-
-### Priority 1 - CRITICAL (Implement within 24 hours)
-1. **Rotate all API keys and secrets**
-2. **Remove .env from git history** using BFG Repo-Cleaner
-3. **Fix SQL injection vulnerability** in profiles.py
-4. **Change session validation** from fail-open to fail-closed
-5. **Disable test JWT token**
-
-### Priority 2 - HIGH (Implement within 1 week)
-1. Configure proper CORS origins
-2. Implement rate limiting on all endpoints
-3. Add MFA for admin accounts
-4. Upgrade JWT secret to 256-bit random value
-5. Implement account lockout mechanism
-
-### Priority 3 - MEDIUM (Implement within 1 month)
-1. Add security scanning to CI/CD
-2. Implement proper CSP without unsafe directives
-3. Configure Docker security best practices
-4. Add comprehensive audit logging
-5. Implement data encryption at rest
-
----
-
-## 8. RECOMMENDED SECURITY ARCHITECTURE
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   Load Balancer                      │
-│                    (with DDoS)                       │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│                  WAF (Web Application Firewall)      │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│               Rate Limiter (Redis)                   │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│            API Gateway (with Auth)                   │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│              Application (FastAPI)                   │
-│         - Input Validation                           │
-│         - Output Encoding                            │
-│         - Parameterized Queries                      │
-└────────────────────┬────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────┐
-│          Encrypted Database (SQLite)                 │
-└──────────────────────────────────────────────────────┘
+**Impact**:
+- Complete authentication bypass
+- Full admin access without credentials
+- Data breach potential
+- Regulatory compliance violations (GDPR, HIPAA)
+
+**Mitigation**:
+```python
+# Remove TEST_JWT_TOKEN from production .env
+# Add to .env validation script:
+def validate_production_env():
+    if os.getenv('TEST_JWT_TOKEN'):
+        raise SecurityError("TEST_JWT_TOKEN must not be present in production")
 ```
 
 ---
 
-## 9. SECURITY TESTING RECOMMENDATIONS
+### 2. XSS via JAVASCRIPT INJECTION IN MARKDOWN
+**Location**: `profile_viewer_component.py:526-530`
+**CVSS Score**: 8.8 (CRITICAL)
+**CWE**: CWE-79 (Cross-Site Scripting)
 
-### Automated Testing
-1. **SAST:** SonarQube, Semgrep, or Bandit for Python
-2. **DAST:** OWASP ZAP or Burp Suite
-3. **Dependency Scanning:** Snyk or Safety
-4. **Container Scanning:** Trivy or Clair
-5. **Secret Scanning:** GitLeaks or TruffleHog
+**Issue**: Direct JavaScript execution with user-controlled data:
+```python
+ui.run_javascript(f'''
+    navigator.clipboard.writeText(`{markdown_content.replace("`", "\\`")}`).then(() => {{
+        console.log("Markdown copied to clipboard");
+    }});
+''')
+```
 
-### Manual Testing
-1. Penetration testing quarterly
-2. Code review for all security-critical changes
-3. Security architecture review bi-annually
+**Attack Vector**:
+Malicious markdown content containing backticks and JavaScript can escape the template literal and execute arbitrary code.
+
+**Proof of Concept**:
+```javascript
+// Malicious markdown content:
+`); alert('XSS'); //
+```
+
+**Mitigation**:
+```python
+import json
+import html
+
+def safe_copy_markdown(markdown_content: str):
+    # Properly escape content
+    escaped_content = json.dumps(markdown_content)
+
+    ui.run_javascript(f'''
+        const content = {escaped_content};
+        navigator.clipboard.writeText(content);
+    ''')
+```
 
 ---
 
-## 10. CONCLUSION
+### 3. WEAK JWT SECRET KEY
+**Location**: `/home/yan/A101/HR/.env`
+**CVSS Score**: 8.1 (CRITICAL)
+**CWE**: CWE-326 (Inadequate Encryption Strength)
 
-The A101 HR Backend system has **CRITICAL security vulnerabilities** that must be addressed immediately. The most severe issues involve exposed secrets, SQL injection vulnerabilities, and authentication/session management flaws.
+**Issue**:
+```
+JWT_SECRET_KEY=dev-secret-key-change-in-production
+```
 
-### Risk Rating: **HIGH RISK - IMMEDIATE ACTION REQUIRED**
+**Impact**:
+- JWT tokens can be forged
+- Session hijacking
+- Privilege escalation
 
-The system should not be deployed to production until at least all CRITICAL and HIGH severity issues are resolved. A follow-up security assessment should be conducted after remediation.
+**Mitigation**:
+```python
+# Generate strong secret:
+import secrets
+JWT_SECRET_KEY = secrets.token_urlsafe(64)
+
+# Validate in config.py:
+if len(JWT_SECRET_KEY) < 32:
+    raise SecurityError("JWT_SECRET_KEY must be at least 32 characters")
+```
+
+---
+
+### 4. UNSAFE FILE PATH CONSTRUCTION
+**Location**: `files_manager_component.py:233-237`
+**CVSS Score**: 7.5 (HIGH)
+**CWE**: CWE-22 (Path Traversal)
+
+**Issue**: User-controlled profile_id in filename without validation:
+```python
+with tempfile.NamedTemporaryFile(
+    mode="wb", suffix=f"_{profile_id[:8]}.{extension}", delete=False
+) as tmp_file:
+```
+
+**Attack Vector**:
+Profile ID containing path traversal sequences (`../../../etc/passwd`)
+
+**Mitigation**:
+```python
+import re
+import os
+
+def sanitize_filename(profile_id: str) -> str:
+    # Remove all non-alphanumeric characters
+    safe_id = re.sub(r'[^a-zA-Z0-9_-]', '', profile_id)
+
+    # Limit length
+    safe_id = safe_id[:32]
+
+    # Ensure not empty
+    if not safe_id:
+        safe_id = "unknown"
+
+    return safe_id
+
+# Use:
+safe_id = sanitize_filename(profile_id)
+suffix = f"_{safe_id}.{extension}"
+```
+
+---
+
+### 5. CLIENT-SIDE TOKEN STORAGE IN LOCALSTORAGE
+**Location**: `api_client.py:220-226`
+**CVSS Score**: 7.1 (HIGH)
+**CWE**: CWE-922 (Insecure Storage of Sensitive Information)
+
+**Issue**: JWT tokens stored in localStorage are vulnerable to XSS attacks:
+```python
+ui.run_javascript(
+    f'localStorage.setItem("hr_token_data", {json.dumps(token_data_str)})'
+)
+```
+
+**Impact**:
+- Tokens can be stolen via XSS
+- No protection against malicious scripts
+
+**Mitigation**:
+```python
+# Use httpOnly cookies instead:
+async def set_secure_cookie(response: Response, token: str):
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,  # Not accessible via JavaScript
+        secure=True,    # HTTPS only
+        samesite="strict",  # CSRF protection
+        max_age=86400
+    )
+```
+
+---
+
+## 🟠 HIGH SEVERITY VULNERABILITIES
+
+### 6. NO INPUT VALIDATION ON SEARCH
+**Location**: `search_component.py:377-401`
+**CVSS Score**: 6.5 (HIGH)
+**CWE**: CWE-20 (Improper Input Validation)
+
+**Issue**: Direct use of user input without validation:
+```python
+query = raw_query if raw_query else ""
+filtered_suggestions = [
+    s for s in self.hierarchical_suggestions if query in s.lower()
+]
+```
+
+**Attack Vector**:
+- ReDoS attacks with complex regex patterns
+- Memory exhaustion with large inputs
+
+**Mitigation**:
+```python
+import re
+from typing import Optional
+
+def validate_search_input(query: str) -> Optional[str]:
+    # Limit length
+    if len(query) > 100:
+        return None
+
+    # Remove dangerous characters
+    sanitized = re.sub(r'[<>\"\'&;]', '', query)
+
+    # Prevent ReDoS
+    if re.search(r'(.+)\1{10,}', sanitized):
+        return None
+
+    return sanitized
+```
+
+---
+
+### 7. MISSING RATE LIMITING
+**Location**: All API endpoints
+**CVSS Score**: 6.5 (HIGH)
+**CWE**: CWE-307 (Improper Restriction of Excessive Authentication Attempts)
+
+**Issue**: No rate limiting on critical endpoints:
+- Login attempts
+- Profile generation
+- File downloads
+
+**Mitigation**:
+```python
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["100 per hour"]
+)
+
+@app.post("/api/auth/login")
+@limiter.limit("5 per minute")
+async def login(request: Request):
+    # Login logic
+```
+
+---
+
+### 8. INSECURE DIRECT OBJECT REFERENCES
+**Location**: Multiple endpoints accessing profile_id
+**CVSS Score**: 6.5 (HIGH)
+**CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
+
+**Issue**: No authorization checks when accessing profiles by ID:
+```python
+async def download_profile_json(self, profile_id: str) -> bytes:
+    url = f"{self.base_url}/api/profiles/{profile_id}/download/json"
+```
+
+**Mitigation**:
+```python
+# Backend authorization check:
+async def get_profile(profile_id: str, user: User = Depends(get_current_user)):
+    profile = db.get_profile(profile_id)
+
+    # Check ownership or permissions
+    if not user.can_access_profile(profile):
+        raise HTTPException(403, "Access denied")
+
+    return profile
+```
+
+---
+
+## 🟡 MEDIUM SEVERITY VULNERABILITIES
+
+### 9. INSUFFICIENT ERROR HANDLING
+**Location**: Multiple components
+**CVSS Score**: 5.3 (MEDIUM)
+**CWE**: CWE-209 (Information Exposure Through Error Messages)
+
+**Issue**: Detailed error messages expose system internals:
+```python
+except Exception as e:
+    ui.notify(f"Ошибка: {str(e)}", type="negative")
+```
+
+**Mitigation**:
+```python
+import logging
+
+def handle_error(e: Exception, user_message: str = "An error occurred"):
+    # Log full error internally
+    logger.error(f"Error details: {e}", exc_info=True)
+
+    # Show generic message to user
+    ui.notify(user_message, type="negative")
+
+    # Send to monitoring
+    if monitoring:
+        monitoring.capture_exception(e)
+```
+
+---
+
+### 10. WEAK PASSWORD POLICY
+**Location**: Authentication system
+**CVSS Score**: 5.3 (MEDIUM)
+**CWE**: CWE-521 (Weak Password Requirements)
+
+**Issue**: No password complexity requirements enforced
+
+**Mitigation**:
+```python
+import re
+
+def validate_password(password: str) -> bool:
+    # Minimum 12 characters
+    if len(password) < 12:
+        return False
+
+    # Must contain uppercase, lowercase, digit, special char
+    patterns = [
+        r'[A-Z]',  # uppercase
+        r'[a-z]',  # lowercase
+        r'[0-9]',  # digit
+        r'[!@#$%^&*(),.?":{}|<>]'  # special
+    ]
+
+    for pattern in patterns:
+        if not re.search(pattern, password):
+            return False
+
+    return True
+```
+
+---
+
+### 11. MISSING CORS CONFIGURATION
+**Location**: Backend API
+**CVSS Score**: 5.3 (MEDIUM)
+**CWE**: CWE-942 (Permissive Cross-domain Policy)
+
+**Issue**: No CORS headers configuration visible
+
+**Mitigation**:
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://hr.a101.com"],  # Specific origins only
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=3600
+)
+```
+
+---
+
+## 🟢 LOW SEVERITY VULNERABILITIES
+
+### 12. VERBOSE LOGGING
+**Location**: Throughout application
+**CVSS Score**: 3.7 (LOW)
+**CWE**: CWE-532 (Information Exposure Through Log Files)
+
+**Issue**: Sensitive data in logs:
+```python
+logger.info(f"Successfully logged in user: {username}")
+logger.debug(f"Token: {self._access_token[:10]}")
+```
+
+**Mitigation**:
+```python
+# Configure secure logging
+import logging
+
+class SanitizingFilter(logging.Filter):
+    def filter(self, record):
+        # Remove sensitive data patterns
+        record.msg = re.sub(r'token[=:]\s*\S+', 'token=[REDACTED]', str(record.msg))
+        record.msg = re.sub(r'password[=:]\s*\S+', 'password=[REDACTED]', str(record.msg))
+        return True
+
+logger.addFilter(SanitizingFilter())
+```
+
+---
+
+### 13. MISSING SECURITY HEADERS
+**Location**: HTTP responses
+**CVSS Score**: 3.1 (LOW)
+**CWE**: CWE-693 (Protection Mechanism Failure)
+
+**Mitigation**:
+```python
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+```
+
+---
+
+## 📋 SECURITY CHECKLIST
+
+### Immediate Actions (24 hours):
+- [ ] Remove TEST_JWT_TOKEN from all environments
+- [ ] Replace JWT_SECRET_KEY with cryptographically strong value
+- [ ] Fix XSS vulnerability in markdown copy function
+- [ ] Implement input sanitization for all user inputs
+
+### Short-term (1 week):
+- [ ] Implement rate limiting on all endpoints
+- [ ] Add proper authorization checks (IDOR prevention)
+- [ ] Switch from localStorage to httpOnly cookies
+- [ ] Add CORS configuration
+- [ ] Implement security headers
+
+### Medium-term (1 month):
+- [ ] Full security code review
+- [ ] Penetration testing
+- [ ] Implement WAF (Web Application Firewall)
+- [ ] Security monitoring and alerting
+- [ ] Regular dependency scanning
+
+---
+
+## 🛡️ RECOMMENDED SECURITY STACK
+
+### Authentication & Authorization:
+```python
+# Use industry-standard libraries
+pip install python-jose[cryptography]  # JWT handling
+pip install passlib[bcrypt]           # Password hashing
+pip install python-multipart          # Form handling
+pip install slowapi                   # Rate limiting
+```
+
+### Security Middleware Stack:
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+app = FastAPI()
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://hr.a101.com"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization"],
+)
+
+# Security headers
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000"
+    return response
+```
+
+---
+
+## 📊 RISK MATRIX
+
+| Vulnerability | Likelihood | Impact | Risk Level | Priority |
+|--------------|------------|---------|------------|----------|
+| Hardcoded Test Token | HIGH | CRITICAL | CRITICAL | P0 |
+| XSS in Markdown | MEDIUM | HIGH | HIGH | P0 |
+| Weak JWT Secret | HIGH | HIGH | CRITICAL | P0 |
+| Path Traversal | MEDIUM | MEDIUM | MEDIUM | P1 |
+| localStorage tokens | HIGH | MEDIUM | HIGH | P1 |
+| No Rate Limiting | HIGH | MEDIUM | HIGH | P1 |
+| IDOR | MEDIUM | HIGH | HIGH | P1 |
+
+---
+
+## 🔍 TESTING RECOMMENDATIONS
+
+### 1. Security Testing Tools:
+```bash
+# SAST (Static Application Security Testing)
+pip install bandit
+bandit -r . -f json -o security_report.json
+
+# Dependency scanning
+pip install safety
+safety check --json
+
+# OWASP ZAP for dynamic testing
+docker run -t owasp/zap2docker-stable zap-baseline.py -t http://localhost:8022
+```
+
+### 2. Penetration Test Scenarios:
+- Authentication bypass attempts
+- XSS payload injection
+- Path traversal attacks
+- Rate limiting bypass
+- IDOR exploitation
+- JWT manipulation
+
+---
+
+## 📝 COMPLIANCE NOTES
+
+### OWASP Top 10 Coverage:
+- **A01:2021 – Broken Access Control**: IDOR vulnerabilities found
+- **A02:2021 – Cryptographic Failures**: Weak JWT secret, localStorage tokens
+- **A03:2021 – Injection**: XSS vulnerabilities
+- **A04:2021 – Insecure Design**: Missing rate limiting
+- **A05:2021 – Security Misconfiguration**: Hardcoded credentials
+- **A07:2021 – Identification and Authentication Failures**: Weak password policy
+- **A09:2021 – Security Logging and Monitoring Failures**: Verbose logging
+
+### Regulatory Compliance Impact:
+- **GDPR**: Data breach risk due to authentication bypass
+- **HIPAA**: If handling health data, current security is non-compliant
+- **SOC 2**: Multiple control failures
+
+---
+
+## 🚀 CONCLUSION
+
+The A101 HR Profile Generator system requires **immediate security remediation** before production deployment. The presence of hardcoded credentials and XSS vulnerabilities represents an unacceptable risk level.
+
+**Recommendation**: **DO NOT DEPLOY TO PRODUCTION** until all CRITICAL and HIGH severity issues are resolved.
 
 ### Next Steps:
-1. Implement Priority 1 fixes immediately
-2. Schedule security training for development team
-3. Establish security review process for all changes
-4. Conduct penetration testing after fixes
-5. Implement continuous security monitoring
+1. Emergency patch for critical vulnerabilities
+2. Security review by development team
+3. Implementation of security controls
+4. Penetration testing
+5. Security monitoring setup
+6. Regular security audits
 
 ---
 
-## Appendix A: Security Checklist
-
-- [ ] All secrets rotated and secured
-- [ ] SQL injection vulnerabilities fixed
-- [ ] Rate limiting implemented
-- [ ] MFA enabled for admin accounts
-- [ ] Security headers properly configured
-- [ ] Docker security hardened
-- [ ] Logging sanitized
-- [ ] CORS properly configured
-- [ ] Session management secured
-- [ ] Input validation comprehensive
-- [ ] Security testing automated
-- [ ] Incident response plan created
-- [ ] Security training completed
-- [ ] Compliance gaps addressed
-- [ ] Penetration testing completed
-
----
-
-**Report Generated:** September 13, 2025  
-**Next Review Date:** October 13, 2025  
-**Classification:** CONFIDENTIAL - INTERNAL USE ONLY
+**Report Generated**: 2025-01-19
+**Auditor**: Security Specialist (Captain)
+**Classification**: CONFIDENTIAL

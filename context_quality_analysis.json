@@ -1,0 +1,571 @@
+{
+  "analysis_title": "Context Quality Analysis: Root Causes of Poor Profile Generation",
+  "analysis_date": "2025-10-20",
+  "severity_level": "CRITICAL",
+  "root_problem": "System sends ALL KPI data from ALL management levels to LLM without position-level filtering, causing wrong KPI assignment, generic responsibilities, and unclear accountability lines",
+
+  "data_quality_issues": [
+    {
+      "issue": "Ambiguous KPI column headers",
+      "location": "KPI_DIT.md table header",
+      "detail": "4 columns all labeled 'Рук. управления' with no distinguishing context about which department/role each represents",
+      "impact": "LLM cannot map columns to specific management levels"
+    },
+    {
+      "issue": "Non-machine-readable format",
+      "location": "KPI_DIT.md entire file",
+      "detail": "Markdown table requires manual parsing instead of structured JSON",
+      "impact": "Requires LLM to perform OCR-like parsing, error-prone"
+    },
+    {
+      "issue": "Encoding/format corruption risk",
+      "location": "data_mapper.py:_clean_kpi_content()",
+      "detail": "UTF-8 characters may be corrupted during processing (observed M-PM-^X sequences)",
+      "impact": "Possible table corruption in LLM context"
+    },
+    {
+      "issue": "Mixed KPI types without labeling",
+      "location": "KPI_DIT.md rows 1-8",
+      "detail": "Corporate KPIs and Personal KPIs sections present but LLM can't distinguish relevance",
+      "impact": "Corporate targets sent to individual contributors"
+    },
+    {
+      "issue": "Unexplained '—' values in table",
+      "location": "KPI_DIT.md entire table",
+      "detail": "Dashes don't explain whether KPI is 'not applicable', 'not responsible', or 'inherited'",
+      "impact": "LLM guesses relevance without understanding responsibility chain"
+    }
+  ],
+
+  "missing_context": [
+    {
+      "context_item": "Position-level classification",
+      "current_state": "Not computed",
+      "should_provide": "Whether position is IC, team_lead, middle_mgmt, or senior_mgmt",
+      "impact_on_quality": "Can't filter KPIs appropriately for role level"
+    },
+    {
+      "context_item": "Position-to-KPI mapping",
+      "current_state": "Not created",
+      "should_provide": "Which KPI table rows are applicable to this specific position",
+      "impact_on_quality": "All 34 KPIs treated as equally relevant"
+    },
+    {
+      "context_item": "Role-hierarchy-to-KPI mapping",
+      "current_state": "Not created",
+      "should_provide": "Link from organization hierarchy level to KPI table column",
+      "impact_on_quality": "LLM can't determine which role column to use"
+    },
+    {
+      "context_item": "Responsibility chain clarity",
+      "current_state": "Not provided",
+      "should_provide": "Which KPIs are direct ownership vs inherited vs monitored",
+      "impact_on_quality": "Responsibilities appear flat without hierarchy"
+    },
+    {
+      "context_item": "KPI weight context for this role",
+      "current_state": "Not provided",
+      "should_provide": "Which KPIs are highest priority for this specific position",
+      "impact_on_quality": "No prioritization, all KPIs appear equally important"
+    },
+    {
+      "context_item": "Relevance explanation",
+      "current_state": "Not provided",
+      "should_provide": "Why each KPI matters for this role (explanation not just percentage)",
+      "impact_on_quality": "LLM can't explain KPI relevance to role"
+    },
+    {
+      "context_item": "Technology/system scope",
+      "current_state": "Provided at department level only",
+      "should_provide": "Specific systems, tools, applications for this position",
+      "impact_on_quality": "Skills are generic instead of position-specific"
+    },
+    {
+      "context_item": "Decision authority & budget limits",
+      "current_state": "Not provided",
+      "should_provide": "What decisions this role makes, approval thresholds",
+      "impact_on_quality": "Responsibilities lack accountability scope"
+    },
+    {
+      "context_item": "Career progression paths",
+      "current_state": "Not provided",
+      "should_provide": "Adjacent positions, promotions, lateral moves",
+      "impact_on_quality": "No career path context in profile"
+    }
+  ],
+
+  "poorly_structured_context": [
+    {
+      "context_item": "KPI data format",
+      "current_state": "Raw markdown table",
+      "problem": "Sent as 45K character markdown string instead of structured JSON",
+      "fix": "Convert to array of structured KPI objects"
+    },
+    {
+      "context_item": "KPI filtering",
+      "current_state": "No filtering",
+      "problem": "All 34 KPIs sent for all 50+ positions in department",
+      "fix": "Pre-filter to 5-8 most relevant per position level"
+    },
+    {
+      "context_item": "KPI classification",
+      "current_state": "Mixed in table without metadata",
+      "problem": "Corporate, departmental, and role KPIs mixed without clear labeling",
+      "fix": "Add 'kpi_type' field to each KPI (corporate|departmental|role)"
+    },
+    {
+      "context_item": "Role column mapping",
+      "current_state": "Role names only (not tied to hierarchy)",
+      "problem": "4 'Рук. управления' columns aren't mapped to hierarchy levels",
+      "fix": "Create mapping: hierarchy_level → role_name → kpi_column_index"
+    },
+    {
+      "context_item": "Role metadata",
+      "current_state": "Not provided",
+      "problem": "LLM doesn't know span of control, management level, authority",
+      "fix": "Add role context object with scope, budget, authority levels"
+    }
+  ],
+
+  "filtering_gaps": [
+    {
+      "gap": "Position-level-based KPI selection",
+      "should_happen": "Filter KPIs based on position classification (IC vs Manager vs Director)",
+      "actually_happens": "All 34 KPIs sent regardless of position",
+      "evidence": "data_mapper.py:KPIMapper.load_kpi_content() has no position parameter"
+    },
+    {
+      "gap": "Department-specific KPI context",
+      "should_happen": "Map position hierarchy to KPI table columns and extract subset",
+      "actually_happens": "Raw table sent, LLM must parse and guess relevance",
+      "evidence": "data_loader.py prepares KPI data before position is used for filtering"
+    },
+    {
+      "gap": "Responsibility chain clarity",
+      "should_happen": "Indicate which KPIs are direct vs inherited vs monitored",
+      "actually_happens": "All KPIs presented as equally owned by this position",
+      "evidence": "No 'responsibility_type' field in KPI output"
+    },
+    {
+      "gap": "Corporate vs role KPI exclusion",
+      "should_happen": "Exclude corporate targets for IC positions",
+      "actually_happens": "All KPIs included (corporate, management, IC mixed)",
+      "evidence": "Row 5 'Продажи/выручка' (corporate) included for IC positions"
+    },
+    {
+      "gap": "Relevance explanation",
+      "should_happen": "Provide reason why KPI is relevant to this role",
+      "actually_happens": "LLM receives raw KPI data with no explanation",
+      "evidence": "No 'relevance_explanation' or 'why_relevant' field"
+    }
+  ],
+
+  "kpi_table_structure_analysis": {
+    "file": "data/KPI/KPI_DIT.md",
+    "format": "Markdown table",
+    "total_rows": 34,
+    "total_columns": 13,
+    "column_headers": [
+      "КПЭ",
+      "Целевое значение",
+      "Ед. изм.",
+      "Директор по ИТ",
+      "Рук. отдела",
+      "Рук. управления (unknown dept)",
+      "Рук. управления (unknown dept)",
+      "Рук. управления (unknown dept)",
+      "Тип показателя",
+      "Min значение",
+      "Max значение",
+      "Методика",
+      "Источник информации"
+    ],
+    "critical_problem": "4 identical column headers ('Рук. управления') without distinguishing which management level/department each represents",
+    "role_columns": [
+      {
+        "index": 3,
+        "name": "Директор по ИТ",
+        "is_clear": true
+      },
+      {
+        "index": 4,
+        "name": "Рук. отдела",
+        "is_clear": true
+      },
+      {
+        "index": 5,
+        "name": "Рук. управления",
+        "is_clear": false,
+        "issue": "Which management level? Infrastructure? Operations? Applications?"
+      },
+      {
+        "index": 6,
+        "name": "Рук. управления",
+        "is_clear": false,
+        "issue": "Same as above - completely ambiguous"
+      },
+      {
+        "index": 7,
+        "name": "Рук. управления",
+        "is_clear": false,
+        "issue": "Same as above - completely ambiguous"
+      }
+    ],
+    "how_llm_must_parse": [
+      "1. Detect markdown table format",
+      "2. Extract header row with pipe separators",
+      "3. Identify role columns (columns 3-7)",
+      "4. For each KPI row, extract percentage values from role columns",
+      "5. Determine which columns are relevant (LLM must guess)",
+      "6. Include those KPIs in profile (but gets it wrong)"
+    ],
+    "why_parsing_fails": "No metadata about which role column applies to which organizational level, so LLM makes incorrect assumptions about relevance",
+    "recommended_structure": {
+      "format": "JSON array",
+      "structure": [
+        {
+          "id": "kpi_001",
+          "name": "Поддержание совокупного SLA",
+          "applicable_roles": [
+            {
+              "role_name": "Рук. управления - инфраструктуры",
+              "weight": "15%",
+              "hierarchy_level": 3,
+              "department": "Управление инфраструктуры"
+            }
+          ],
+          "responsibility_type": "direct_owner",
+          "corporate": false,
+          "description": "Your team is responsible for maintaining the agreed SLA levels"
+        }
+      ]
+    }
+  },
+
+  "hierarchy_clarity": {
+    "position_hierarchy_provided": true,
+    "position_hierarchy_structure": "JSON with 6 levels: business_block → department_unit → section_unit → group_unit → sub_section_unit → final_group_unit",
+    "position_hierarchy_clarity": "Very clear and well-structured",
+    "kpi_hierarchy_provided": true,
+    "kpi_hierarchy_structure": "Markdown table with role columns",
+    "kpi_hierarchy_clarity": "Very unclear - ambiguous column names",
+    "mapping_between_hierarchies": "NOT CREATED",
+    "problem": "Position hierarchy is clear (e.g., 'Управление инфраструктуры' at level 3) but KPI hierarchy doesn't indicate which column(s) in table apply to this level",
+    "example_gap": {
+      "position": "Архитектор решений",
+      "hierarchy_path": "Блок ИТ → ДИТ → Управление инфраструктуры",
+      "hierarchy_level": 3,
+      "question": "Should I use KPI column #5, #6, or #7? They're all labeled 'Рук. управления'",
+      "answer": "LLM doesn't know - no mapping provided"
+    },
+    "required_mapping": {
+      "hierarchy_level": 3,
+      "expected_role_column": "Рук. управления - Управление инфраструктуры",
+      "kpi_column_indices": [10, 13, 25, 28],
+      "should_exclude_corporate": true,
+      "should_include_director": false
+    }
+  },
+
+  "recommended_new_context": [
+    {
+      "context_name": "Position Level Classification",
+      "format": "String enum",
+      "values": ["IC", "team_lead", "middle_mgmt", "senior_mgmt"],
+      "example": "{ 'position_level': 'middle_mgmt' }",
+      "impact": "Allows pre-filtering of KPIs appropriate to role level"
+    },
+    {
+      "context_name": "KPI Applicability Filter",
+      "format": "Object with arrays of indices",
+      "structure": {
+        "applicable_kpi_indices": [10, 13, 15, 25, 28],
+        "excluded_kpi_indices": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        "excluded_reason": "corporate_level_only"
+      },
+      "impact": "Reduces from 34 KPIs to 5-8 relevant ones"
+    },
+    {
+      "context_name": "Responsibility Type Mapping",
+      "format": "Object mapping KPI to responsibility type",
+      "example": {
+        "kpi_applicability": {
+          "corporate_kpis": false,
+          "departmental_kpis": true,
+          "management_kpis": true,
+          "ic_kpis": false
+        },
+        "kpi_participation_level": "owner"
+      },
+      "impact": "Clarifies ownership vs contribution vs monitoring"
+    },
+    {
+      "context_name": "Role Context Object",
+      "format": "JSON object with scope information",
+      "structure": {
+        "role_description": "Infrastructure management leader",
+        "span_of_control": 50,
+        "management_level": 3,
+        "reporting_to": "Director of IT",
+        "authority_level": "medium",
+        "budget_responsibility": 500000
+      },
+      "impact": "Provides context about scope and authority"
+    },
+    {
+      "context_name": "Structured KPI Subset",
+      "format": "JSON array of filtered, enriched KPIs",
+      "structure": [
+        {
+          "kpi_name": "Поддержание SLA",
+          "target": "99.3%",
+          "weight": "15%",
+          "relevance": "direct_owner",
+          "description": "You are directly accountable for this KPI",
+          "your_role": "Ensure infrastructure stability and incident response"
+        }
+      ],
+      "impact": "Reduces noise from 45K chars to focused 5-8 KPIs"
+    },
+    {
+      "context_name": "Career Progression Context",
+      "format": "JSON object with adjacent roles",
+      "structure": {
+        "current_level": "middle_mgmt",
+        "promotion_path": "Senior Manager / Director",
+        "lateral_moves": ["Architecture practice lead", "Project management office"],
+        "related_positions": ["Manager of different infrastructure area"],
+        "exit_opportunities": ["CTO-track roles", "External architecture consulting"]
+      },
+      "impact": "Enables career path and progression descriptions"
+    },
+    {
+      "context_name": "Technology/System Scope",
+      "format": "JSON object with specific systems",
+      "structure": {
+        "primary_systems": ["VMware vSphere", "Microsoft Azure", "Kubernetes"],
+        "supporting_tools": ["Zabbix monitoring", "ServiceNow CMDB", "Jira"],
+        "infrastructure_scope": ["Network", "Servers", "Storage", "Virtualization"],
+        "decision_domains": ["Technology selection", "Resource allocation", "Vendor management"]
+      },
+      "impact": "Enables position-specific technology and decision authority descriptions"
+    },
+    {
+      "context_name": "Decision Authority Matrix",
+      "format": "JSON object with decision thresholds",
+      "structure": {
+        "budget_authority": 100000,
+        "approval_threshold": "Critical incidents",
+        "hiring_authority": 3,
+        "technology_selection": true,
+        "vendor_selection": true
+      },
+      "impact": "Clarifies accountability and decision-making scope"
+    }
+  ],
+
+  "recommended_preprocessing": [
+    {
+      "step": 1,
+      "name": "Parse KPI Markdown Table",
+      "location": "data_loader.py",
+      "input": "Raw KPI_DIT.md markdown table",
+      "output": "Structured JSON array of KPI objects",
+      "method": "def parse_kpi_table(raw_md, role_column_mapping)"
+    },
+    {
+      "step": 2,
+      "name": "Classify Position Level",
+      "location": "data_loader.py",
+      "input": "position name + hierarchy level",
+      "output": "position_level enum (IC|team_lead|middle_mgmt|senior_mgmt)",
+      "method": "def classify_position_level(position, hierarchy_level)"
+    },
+    {
+      "step": 3,
+      "name": "Map Position to KPI Roles",
+      "location": "data_loader.py",
+      "input": "position hierarchy + KPI role mapping",
+      "output": "List of applicable KPI indices for this position",
+      "method": "def get_applicable_kpi_indices(position_hierarchy, role_mapping)"
+    },
+    {
+      "step": 4,
+      "name": "Filter KPIs by Position Level",
+      "location": "data_loader.py",
+      "input": "All KPIs + position classification",
+      "output": "Filtered KPIs (remove corporate for IC, remove IC for management)",
+      "method": "def filter_kpis_for_position(kpis, position_level)"
+    },
+    {
+      "step": 5,
+      "name": "Enrich KPI Context",
+      "location": "data_loader.py",
+      "input": "Filtered KPIs + position context",
+      "output": "KPIs with explanation, ownership type, relevance",
+      "method": "def enrich_kpi_context(filtered_kpis, position_level, hierarchy)"
+    },
+    {
+      "step": 6,
+      "name": "Generate Position Role Context",
+      "location": "data_loader.py",
+      "input": "Position name + hierarchy",
+      "output": "Role context object with scope, authority, team size",
+      "method": "def generate_role_context(position, hierarchy)"
+    },
+    {
+      "step": 7,
+      "name": "Build Final KPI Context",
+      "location": "data_loader.py",
+      "input": "All filtered and enriched data",
+      "output": "JSON object for LLM context",
+      "method": "def prepare_kpi_context_for_llm(position, filtered_kpis, role_context)"
+    },
+    {
+      "step": 8,
+      "name": "Validate Output",
+      "location": "data_loader.py",
+      "input": "Final KPI context",
+      "output": "Boolean (valid/invalid) + error messages",
+      "method": "def validate_kpi_context(kpi_context)"
+    }
+  ],
+
+  "root_causes": [
+    {
+      "id": "RC1",
+      "cause": "Single KPI file for all positions",
+      "description": "One KPI_DIT.md sent to all 50+ positions in IT department without filtering by position level",
+      "location": "data_mapper.py:KPIMapper.find_kpi_file()",
+      "evidence": "Method returns same 'KPI_DIT.md' for all departments",
+      "impact": "LLM can't distinguish which KPIs apply where"
+    },
+    {
+      "id": "RC2",
+      "cause": "Flat, non-structured data format",
+      "description": "KPI table is markdown text requiring manual parsing instead of structured JSON",
+      "location": "KPI_DIT.md (file format) and data_mapper.py:_clean_kpi_content()",
+      "evidence": "KPI content sent as string, not parsed into objects",
+      "impact": "LLM must perform OCR-like parsing, error-prone"
+    },
+    {
+      "id": "RC3",
+      "cause": "Missing position level classification",
+      "description": "System has full hierarchy but doesn't classify position type (IC vs Manager vs Director)",
+      "location": "data_loader.py - no position_level field computed",
+      "evidence": "hierarchy_level is numeric (1-6) but doesn't indicate role type",
+      "impact": "Can't determine which KPI rows apply to position"
+    },
+    {
+      "id": "RC4",
+      "cause": "No contextual guidance to LLM",
+      "description": "LLM receives data but no guidance on relevance, ownership, or scope",
+      "location": "generation_prompt.txt just includes raw KPI data",
+      "evidence": "Prompt says 'Сопоставь с релевантными KPI' but provides no relevance hints",
+      "impact": "LLM treats all KPIs equally, includes wrong ones"
+    },
+    {
+      "id": "RC5",
+      "cause": "Over-sending data (context inflation)",
+      "description": "All 34 KPIs (45K chars) sent for every position instead of 5-8 relevant ones",
+      "location": "data_loader.py:prepare_langfuse_variables()",
+      "evidence": "Line 98: 'kpi_data': kpi_content (no filtering)",
+      "impact": "Token waste, noise-to-signal ratio low, LLM confused"
+    },
+    {
+      "id": "RC6",
+      "cause": "Ambiguous role column naming",
+      "description": "4 KPI table columns all labeled 'Рук. управления' without distinguishing department",
+      "location": "KPI_DIT.md file columns 5, 6, 7, and possibly more",
+      "evidence": "grep output shows '4 Рук.' - meaning 4 identical column names",
+      "impact": "LLM can't map position hierarchy to correct KPI column"
+    },
+    {
+      "id": "RC7",
+      "cause": "No responsibility chain mapping",
+      "description": "LLM can't tell if '—' means 'not applicable', 'not responsible', or 'inherited'",
+      "location": "KPI_DIT.md entire table, no metadata provided",
+      "evidence": "Many dashes in table with no explanation",
+      "impact": "Responsibilities appear flat without ownership hierarchy"
+    },
+    {
+      "id": "RC8",
+      "cause": "Encoding and format issues",
+      "description": "UTF-8 characters may be corrupted during processing (observed binary sequences)",
+      "location": "data_mapper.py:_clean_kpi_content() and table parsing",
+      "evidence": "M-PM-^X and M-QM- sequences visible in binary output",
+      "impact": "Table corruption possible, LLM receives garbled data"
+    }
+  ],
+
+  "priority_fixes": {
+    "high_impact_low_effort": [
+      {
+        "priority": 1,
+        "name": "Add position_level classification",
+        "effort": "Low",
+        "impact": "High",
+        "implementation": "Add keywords-based classification in position_utils.py",
+        "enables": "Basic KPI filtering by role level"
+      },
+      {
+        "priority": 2,
+        "name": "Create position-to-KPI mapping",
+        "effort": "Low",
+        "impact": "High",
+        "implementation": "Map hierarchy_level → role type → KPI indices",
+        "enables": "Position-specific KPI selection"
+      },
+      {
+        "priority": 3,
+        "name": "Pre-filter KPI data",
+        "effort": "Low",
+        "impact": "High",
+        "implementation": "Add filter step before sending to LLM",
+        "enables": "Reduce from 34 KPIs to 5-8 per position"
+      },
+      {
+        "priority": 4,
+        "name": "Convert KPI to JSON format",
+        "effort": "Low",
+        "impact": "Medium",
+        "implementation": "Parse table once at startup, store as JSON",
+        "enables": "Reliable data structure for LLM"
+      }
+    ],
+    "high_impact_medium_effort": [
+      {
+        "priority": 5,
+        "name": "Parse KPI table into structured format",
+        "effort": "Medium",
+        "impact": "High",
+        "implementation": "Create KPI parser in data_loader.py",
+        "enables": "Eliminates markdown parsing burden on LLM"
+      },
+      {
+        "priority": 6,
+        "name": "Add role explanation and guidance",
+        "effort": "Medium",
+        "impact": "High",
+        "implementation": "Add role_context object to variables",
+        "enables": "Position-specific scope and authority context"
+      },
+      {
+        "priority": 7,
+        "name": "Create position-level KPI subsets",
+        "effort": "Medium",
+        "impact": "High",
+        "implementation": "Pre-compute KPI subsets for each position type",
+        "enables": "Consistent, position-appropriate KPI selection"
+      },
+      {
+        "priority": 8,
+        "name": "Add responsibility type annotations",
+        "effort": "Medium",
+        "impact": "Medium",
+        "implementation": "Mark each KPI as owner|contributor|monitor",
+        "enables": "Clear accountability in descriptions"
+      }
+    ]
+  }
+}
