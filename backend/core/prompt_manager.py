@@ -75,10 +75,10 @@ class PromptManager:
         # Реестр промптов
         self.prompt_registry = {
             "profile_generation": {
-                "langfuse_name": "a101-hr-profile-generation",
+                "langfuse_name": "a101-hr-profile-gemini-v3-simple",  # Changed to v27 (Phase 1)
                 "local_file": "generation_prompt.txt",
-                "version": "1.0.0",
-                "description": "Master prompt для генерации профилей должностей А101 с structured output",
+                "version": "27",  # Phase 1: Prompt Engineering improvements
+                "description": "Master prompt v27 для генерации профилей должностей А101 (5 critical fixes)",
                 "variables": [
                     "company_map",
                     "org_structure",
