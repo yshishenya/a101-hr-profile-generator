@@ -75,10 +75,10 @@ class PromptManager:
         # Реестр промптов
         self.prompt_registry = {
             "profile_generation": {
-                "langfuse_name": "a101-hr-profile-gemini-v3-simple",  # Changed to v27 (Phase 1)
+                "langfuse_name": "a101-hr-profile-gemini-v3-simple",  # v28 with SGR
                 "local_file": "generation_prompt.txt",
-                "version": "27",  # Phase 1: Prompt Engineering improvements
-                "description": "Master prompt v27 для генерации профилей должностей А101 (5 critical fixes)",
+                "version": "28",  # Schema-Guided Reasoning (3-phase cascade)
+                "description": "Master prompt v28 с Schema-Guided Reasoning (SGR) - трехфазная генерация с явными проверками",
                 "variables": [
                     "company_map",
                     "org_structure",
