@@ -69,7 +69,7 @@ class StatsComponent:
 
     async def _render_unified(self, style: str = "dashboard"):
         """Объединенный метод рендеринга - устраняет дублирование
-        
+
         Args:
             style: "стиль" рендеринга - "dashboard", "compact", "minimal"
         """
@@ -87,29 +87,47 @@ class StatsComponent:
                 )
                 ui.label("профилей").classes("text-body2 text-white opacity-60")
                 return
-                
+
         # Карточка стиль (dashboard/compact)
         card_padding = "p-4" if style == "dashboard" else "p-3"
         with ui.card().classes("w-full mb-4 shadow-sm"):
             with ui.card_section().classes(card_padding):
                 # Заголовок
-                header_class = "items-center justify-between" + (" mb-4" if style == "dashboard" else "")
+                header_class = "items-center justify-between" + (
+                    " mb-4" if style == "dashboard" else ""
+                )
                 with ui.row().classes(header_class):
-                    title = "📊 Статистика системы" if style == "dashboard" else "📊 Система"
+                    title = (
+                        "📊 Статистика системы"
+                        if style == "dashboard"
+                        else "📊 Система"
+                    )
                     ui.label(title).classes("text-h6 text-primary font-medium")
-                    
+
                     chip_text = "Загрузка" if style == "dashboard" else "Готов"
                     chip_color = "grey" if style == "dashboard" else "positive"
                     chip_size = "size=sm" if style == "dashboard" else "size=xs"
-                    self.status_chip = ui.chip(chip_text, color=chip_color).props(chip_size)
+                    self.status_chip = ui.chip(chip_text, color=chip_color).props(
+                        chip_size
+                    )
 
                 # Метрики
-                metrics_class = "w-full justify-between" + (" gap-4" if style == "dashboard" else " mt-3")
+                metrics_class = "w-full justify-between" + (
+                    " gap-4" if style == "dashboard" else " mt-3"
+                )
                 with ui.row().classes(metrics_class):
                     # Определяем классы для стилей
-                    number_class = "text-h4 font-bold text-primary" if style == "dashboard" else "text-h6 font-bold text-primary"
-                    label_class = "text-body2 text-grey-6" if style == "dashboard" else "text-caption text-grey-6"
-                    
+                    number_class = (
+                        "text-h4 font-bold text-primary"
+                        if style == "dashboard"
+                        else "text-h6 font-bold text-primary"
+                    )
+                    label_class = (
+                        "text-body2 text-grey-6"
+                        if style == "dashboard"
+                        else "text-caption text-grey-6"
+                    )
+
                     # Должности
                     with ui.column().classes("items-center"):
                         self.positions_label = ui.label("1,553").classes(number_class)
@@ -129,11 +147,11 @@ class StatsComponent:
     async def _render_dashboard(self):
         """Полная статистика для dashboard"""
         await self._render_unified("dashboard")
-        
+
     async def _render_compact(self):
         """Компактная статистика для генератора"""
         await self._render_unified("compact")
-        
+
     async def _render_minimal(self):
         """Минимальная статистика для header"""
         await self._render_unified("minimal")

@@ -23,8 +23,6 @@ from nicegui import ui
 logger = logging.getLogger(__name__)
 
 
-
-
 class APIError(Exception):
     """Исключение для ошибок API"""
 
@@ -99,7 +97,9 @@ class APIClient:
 
                     # Восстанавливаем expires_at из timestamp
                     if expires_timestamp:
-                        self._token_expires_at = datetime.fromtimestamp(expires_timestamp)
+                        self._token_expires_at = datetime.fromtimestamp(
+                            expires_timestamp
+                        )
 
                         # Проверяем не истек ли токен
                         if datetime.now() >= self._token_expires_at:
@@ -114,19 +114,28 @@ class APIClient:
             # Если remember_me был установлен, пробуем загрузить из localStorage (безопасно)
             try:
                 from nicegui import ui
+
                 if hasattr(ui, "run_javascript"):
                     # Используем более длинный timeout и обработку ошибок
                     try:
                         token_data_str = ui.run_javascript(
-                            'localStorage.getItem("hr_token_data")', timeout=3.0  # Увеличили timeout
+                            'localStorage.getItem("hr_token_data")',
+                            timeout=3.0,  # Увеличили timeout
                         )
 
-                        if token_data_str and token_data_str.strip() and token_data_str != "null":
+                        if (
+                            token_data_str
+                            and token_data_str.strip()
+                            and token_data_str != "null"
+                        ):
                             import json
+
                             token_data = json.loads(token_data_str)
 
                             # Валидация данных
-                            if not isinstance(token_data, dict) or not token_data.get("access_token"):
+                            if not isinstance(token_data, dict) or not token_data.get(
+                                "access_token"
+                            ):
                                 logger.warning("Invalid token data in localStorage")
                                 return
 
@@ -137,15 +146,21 @@ class APIClient:
                             # Восстанавливаем expires_at из timestamp
                             if expires_timestamp:
                                 try:
-                                    self._token_expires_at = datetime.fromtimestamp(float(expires_timestamp))
+                                    self._token_expires_at = datetime.fromtimestamp(
+                                        float(expires_timestamp)
+                                    )
 
                                     # Проверяем не истек ли токен
                                     if datetime.now() >= self._token_expires_at:
-                                        logger.info("Token expired, clearing from localStorage")
+                                        logger.info(
+                                            "Token expired, clearing from localStorage"
+                                        )
                                         self._clear_expired_token()
                                         return
                                 except (ValueError, TypeError) as e:
-                                    logger.warning(f"Invalid timestamp in token data: {e}")
+                                    logger.warning(
+                                        f"Invalid timestamp in token data: {e}"
+                                    )
                                     return
 
                             # Только если все валидно, синхронизируем с NiceGUI storage
@@ -160,7 +175,9 @@ class APIClient:
                         logger.warning(f"Invalid JSON in localStorage: {e}")
                         # Очищаем невалидные данные
                         try:
-                            ui.run_javascript('localStorage.removeItem("hr_token_data")', timeout=1.0)
+                            ui.run_javascript(
+                                'localStorage.removeItem("hr_token_data")', timeout=1.0
+                            )
                         except:
                             pass
 
@@ -173,22 +190,13 @@ class APIClient:
         # Fallback: загружаем из environment variables (только для разработки)
         if not self._access_token:
             import os
+
             test_token = os.getenv("TEST_JWT_TOKEN")
             if test_token:
                 self._access_token = test_token
                 logger.info("✅ Loaded TEST_JWT_TOKEN from environment variables")
-
-                # Сохраняем в NiceGUI storage без localStorage (test token)
-                try:
-                    from nicegui import app
-                    if hasattr(app, "storage") and hasattr(app.storage, "user"):
-                        app.storage.user["token_data"] = {
-                            "access_token": self._access_token,
-                            "remember_me": False,
-                            "expires_timestamp": None  # Test token не истекает
-                        }
-                except Exception as save_e:
-                    logger.debug(f"Could not save token to storage: {save_e}")
+            else:
+                logger.warning("❌ TEST_JWT_TOKEN not found in environment variables")
 
         logger.debug(
             f"_load_tokens_from_storage: Final token state={'present' if self._access_token else 'None/empty'}"
@@ -207,7 +215,11 @@ class APIClient:
             token_data = {
                 "access_token": self._access_token,
                 "remember_me": self._remember_me,
-                "expires_timestamp": self._token_expires_at.timestamp() if self._token_expires_at else None
+                "expires_timestamp": (
+                    self._token_expires_at.timestamp()
+                    if self._token_expires_at
+                    else None
+                ),
             }
 
             # Всегда сохраняем в NiceGUI storage (session storage)
@@ -219,6 +231,7 @@ class APIClient:
             if self._remember_me:
                 try:
                     from nicegui import ui
+
                     if hasattr(ui, "run_javascript"):
                         token_data_str = json.dumps(token_data)
                         ui.run_javascript(
@@ -231,9 +244,12 @@ class APIClient:
                 # Если remember_me=False, убираем из localStorage
                 try:
                     from nicegui import ui
+
                     if hasattr(ui, "run_javascript"):
                         ui.run_javascript('localStorage.removeItem("hr_token_data")')
-                        logger.debug("Removed token from localStorage (remember_me=False)")
+                        logger.debug(
+                            "Removed token from localStorage (remember_me=False)"
+                        )
                 except Exception as browser_e:
                     logger.debug(f"Could not remove from localStorage: {browser_e}")
 
@@ -369,7 +385,10 @@ class APIClient:
                 # Используем блокировку чтобы предотвратить множественные refresh
                 async with self._refresh_lock:
                     # Проверяем еще раз после получения блокировки
-                    if self._token_expires_at and datetime.now() < self._token_expires_at:
+                    if (
+                        self._token_expires_at
+                        and datetime.now() < self._token_expires_at
+                    ):
                         logger.debug("Token was refreshed by another request")
                         return True
                     return await self._refresh_token_internal()
@@ -379,7 +398,11 @@ class APIClient:
                 logger.info("Access token expires soon, refreshing preemptively")
                 async with self._refresh_lock:
                     # Проверяем еще раз после получения блокировки
-                    if self._token_expires_at and (self._token_expires_at - datetime.now()).total_seconds() >= 300:
+                    if (
+                        self._token_expires_at
+                        and (self._token_expires_at - datetime.now()).total_seconds()
+                        >= 300
+                    ):
                         logger.debug("Token was refreshed by another request")
                         return True
                     return await self._refresh_token_internal()
@@ -394,9 +417,7 @@ class APIClient:
             headers = {"Authorization": f"Bearer {self._access_token}"}
 
             response = await self.client.request(
-                method="POST",
-                url=f"{self.base_url}/api/auth/refresh",
-                headers=headers
+                method="POST", url=f"{self.base_url}/api/auth/refresh", headers=headers
             )
 
             if response.status_code == 200:
@@ -407,7 +428,9 @@ class APIClient:
 
                     # Обновляем время истечения
                     expires_in = data.get("expires_in", 24 * 3600)
-                    self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                    self._token_expires_at = datetime.now() + timedelta(
+                        seconds=expires_in
+                    )
 
                     # Сохраняем обновленный токен
                     self._save_tokens_to_storage()
@@ -422,8 +445,14 @@ class APIClient:
         except Exception as e:
             logger.error(f"Token refresh error: {e}")
             # Не очищаем токен при сетевых ошибках - он может еще быть валидным
-            if "network" in str(e).lower() or "timeout" in str(e).lower() or "connection" in str(e).lower():
-                logger.warning(f"Network error during token refresh, keeping existing token: {e}")
+            if (
+                "network" in str(e).lower()
+                or "timeout" in str(e).lower()
+                or "connection" in str(e).lower()
+            ):
+                logger.warning(
+                    f"Network error during token refresh, keeping existing token: {e}"
+                )
                 return False  # Оставляем токен как есть
             else:
                 # Очищаем токен только при ошибках аутентификации
@@ -436,7 +465,6 @@ class APIClient:
         remember_me_backup = self._remember_me
         self._clear_all_tokens()
         self._remember_me = remember_me_backup
-
 
     async def login(
         self, username: str, password: str, remember_me: bool = False
@@ -476,7 +504,9 @@ class APIClient:
                 # Сохраняем с учетом remember_me
                 self._save_tokens_to_storage()
 
-                logger.info(f"Successfully logged in user: {username} (remember_me={remember_me})")
+                logger.info(
+                    f"Successfully logged in user: {username} (remember_me={remember_me})"
+                )
 
             return response
 
@@ -533,7 +563,6 @@ class APIClient:
         except Exception as e:
             logger.debug(f"Could not clear token storages: {e}")
 
-
     async def validate_token(self, token: Optional[str] = None) -> bool:
         """
         @doc
@@ -560,10 +589,6 @@ class APIClient:
         finally:
             if token and "old_token" in locals():
                 self._access_token = old_token
-
-
-
-
 
     def is_authenticated(self) -> bool:
         """Проверка состояния авторизации"""
@@ -636,8 +661,6 @@ class APIClient:
         return await self._make_request(
             "GET", f"/api/catalog/positions/{department}", params=params
         )
-
-
 
     async def get_organization_search_items(self) -> Dict[str, Any]:
         """
@@ -716,7 +739,10 @@ class APIClient:
                 response.raise_for_status()
                 return response.content
         except httpx.HTTPStatusError as e:
-            raise APIError(f"Ошибка скачивания: {e.response.status_code}", status_code=e.response.status_code)
+            raise APIError(
+                f"Ошибка скачивания: {e.response.status_code}",
+                status_code=e.response.status_code,
+            )
         except Exception as e:
             raise APIError(f"Ошибка сети при скачивании: {e}")
 
@@ -743,7 +769,10 @@ class APIClient:
                 response.raise_for_status()
                 return response.content
         except httpx.HTTPStatusError as e:
-            raise APIError(f"Ошибка скачивания: {e.response.status_code}", status_code=e.response.status_code)
+            raise APIError(
+                f"Ошибка скачивания: {e.response.status_code}",
+                status_code=e.response.status_code,
+            )
         except Exception as e:
             raise APIError(f"Ошибка сети при скачивании: {e}")
 
@@ -806,8 +835,6 @@ class APIClient:
           python> print(f"Cancelled: {result['message']}")
         """
         return await self._make_request("DELETE", f"/api/generation/{task_id}")
-
-
 
     async def get_dashboard_stats(self) -> Optional[Dict[str, Any]]:
         """
@@ -883,6 +910,7 @@ class APIClient:
 # ============================================================================
 # UTILITY FUNCTIONS
 
+
 def handle_api_error(error: APIError, context: str = "API request") -> None:
     """
     @doc
@@ -939,7 +967,10 @@ def handle_api_error(error: APIError, context: str = "API request") -> None:
                 response.raise_for_status()
                 return response.content
         except httpx.HTTPStatusError as e:
-            raise APIError(f"Ошибка скачивания: {e.response.status_code}", status_code=e.response.status_code)
+            raise APIError(
+                f"Ошибка скачивания: {e.response.status_code}",
+                status_code=e.response.status_code,
+            )
         except Exception as e:
             raise APIError(f"Ошибка сети при скачивании: {e}")
 
@@ -966,7 +997,10 @@ def handle_api_error(error: APIError, context: str = "API request") -> None:
                 response.raise_for_status()
                 return response.content
         except httpx.HTTPStatusError as e:
-            raise APIError(f"Ошибка скачивания: {e.response.status_code}", status_code=e.response.status_code)
+            raise APIError(
+                f"Ошибка скачивания: {e.response.status_code}",
+                status_code=e.response.status_code,
+            )
         except Exception as e:
             raise APIError(f"Ошибка сети при скачивании: {e}")
 

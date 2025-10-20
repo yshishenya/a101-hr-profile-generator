@@ -14,7 +14,21 @@ import asyncio
 from typing import Optional, Callable, Awaitable
 
 from nicegui import ui, app
-from ...services.api_client import APIClient, APIError, handle_api_error
+
+try:
+    # Relative imports для запуска как модуль
+    from ...services.api_client import APIClient, APIError, handle_api_error
+except ImportError:
+    try:
+        # Docker imports с /app в PYTHONPATH
+        from frontend.services.api_client import APIClient, APIError, handle_api_error
+    except ImportError:
+        # Прямые импорты для local development
+        import sys
+        import os
+
+        sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+        from services.api_client import APIClient, APIError, handle_api_error
 
 
 class AuthComponent:
@@ -99,8 +113,6 @@ class AuthComponent:
                     .classes("w-full")
                 )
 
-
-
     async def _handle_login(self) -> None:
         """
         @doc
@@ -142,10 +154,12 @@ class AuthComponent:
             if result.get("success"):
                 # APIClient уже сохранил токены в storage в своем методе login()
                 # Сохраняем только минимально необходимые данные для UI
-                app.storage.user.update({
-                    "authenticated": True,
-                    "user_info": result.get("user_info", {}),
-                })
+                app.storage.user.update(
+                    {
+                        "authenticated": True,
+                        "user_info": result.get("user_info", {}),
+                    }
+                )
 
                 # Уведомляем об успехе
                 user_info = result.get("user_info", {})
@@ -217,11 +231,11 @@ class AuthComponent:
         # Продакшн-готовые требования к паролю
         if len(password) < 8:
             return "Пароль должен содержать минимум 8 символов"
-        
+
         # Дополнительные требования безопасности
         if not any(c.isdigit() for c in password):
             return "Пароль должен содержать минимум одну цифру"
-        
+
         if not any(c.isalpha() for c in password):
             return "Пароль должен содержать минимум одну букву"
 
@@ -273,9 +287,3 @@ class AuthComponent:
             else:
                 self.login_button.props("loading=false disable=false")
                 self.login_button._props["icon"] = "login"
-
-
-
-
-
-

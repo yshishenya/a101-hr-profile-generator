@@ -23,6 +23,7 @@ try:
     from .components.ui.auth_component import AuthComponent
     from .components.ui.header_component import HeaderComponent
     from .components.ui.stats_component import StatsComponent
+
     # Модулярные компоненты
     from .pages.generator_page import GeneratorPage
     from .services.api_client import APIClient
@@ -32,6 +33,7 @@ except ImportError:
     from components.ui.auth_component import AuthComponent
     from components.ui.header_component import HeaderComponent
     from components.ui.stats_component import StatsComponent
+
     # Модулярные компоненты
     from pages.generator_page import GeneratorPage
     from services.api_client import APIClient
@@ -42,7 +44,6 @@ config = FrontendConfig()
 
 # Глобальный API клиент
 api_client = APIClient(base_url=config.BACKEND_URL)
-
 
 
 async def on_successful_login():
@@ -72,8 +73,6 @@ async def on_successful_login():
 
     except Exception as e:
         logger.error(f"❌ Error loading dashboard stats: {e}")
-
-
 
 
 @ui.page("/login")
@@ -276,7 +275,7 @@ def main():
         title="A101 HR Profile Generator",
         favicon="🏢",
         dark=None,  # Автоматический режим
-        reload=config.DEBUG,
+        reload=False,  # Disable reload to prevent permission errors
         show=config.DEBUG,  # Автоматически открыть браузер в debug режиме
         storage_secret=config.STORAGE_SECRET,  # Для app.storage.user
     )
@@ -310,11 +309,15 @@ async def profiles_page():
             with ui.column().classes("items-center gap-4"):
                 ui.icon("🚧", size="4rem").classes("text-orange-500")
                 ui.label("🚧 Страница в разработке").classes("text-h5 font-medium")
-                ui.label("Здесь будет список всех созданных профилей должностей.").classes("text-body1 text-center")
+                ui.label(
+                    "Здесь будет список всех созданных профилей должностей."
+                ).classes("text-body1 text-center")
 
                 with ui.row().classes("gap-4 mt-4"):
-                    ui.button("← Назад к генератору",
-                            on_click=lambda: ui.navigate.to("/generator")).props("outlined")
+                    ui.button(
+                        "← Назад к генератору",
+                        on_click=lambda: ui.navigate.to("/generator"),
+                    ).props("outlined")
 
 
 @ui.page("/analytics")
@@ -345,11 +348,15 @@ async def analytics_page():
             with ui.column().classes("items-center gap-4"):
                 ui.icon("🚧", size="4rem").classes("text-orange-500")
                 ui.label("🚧 Страница в разработке").classes("text-h5 font-medium")
-                ui.label("Здесь будут графики, метрики и аналитика по генерации профилей.").classes("text-body1 text-center")
+                ui.label(
+                    "Здесь будут графики, метрики и аналитика по генерации профилей."
+                ).classes("text-body1 text-center")
 
                 with ui.row().classes("gap-4 mt-4"):
-                    ui.button("← Назад к генератору",
-                            on_click=lambda: ui.navigate.to("/generator")).props("outlined")
+                    ui.button(
+                        "← Назад к генератору",
+                        on_click=lambda: ui.navigate.to("/generator"),
+                    ).props("outlined")
 
 
 if __name__ in {"__main__", "__mp_main__"}:

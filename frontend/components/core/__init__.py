@@ -15,7 +15,7 @@ from .files_manager_component import FilesManagerComponent
 
 __all__ = [
     "SearchComponent",
-    "GeneratorComponent", 
+    "GeneratorComponent",
     "ProfileViewerComponent",
-    "FilesManagerComponent"
+    "FilesManagerComponent",
 ]

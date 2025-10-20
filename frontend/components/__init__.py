@@ -8,7 +8,7 @@ Frontend components module.
 
 # UI компоненты
 from .ui.auth_component import AuthComponent
-from .ui.header_component import HeaderComponent  
+from .ui.header_component import HeaderComponent
 from .ui.stats_component import StatsComponent
 
 # Core компоненты
@@ -20,7 +20,7 @@ from .core.files_manager_component import FilesManagerComponent
 __all__ = [
     # UI
     "AuthComponent",
-    "HeaderComponent", 
+    "HeaderComponent",
     "StatsComponent",
     # Core
     "SearchComponent",
