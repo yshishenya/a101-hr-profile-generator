@@ -60,11 +60,14 @@ class DataLoader:
         try:
             # 🎯 ДЕТЕРМИНИРОВАННОЕ ИЗВЛЕЧЕНИЕ СТРУКТУРЫ
             org_structure = self._load_org_structure_for_department(department)
-            department_path = org_structure.get("department_path", department)
+
+            # 🎯 НОВОЕ: ИЗВЛЕЧЕНИЕ ПОЛНОЙ ИЕРАРХИИ ДО ПОЗИЦИИ
+            hierarchy_info = self._extract_full_position_path(department, position)
+            department_path = hierarchy_info.get("department_path_legacy", department)
 
             # 🎯 ДЕТЕРМИНИРОВАННЫЙ ВЫБОР KPI ФАЙЛА
             kpi_content = self.kpi_mapper.load_kpi_content(department)
-            
+
             # 🎯 ИЗВЛЕЧЕНИЕ ДАННЫХ О ЧИСЛЕННОСТИ
             headcount_info = self.org_mapper.get_headcount_info(department)
             subordinates_count = self.org_mapper.calculate_subordinates_count(department, position)
@@ -94,14 +97,31 @@ class DataLoader:
                 # ДИНАМИЧЕСКИЙ КОНТЕКСТ (детерминированно найденный)
                 "kpi_data": kpi_content,  # 0-15K токенов
                 "it_systems": self._load_it_systems_cached(),  # ~15K токенов
-                # ДАННЫЕ О ЧИСЛЕННОСТИ И ПОДЧИНЕННЫХ (НОВОЕ!)
+                # ДАННЫЕ О ЧИСЛЕННОСТИ И ПОДЧИНЕННЫХ
                 "headcount_info": headcount_info,  # Полная информация о численности департамента
                 "subordinates_calculation": subordinates_count,  # Расчет подчиненных на основе реальных данных
                 "department_headcount": headcount_info.get("headcount"),  # Прямое значение для удобства
                 "headcount_source": headcount_info.get("headcount_source"),  # Источник данных о численности
+                # ПЛОСКИЕ ПЕРЕМЕННЫЕ ДЛЯ ПОДЧИНЕННОСТИ (без точек для Langfuse)
+                "subordinates_departments": subordinates_count.get("departments", 0),
+                "subordinates_direct_reports": subordinates_count.get("direct_reports", 0),
+                # НОВЫЕ ПЕРЕМЕННЫЕ ИЕРАРХИИ (Блок-Департамент-Управление-Отдел-ПодОтдел-Группа)
+                "business_block": hierarchy_info.get("business_block", ""),  # Уровень 1: Блок
+                "department_unit": hierarchy_info.get("department_unit", ""),  # Уровень 2: Департамент
+                "section_unit": hierarchy_info.get("section_unit", ""),  # Уровень 3: Управление/Отдел
+                "group_unit": hierarchy_info.get("group_unit", ""),  # Уровень 4: Отдел
+                "sub_section_unit": hierarchy_info.get("sub_section_unit", ""),  # Уровень 5: Под-отдел
+                "final_group_unit": hierarchy_info.get("final_group_unit", ""),  # Уровень 6: Группа
+                "hierarchy_level": hierarchy_info.get("hierarchy_level", 1),  # Номер уровня в иерархии
+                "full_hierarchy_path": hierarchy_info.get("full_hierarchy_path", department),  # Полный путь с разделителями
+                # РАЗЛОЖЕНИЕ ИЕРАРХИИ (плоские переменные для Langfuse)
+                "hierarchy_levels_list": ", ".join(hierarchy_info.get("full_path_parts", [department])),
+                "hierarchy_current_level": hierarchy_info.get("hierarchy_level", 1),
+                "hierarchy_final_unit": hierarchy_info.get("final_unit", department),
+                "position_location": f"{hierarchy_info.get('final_unit', department)}/{position}",
                 # МЕТАДАННЫЕ
                 "generation_timestamp": datetime.now().isoformat(),
-                "data_version": "v1.1",  # Увеличена версия из-за добавления данных о численности
+                "data_version": "v1.2",  # Увеличена версия из-за добавления иерархических данных
             }
 
             # Подсчет токенов для мониторинга
@@ -514,6 +534,111 @@ class DataLoader:
             logger.error(f"Error getting positions for department '{department}': {e}")
             # Fallback to internal method
             return self._get_positions_for_department_internal(department)
+
+    def _extract_full_position_path(self, department: str, position: str) -> Dict[str, Any]:
+        """
+        Извлечение полного пути до позиции включая все уровни иерархии.
+
+        Args:
+            department: Название департамента
+            position: Название должности
+
+        Returns:
+            Dict с полным путем и разложением по уровням
+        """
+        try:
+            # Сначала находим департамент
+            dept_info = organization_cache.find_department(department)
+            if not dept_info:
+                logger.warning(f"Department not found: {department}")
+                return self._create_fallback_hierarchy_info(department, position)
+
+            # Получаем базовый путь департамента
+            dept_path = dept_info["path"]
+            path_parts = [p.strip() for p in dept_path.split("/") if p.strip()]
+
+            # Проверяем, есть ли позиция в детях департамента
+            dept_node = dept_info["node"]
+            positions_in_dept = dept_node.get("positions", [])
+
+            # Если позиция найдена прямо в департаменте
+            if position in positions_in_dept:
+                full_path_parts = path_parts
+                final_unit = department
+            else:
+                # Ищем позицию в дочерних подразделениях
+                position_unit, position_path = self._find_position_in_children(dept_node, position, dept_path)
+                if position_unit:
+                    full_path_parts = [p.strip() for p in position_path.split("/") if p.strip()]
+                    final_unit = position_unit
+                else:
+                    # Позиция не найдена, используем департамент
+                    logger.warning(f"Position '{position}' not found in structure, using department level")
+                    full_path_parts = path_parts
+                    final_unit = department
+
+            return self._build_hierarchy_info(full_path_parts, final_unit, position)
+
+        except Exception as e:
+            logger.error(f"Error extracting full position path: {e}")
+            return self._create_fallback_hierarchy_info(department, position)
+
+    def _find_position_in_children(self, node: dict, target_position: str, current_path: str) -> tuple:
+        """
+        Рекурсивный поиск позиции в дочерних подразделениях.
+
+        Returns:
+            tuple: (unit_name, full_path) или (None, None)
+        """
+        children = node.get("children", {})
+        for child_name, child_data in children.items():
+            child_path = f"{current_path}/{child_name}"
+            child_positions = child_data.get("positions", [])
+
+            # Проверяем позиции в текущем дочернем подразделении
+            if target_position in child_positions:
+                return child_name, child_path
+
+            # Рекурсивно ищем в детях
+            found_unit, found_path = self._find_position_in_children(child_data, target_position, child_path)
+            if found_unit:
+                return found_unit, found_path
+
+        return None, None
+
+    def _build_hierarchy_info(self, path_parts: List[str], final_unit: str, position: str) -> Dict[str, Any]:
+        """Создание структурированной информации об иерархии (поддержка до 6 уровней)"""
+        return {
+            "full_path_parts": path_parts,
+            "hierarchy_level": len(path_parts),
+            "business_block": path_parts[0] if len(path_parts) > 0 else "",
+            "department_unit": path_parts[1] if len(path_parts) > 1 else path_parts[0] if path_parts else "",
+            "section_unit": path_parts[2] if len(path_parts) > 2 else "",
+            "group_unit": path_parts[3] if len(path_parts) > 3 else "",
+            "sub_section_unit": path_parts[4] if len(path_parts) > 4 else "",  # Уровень 5
+            "final_group_unit": path_parts[5] if len(path_parts) > 5 else "",  # Уровень 6
+            "final_unit": final_unit,
+            "position": position,
+            "full_hierarchy_path": " → ".join(path_parts),
+            "department_path_legacy": "/".join(path_parts),  # Для обратной совместимости
+        }
+
+    def _create_fallback_hierarchy_info(self, department: str, position: str) -> Dict[str, Any]:
+        """Создание fallback информации при ошибках (поддержка до 6 уровней)"""
+        return {
+            "full_path_parts": [department],
+            "hierarchy_level": 1,
+            "business_block": "",
+            "department_unit": department,
+            "section_unit": "",
+            "group_unit": "",
+            "sub_section_unit": "",  # Уровень 5
+            "final_group_unit": "",  # Уровень 6
+            "final_unit": department,
+            "position": position,
+            "full_hierarchy_path": department,
+            "department_path_legacy": department,
+        }
 
     def clear_cache(self):
         """Очистка кеша (полезно для тестирования)"""

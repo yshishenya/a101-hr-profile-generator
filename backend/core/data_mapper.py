@@ -285,35 +285,91 @@ class OrganizationMapper:
 
 
 class KPIMapper:
-    """Детерминированное определение KPI файлов по департаментам"""
+    """
+    Детерминированное определение KPI файлов по департаментам.
+    Использует умный маппинг через KPIDepartmentMapper.
+    """
 
     def __init__(self, kpi_dir: str = "data/KPI"):
         self.kpi_dir = Path(kpi_dir)
+        self.default_kpi_file = "KPI_DIT.md"  # Fallback
 
-        # Единственный доступный KPI файл - используем для всех департаментов
-        self.kpi_file = "KPI_DIT.md"
+        # Импортируем mapper
+        try:
+            from backend.core.kpi_department_mapping import KPIDepartmentMapper
+            self.dept_mapper = KPIDepartmentMapper()
+        except ImportError:
+            logger.warning("KPIDepartmentMapper not available, using fallback")
+            self.dept_mapper = None
 
         # Логгинг для отслеживания маппинга
         self.mappings_log = []
 
     def find_kpi_file(self, department: str) -> str:
         """
-        Возвращает единственный доступный KPI файл для любого департамента.
-        В MVP версии используем KPI_DIT.md для всех департаментов.
+        Находит подходящий KPI файл для департамента.
+
+        Использует умный маппинг через KPIDepartmentMapper:
+        - Сначала пытается найти точное соответствие
+        - Затем частичное совпадение
+        - Fallback на KPI_DIT.md если ничего не найдено
+
+        Args:
+            department: Название департамента
+
+        Returns:
+            Имя KPI файла (например, "KPI_ДИТ.md")
         """
-        # Логируем для отслеживания
-        mapping_entry = {
+        if not self.dept_mapper:
+            # Fallback если mapper не доступен
+            self.mappings_log.append({
+                "department": department,
+                "kpi_file": self.default_kpi_file,
+                "method": "fallback_no_mapper",
+            })
+            return self.default_kpi_file
+
+        # Используем умный маппинг
+        match_result = self.dept_mapper.find_best_match(department)
+
+        if match_result:
+            kpi_file = match_result["filename"]
+            kpi_path = self.kpi_dir / kpi_file
+
+            # Проверяем что файл существует
+            if kpi_path.exists():
+                self.mappings_log.append({
+                    "department": department,
+                    "kpi_file": kpi_file,
+                    "kpi_code": match_result["kpi_code"],
+                    "confidence": match_result["confidence"],
+                    "method": "smart_mapping",
+                })
+
+                logger.info(
+                    f"KPI mapping: '{department}' -> '{kpi_file}' "
+                    f"(confidence: {match_result['confidence']})"
+                )
+
+                return kpi_file
+            else:
+                logger.warning(
+                    f"KPI file '{kpi_file}' not found for '{department}', "
+                    f"using fallback"
+                )
+
+        # Fallback на default если не нашли или файл не существует
+        self.mappings_log.append({
             "department": department,
-            "kpi_file": self.kpi_file,
-            "method": "single_file_fallback",
-        }
-        self.mappings_log.append(mapping_entry)
+            "kpi_file": self.default_kpi_file,
+            "method": "fallback_no_match",
+        })
 
         logger.info(
-            f"KPI mapping: '{department}' -> '{self.kpi_file}' (MVP single file mode)"
+            f"KPI mapping fallback: '{department}' -> '{self.default_kpi_file}'"
         )
 
-        return self.kpi_file
+        return self.default_kpi_file
 
     def load_kpi_content(self, department: str) -> str:
         """Загрузка и автоматическая очистка KPI контента"""
