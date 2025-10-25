@@ -3,7 +3,8 @@
  * Automatically adds token to requests and handles 401 errors
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios from 'axios'
+import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
