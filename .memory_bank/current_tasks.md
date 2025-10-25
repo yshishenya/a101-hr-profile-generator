@@ -10,7 +10,18 @@
 - [ ] [PERF-02] Optimize LLM response caching
 
 ### In Progress
-- [ ] [DOCS-03] Documentation reorganization and cleanup (2025-10-25)
+- [ ] [VUE-MVP-001] Vue.js 3 MVP Migration - Simple modern reactive frontend (2025-10-25)
+  - **Simplified plan based on existing backend API**
+  - **No RBAC - simple username/password auth**
+  - Plan: `docs/VUE_MVP_SIMPLIFIED_PLAN.md`
+  - Week 1-2: Foundation + Auth + Dark theme
+  - Week 3: Dashboard
+  - Week 4: Single generation
+  - Week 5: Profiles list
+  - Week 6: Bulk generation (frontend orchestration)
+  - Week 7: Inline editing + XLSX (requires minor backend changes)
+  - Week 8: Bulk download + Polish
+- [x] [DOCS-03] Documentation reorganization and cleanup (2025-10-25)
 
 ## ✅ Completed Tasks (Recent)
 
@@ -86,4 +97,4 @@ Tasks moved to archive after completion are documented in:
 ---
 
 **Last Updated:** 2025-10-25
-**Current Focus:** Documentation quality & Testing coverage
+**Current Focus:** Vue.js MVP Migration (simple, modern, reactive)
