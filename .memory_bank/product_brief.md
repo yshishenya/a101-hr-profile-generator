@@ -1,10 +1,10 @@
 # Product Brief
 
 ## Project Name
-HR
+HR profile generator
 
 ## Project Goal (WHY)
-Employee profiles generator
+Profile generatorof empleyyes
 
 > **Template Note**: This file is automatically customized during setup. Update all sections below to match your specific project needs.
 

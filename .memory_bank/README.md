@@ -32,7 +32,7 @@ This memory bank is your main source of information. Before starting any task, *
 
 ## Project Philosophy
 
-**HR** - Employee profiles generator
+**HR profile generator** - Profile generatorof empleyyes
 
 Our approach:
 

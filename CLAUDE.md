@@ -1,4 +1,4 @@
-# Claude Code Configuration for HR
+# Claude Code Configuration for HR profile generator
 
 ## At the Start of ANY Work Session
 
@@ -16,15 +16,15 @@
 
 ---
 
-## About the Project: HR
+## About the Project: HR profile generator
 
-**HR** - Employee profiles generator
+**HR profile generator** - Profile generatorof empleyyes
 
 ### Key Project Features:
 
-#### 1. pyhon Architecture
-- Using **pyhon** with full type annotations
-- **Framework**: fastAPI
+#### 1. python Architecture
+- Using **python** with full type annotations
+- **Framework**: FastAPI
 - **Asynchronous architecture**: all I/O operations via async/await
 - Command and callback query handlers in `bot/` module (or main application logic)
 
