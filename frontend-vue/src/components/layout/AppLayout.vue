@@ -19,20 +19,16 @@ const menuItems = [
     route: '/',
   },
   {
-    title: 'Generate Profile',
-    icon: 'mdi-account-plus',
-    route: '/generate',
+    title: 'Profile Generator',
+    icon: 'mdi-account-plus-outline',
+    route: '/generator',
   },
-  {
-    title: 'Profiles List',
-    icon: 'mdi-format-list-bulleted',
-    route: '/profiles',
-  },
-  {
-    title: 'Bulk Generation',
-    icon: 'mdi-file-multiple',
-    route: '/bulk',
-  },
+  // Future routes (Week 5+)
+  // {
+  //   title: 'Profiles Library',
+  //   icon: 'mdi-format-list-bulleted',
+  //   route: '/profiles',
+  // },
 ]
 </script>
 
@@ -41,8 +37,8 @@ const menuItems = [
     <!-- Left navigation drawer -->
     <v-navigation-drawer
       v-model="drawer"
-      :permanent="display.mdAndUp"
-      :temporary="display.smAndDown"
+      :permanent="display.mdAndUp.value"
+      :temporary="display.smAndDown.value"
       color="surface"
     >
       <!-- App title in drawer -->

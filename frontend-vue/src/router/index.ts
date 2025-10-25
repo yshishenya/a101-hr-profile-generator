@@ -32,6 +32,14 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Dashboard'
         }
+      },
+      {
+        path: 'generator',
+        name: 'Generator',
+        component: () => import('@/views/GeneratorView.vue'),
+        meta: {
+          title: 'Profile Generator'
+        }
       }
     ]
   },
@@ -62,7 +70,7 @@ const router = createRouter({
  */
 router.beforeEach((
   to: RouteLocationNormalized,
-  from: RouteLocationNormalized,
+  _from: RouteLocationNormalized,
   next: NavigationGuardNext
 ) => {
   const authStore = useAuthStore()

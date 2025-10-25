@@ -13,15 +13,15 @@
 - [ ] [VUE-MVP-001] Vue.js 3 MVP Migration - Simple modern reactive frontend (2025-10-25)
   - **Simplified plan based on existing backend API**
   - **No RBAC - simple username/password auth**
-  - Plan: `docs/VUE_MVP_SIMPLIFIED_PLAN.md`
+  - Plan: `docs/VUE_MVP_SIMPLIFIED_PLAN.md`, `docs/ux-design/WEEK_4_IMPLEMENTATION_PLAN.md`
   - ✅ Week 1-2: Foundation + Auth + Dark theme (CORS fixed, login working)
   - ✅ Week 3: Dashboard (real-time stats, auto-refresh, loading states)
-  - 🔄 Week 4: Single generation (next)
-  - Week 5: Profiles list
-  - Week 6: Bulk generation (frontend orchestration)
+  - ✅ Week 4: Profile Generator (Quick Search + Browse Tree tabs - COMPLETE)
+  - Week 5: Profiles list (next)
+  - Week 6: Bulk generation orchestration polish
   - Week 7: Inline editing + XLSX (requires minor backend changes)
   - Week 8: Bulk download + Polish
-  - **Progress**: Dashboard complete with real API integration, ready for generator page
+  - **Progress**: Week 4 complete - full generator UI with search, tree nav, and bulk generation
 - [x] [DOCS-03] Documentation reorganization and cleanup (2025-10-25)
 
 ## ✅ Completed Tasks (Recent)
