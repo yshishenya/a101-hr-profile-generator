@@ -6,8 +6,8 @@
 """
 
 import os
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 # # Загружаем переменные из .env файла
 # try:
@@ -41,6 +41,12 @@ class Config:
     # =============================================================================
 
     BASE_DATA_PATH: str = os.getenv("BASE_DATA_PATH", "/app")
+
+    # Определяем корневую директорию проекта
+    PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
+
+    # Templates directory для промптов
+    TEMPLATES_DIR: str = os.getenv("TEMPLATES_DIR", str(PROJECT_ROOT / "templates"))
 
     # =============================================================================
     # База данных
@@ -85,12 +91,32 @@ class Config:
     # =============================================================================
 
     OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY")
-    OPENROUTER_MODEL: str = os.getenv(
-        "OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free"
-    )
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
     OPENROUTER_BASE_URL: str = os.getenv(
         "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
     )
+
+    # Known tested models with their characteristics
+    KNOWN_OPENROUTER_MODELS = {
+        "google/gemini-2.5-flash": {
+            "tested": True,
+            "cost_per_1m_tokens": 0.075,  # Input cost
+            "recommended": True,
+            "notes": "Production model - fast, reliable, good quality",
+        },
+        "google/gemini-2.0-flash-exp:free": {
+            "tested": True,
+            "cost_per_1m_tokens": 0.0,
+            "recommended": False,
+            "notes": "Free experimental model - may have rate limits or be deprecated",
+        },
+        "google/gemini-pro": {
+            "tested": False,
+            "cost_per_1m_tokens": 0.5,
+            "recommended": False,
+            "notes": "Higher cost, use only if 2.5-flash insufficient",
+        },
+    }
 
     @property
     def openrouter_configured(self) -> bool:
@@ -176,6 +202,40 @@ class Config:
                 "❌ КРИТИЧНО: Неверный формат OPENROUTER_API_KEY (должен начинаться с 'sk-or-')"
             )
 
+        # Проверка OPENROUTER_MODEL
+        if self.OPENROUTER_MODEL:
+            model_info = self.KNOWN_OPENROUTER_MODELS.get(self.OPENROUTER_MODEL)
+
+            if model_info:
+                # Модель известна и протестирована
+                if not model_info.get("recommended", False):
+                    issues.append(
+                        f"⚠️  OPENROUTER_MODEL '{self.OPENROUTER_MODEL}' не рекомендуется: {model_info.get('notes', 'N/A')}"
+                    )
+
+                if not model_info.get("tested", False):
+                    issues.append(
+                        f"⚠️  OPENROUTER_MODEL '{self.OPENROUTER_MODEL}' не был протестирован в production!"
+                    )
+
+                # Показываем информацию о стоимости
+                cost = model_info.get("cost_per_1m_tokens", 0)
+                if cost > 0:
+                    issues.append(
+                        f"💰 OPENROUTER_MODEL стоимость: ${cost:.3f} за 1M токенов"
+                    )
+            else:
+                # Модель неизвестна - может быть новая или устаревшая
+                issues.append(
+                    f"⚠️  OPENROUTER_MODEL '{self.OPENROUTER_MODEL}' неизвестна системе!"
+                )
+                issues.append(
+                    f"   Протестируйте эту модель перед использованием в production!"
+                )
+                issues.append(
+                    f"   Известные модели: {', '.join(self.KNOWN_OPENROUTER_MODELS.keys())}"
+                )
+
         # Проверяем пароли по умолчанию
         if self.ENVIRONMENT == "production":
             if self.ADMIN_PASSWORD == "admin123":
@@ -191,6 +251,14 @@ class Config:
                 issues.append("⚠️  ADMIN_PASSWORD использует default значение")
             if self.HR_PASSWORD == "hr123":
                 issues.append("⚠️  HR_PASSWORD использует default значение")
+
+        # Информация о новой системе хеширования паролей
+        issues.append(
+            "🔐 Password hashing: bcrypt + SHA256 (double hashing для защиты от truncation)"
+        )
+        issues.append(
+            "⚠️  ВАЖНО: Все существующие пароли нужно перехешировать при первом входе!"
+        )
 
         # Проверка базы данных
         if not self.DATABASE_URL:
@@ -225,6 +293,16 @@ class Config:
 
     def print_summary(self):
         """Печать сводки конфигурации (без секретов)."""
+        # Get model info
+        model_status = "❌ Not configured"
+        if self.openrouter_configured:
+            model_info = self.KNOWN_OPENROUTER_MODELS.get(self.OPENROUTER_MODEL)
+            if model_info:
+                recommended = "✅" if model_info.get("recommended") else "⚠️"
+                model_status = f"{recommended} {self.OPENROUTER_MODEL}"
+            else:
+                model_status = f"⚠️  {self.OPENROUTER_MODEL} (неизвестна)"
+
         print(
             f"""
 🔧 A101 HR Configuration Summary:
@@ -233,6 +311,7 @@ class Config:
    Database: {self.database_path}
    API: {self.API_HOST}:{self.API_PORT}
    OpenRouter: {'✅ Configured' if self.openrouter_configured else '❌ Not configured'}
+   OpenRouter Model: {model_status}
    Langfuse: {'✅ Configured' if self.langfuse_configured else '❌ Not configured'}
    CORS Origins: {len(self.CORS_ORIGINS)} origins
    Data Directory: {self.DATA_DIR}

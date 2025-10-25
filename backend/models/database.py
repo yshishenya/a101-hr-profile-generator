@@ -8,9 +8,15 @@ SQLite модели базы данных для системы генераци
 - organization_cache: Кеш организационной структуры
 - users: Пользователи системы (простая аутентификация)
 - user_sessions: Активные сессии пользователей
+
+Thread Safety:
+- Uses threading.local() for per-thread connections
+- Each thread gets its own SQLite connection
+- Prevents "SQLite objects created in a thread can only be used in that same thread" errors
 """
 
 import sqlite3
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -23,7 +29,26 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Менеджер базы данных SQLite с методами для создания схемы и управления соединениями"""
+    """
+    @doc Менеджер базы данных SQLite с thread-safe connection pooling.
+
+    Uses threading.local() to maintain separate connections per thread.
+    This prevents "SQLite objects created in a thread can only be used in that same thread" errors.
+
+    Examples:
+        python>
+        # Usage in multi-threaded environment
+        db = DatabaseManager("data/profiles.db")
+        conn = db.get_connection()  # Each thread gets its own connection
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users")
+
+    Thread Safety:
+        - Each thread gets its own SQLite connection
+        - No check_same_thread=False needed
+        - Connections are properly isolated
+        - Thread-local storage prevents race conditions
+    """
 
     def __init__(self, db_path: str):
         """
@@ -34,46 +59,103 @@ class DatabaseManager:
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._connection = None
+        # Use threading.local() for per-thread connections
+        self._local = threading.local()
 
     def get_connection(self) -> sqlite3.Connection:
-        """Получение соединения с базой данных с проверкой жизнеспособности"""
-        if self._connection is None or self._is_connection_closed():
-            logger.debug("Creating new database connection")
-            if self._connection:
+        """
+        @doc Получение соединения с базой данных (thread-safe).
+
+        Each thread gets its own connection stored in threading.local().
+        This ensures thread safety without check_same_thread=False.
+
+        Examples:
+            python>
+            # Thread 1
+            conn1 = db.get_connection()  # Gets connection for thread 1
+
+            # Thread 2
+            conn2 = db.get_connection()  # Gets different connection for thread 2
+
+            # conn1 != conn2, thread-safe!
+
+        Returns:
+            sqlite3.Connection for current thread
+        """
+        # Check if this thread already has a connection
+        if not hasattr(self._local, "connection") or self._is_connection_closed():
+            logger.debug(
+                f"Creating new database connection for thread {threading.current_thread().name}"
+            )
+
+            # Close old connection if exists
+            if hasattr(self._local, "connection") and self._local.connection:
                 try:
-                    self._connection.close()
+                    self._local.connection.close()
                 except:
                     pass  # Ignore errors when closing dead connection
 
-            self._connection = sqlite3.connect(
-                str(self.db_path), check_same_thread=False, timeout=30.0
+            # Create new connection for this thread
+            # NOTE: check_same_thread=True (default) is now safe because each thread has its own connection
+            self._local.connection = sqlite3.connect(
+                str(self.db_path),
+                check_same_thread=True,  # FIXED: Now using True for thread safety
+                timeout=30.0,
             )
-            self._connection.row_factory = sqlite3.Row  # Для dict-like доступа
-            self._connection.execute(
+            self._local.connection.row_factory = sqlite3.Row  # Для dict-like доступа
+            self._local.connection.execute(
                 "PRAGMA foreign_keys = ON"
             )  # Включаем foreign keys
-            logger.debug("Database connection created successfully")
+            logger.debug(
+                f"Database connection created for thread {threading.current_thread().name}"
+            )
 
-        return self._connection
+        return self._local.connection
 
     def _is_connection_closed(self) -> bool:
-        """Проверка, закрыто ли соединение с базой данных"""
-        if self._connection is None:
+        """Проверка, закрыто ли соединение с базой данных для текущего потока"""
+        if not hasattr(self._local, "connection") or self._local.connection is None:
             return True
         try:
             # Простой запрос для проверки соединения
-            self._connection.execute("SELECT 1").fetchone()
+            self._local.connection.execute("SELECT 1").fetchone()
             return False
         except sqlite3.Error:
-            logger.warning("Database connection is closed or invalid")
+            logger.warning(
+                f"Database connection is closed or invalid for thread {threading.current_thread().name}"
+            )
             return True
 
     def close_connection(self):
-        """Закрытие соединения с базой данных"""
-        if self._connection:
-            self._connection.close()
-            self._connection = None
+        """Закрытие соединения с базой данных для текущего потока"""
+        if hasattr(self._local, "connection") and self._local.connection:
+            self._local.connection.close()
+            self._local.connection = None
+            logger.debug(
+                f"Closed database connection for thread {threading.current_thread().name}"
+            )
+
+    def close_all_connections(self):
+        """
+        @doc Закрытие всех thread-local соединений.
+
+        WARNING: This should only be called during application shutdown.
+        Cannot iterate over threading.local() objects directly.
+
+        Examples:
+            python>
+            # During application shutdown
+            db.close_all_connections()
+        """
+        # Note: Cannot iterate over threading.local() objects
+        # Each thread must close its own connection
+        logger.info("Application shutdown - threads will close their own connections")
+        if hasattr(self._local, "connection") and self._local.connection:
+            try:
+                self._local.connection.close()
+                logger.debug("Closed main thread database connection")
+            except Exception as e:
+                logger.error(f"Error closing database connection: {e}")
 
     def create_schema(self):
         """Создание полной схемы базы данных"""
@@ -313,10 +395,15 @@ class DatabaseManager:
         """
         )
 
-    def seed_initial_data(self, admin_username: str = None, admin_password: str = None,
-                        admin_full_name: str = "System Administrator",
-                        hr_username: str = None, hr_password: str = None,
-                        hr_full_name: str = "HR Manager"):
+    def seed_initial_data(
+        self,
+        admin_username: str = None,
+        admin_password: str = None,
+        admin_full_name: str = "System Administrator",
+        hr_username: str = None,
+        hr_password: str = None,
+        hr_full_name: str = "HR Manager",
+    ):
         """
         Создание начальных данных для системы с dependency injection параметров.
 
@@ -338,12 +425,27 @@ class DatabaseManager:
 
             if user_count == 0:
                 # Создаем пользователей только если их нет
+                import hashlib
                 from passlib.context import CryptContext
 
                 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-                admin_password_hash = pwd_context.hash(admin_password)
-                hr_password_hash = pwd_context.hash(hr_password)
+                # Use double hashing (SHA256 + bcrypt) to avoid 72-byte truncation
+                # This matches AuthService._prehash_password() implementation
+                admin_password_plain = admin_password if admin_password else "admin123"
+                hr_password_plain = hr_password if hr_password else "hr123"
+
+                # Pre-hash with SHA256 (same as AuthService)
+                admin_password_prehashed = hashlib.sha256(
+                    admin_password_plain.encode("utf-8")
+                ).hexdigest()
+                hr_password_prehashed = hashlib.sha256(
+                    hr_password_plain.encode("utf-8")
+                ).hexdigest()
+
+                # Hash with bcrypt
+                admin_password_hash = pwd_context.hash(admin_password_prehashed)
+                hr_password_hash = pwd_context.hash(hr_password_prehashed)
 
                 cursor.execute(
                     """

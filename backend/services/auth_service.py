@@ -5,9 +5,10 @@
 - Проверку учетных данных пользователей
 - Генерацию и валидацию JWT токенов
 - Управление пользовательскими сессиями
-- Хеширование паролей с использованием bcrypt
+- Хеширование паролей с использованием bcrypt + SHA256 (double hashing)
 """
 
+import hashlib
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
@@ -38,16 +39,100 @@ class AuthenticationService(AuthInterface):
     def __init__(self):
         self.db = get_db_manager()
 
+    def _prehash_password(self, password: str) -> str:
+        """
+        @doc Pre-hash password with SHA256 to avoid bcrypt 72-byte truncation issue.
+
+        Bcrypt silently truncates passwords at 72 bytes. By pre-hashing with SHA256,
+        we ensure:
+        1. All passwords are hashed to fixed 64-character hex string (32 bytes)
+        2. No silent truncation issues
+        3. Support for arbitrarily long passwords
+        4. Consistent security properties
+
+        Examples:
+            python>
+            # Short password
+            prehashed = _prehash_password("admin123")
+            print(len(prehashed))  # 64 characters
+
+            # Long password (>72 bytes)
+            long_password = "a" * 100
+            prehashed = _prehash_password(long_password)
+            print(len(prehashed))  # Still 64 characters
+
+        Args:
+            password: Plain text password of any length
+
+        Returns:
+            64-character hex string (SHA256 hash)
+        """
+        return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Проверка пароля против хеша"""
+        """
+        @doc Verify password against bcrypt hash with SHA256 pre-hashing.
+
+        This implements double hashing: SHA256(password) → bcrypt(hash).
+        Prevents bcrypt 72-byte truncation issues while maintaining security.
+
+        Examples:
+            python>
+            # Verify correct password
+            result = verify_password("admin123", stored_hash)
+            print(result)  # True
+
+            # Verify wrong password
+            result = verify_password("wrong", stored_hash)
+            print(result)  # False
+
+        Args:
+            plain_password: Plain text password from user
+            hashed_password: Bcrypt hash stored in database
+
+        Returns:
+            True if password matches, False otherwise
+        """
         try:
-            return pwd_context.verify(plain_password, hashed_password)
+            # Pre-hash with SHA256 before bcrypt verification
+            prehashed = self._prehash_password(plain_password)
+            return pwd_context.verify(prehashed, hashed_password)
         except JWTError:
             return False
 
     def hash_password(self, password: str) -> str:
-        """Хеширование пароля"""
-        return pwd_context.hash(password)
+        """
+        @doc Hash password using bcrypt with SHA256 pre-hashing.
+
+        This implements double hashing: SHA256(password) → bcrypt(hash).
+        Prevents bcrypt 72-byte truncation issues while maintaining security.
+
+        Security properties:
+        - Pre-hash with SHA256 ensures fixed-length input to bcrypt
+        - Bcrypt provides adaptive cost factor and salt
+        - No silent truncation of long passwords
+        - Constant-time hash length (64 chars → bcrypt)
+
+        Examples:
+            python>
+            # Hash a password
+            hashed = hash_password("admin123")
+            print(hashed[:7])  # $2b$12$ (bcrypt format)
+
+            # Hash long password (>72 bytes)
+            long_password = "a" * 100
+            hashed = hash_password(long_password)
+            # Works correctly, no truncation
+
+        Args:
+            password: Plain text password of any length
+
+        Returns:
+            Bcrypt hash string (starts with $2b$)
+        """
+        # Pre-hash with SHA256 before bcrypt hashing
+        prehashed = self._prehash_password(password)
+        return pwd_context.hash(prehashed)
 
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """Получение пользователя по username"""
@@ -156,14 +241,18 @@ class AuthenticationService(AuthInterface):
         }
 
         encoded_jwt = jwt.encode(token_data, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-        logger.debug(f"create_access_token: Created token for user {token_data.get('username')}")
+        logger.debug(
+            f"create_access_token: Created token for user {token_data.get('username')}"
+        )
         return encoded_jwt
 
     def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Проверка и декодирование JWT token"""
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-            logger.debug(f"verify_token: Successfully decoded token for user {payload.get('username')}")
+            logger.debug(
+                f"verify_token: Successfully decoded token for user {payload.get('username')}"
+            )
 
             # Проверяем тип токена
             if payload.get("type") != "access_token":
