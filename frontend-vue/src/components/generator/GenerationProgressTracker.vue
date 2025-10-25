@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import type { GenerationTask, GenerationResult } from '@/stores/generator'
 
@@ -292,8 +292,15 @@ function stopPolling(): void {
 // Start polling immediately
 startPolling()
 
-// Cleanup on unmount
-onUnmounted(() => {
+// Watch dialog close and stop polling
+watch(dialog, (newValue) => {
+  if (!newValue) {
+    stopPolling()
+  }
+})
+
+// Cleanup before unmount (prevents race condition with interval)
+onBeforeUnmount(() => {
   stopPolling()
 })
 
