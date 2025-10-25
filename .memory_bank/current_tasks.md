@@ -16,3 +16,4 @@
 - [x] [DOCS-01] Create basic project documentation
 - [x] [SETUP-00] Create Memory Bank structure for the project
 - [x] [BUG-01] Fix JSON schema validation error - removed hardcoded schema fallback (2025-10-25)
+- [x] [BUG-02] Fix HTTP 401 authentication error - implemented transparent password migration (2025-10-25)

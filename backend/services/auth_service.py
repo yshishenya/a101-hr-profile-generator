@@ -177,7 +177,30 @@ class AuthenticationService(AuthInterface):
     def authenticate_user(
         self, username: str, password: str
     ) -> Optional[Dict[str, Any]]:
-        """Аутентификация пользователя по username и password"""
+        """
+        @doc Аутентификация пользователя с автоматической миграцией паролей
+
+        Поддерживает transparent migration от старого формата (bcrypt)
+        к новому формату (SHA256+bcrypt). При успешной аутентификации старым методом,
+        автоматически обновляет хеш пароля на новый формат.
+
+        Examples:
+            python>
+            # Пользователь со старым хешем (только bcrypt)
+            user = authenticate_user("admin", "admin123")
+            # → Вход успешен, хеш обновлен на SHA256+bcrypt
+
+            # Пользователь с новым хешем (SHA256+bcrypt)
+            user = authenticate_user("admin", "admin123")
+            # → Вход успешен, хеш уже новый
+
+        Args:
+            username: Имя пользователя
+            password: Пароль в открытом виде
+
+        Returns:
+            Dict с данными пользователя или None при ошибке
+        """
         user = self.get_user_by_username(username)
 
         if not user:
@@ -188,17 +211,44 @@ class AuthenticationService(AuthInterface):
             logger.warning(f"Authentication failed: user {username} is inactive")
             return None
 
-        if not self.verify_password(password, user["password_hash"]):
-            logger.warning(
-                f"Authentication failed: invalid password for user {username}"
-            )
-            return None
+        # Пробуем новый метод (SHA256+bcrypt)
+        if self.verify_password(password, user["password_hash"]):
+            # Успешная аутентификация с новым методом
+            self._update_last_login(user["id"])
+            logger.info(f"User {username} authenticated successfully (new hash format)")
+            return user
 
-        # Обновляем время последнего входа
-        self._update_last_login(user["id"])
+        # Пробуем старый метод (только bcrypt) для миграции
+        try:
+            if pwd_context.verify(password, user["password_hash"]):
+                # Успешная аутентификация старым методом - мигрируем пароль
+                logger.info(f"User {username} authenticated with OLD hash format - migrating...")
 
-        logger.info(f"User {username} authenticated successfully")
-        return user
+                # Создаем новый хеш с SHA256+bcrypt
+                new_hash = self.hash_password(password)
+
+                # Обновляем хеш в базе данных
+                conn = self.db.get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE users SET password_hash = ? WHERE id = ?",
+                    (new_hash, user["id"])
+                )
+                conn.commit()
+
+                # Обновляем время последнего входа
+                self._update_last_login(user["id"])
+
+                logger.info(f"✅ Password migrated to new format for user {username}")
+                return user
+
+        except Exception as e:
+            logger.error(f"Error during password migration for {username}: {e}")
+
+        logger.warning(
+            f"Authentication failed: invalid password for user {username}"
+        )
+        return None
 
     def _update_last_login(self, user_id: int):
         """Обновление времени последнего входа пользователя"""
