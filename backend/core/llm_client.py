@@ -14,13 +14,17 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import httpx
 from langfuse import Langfuse
-from langfuse.openai import OpenAI
+from langfuse.openai import AsyncOpenAI
 
 from .config import config
 from .prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
+
+# Константы
+PROMPT_CACHE_TTL_SECONDS = 300  # 5 минут кеш для промптов
 
 
 class LLMClient:
@@ -72,12 +76,12 @@ class LLMClient:
         self.prompt_manager = PromptManager(
             langfuse_client=self.langfuse,
             templates_dir=config.TEMPLATES_DIR,  # Используем путь из конфигурации
-            cache_ttl=300,  # 5 минут кеш
+            cache_ttl=PROMPT_CACHE_TTL_SECONDS,
         )
         logger.info("✅ PromptManager initialized with Langfuse sync")
 
-        # Инициализируем OpenAI клиент через Langfuse
-        self.client = OpenAI(
+        # Инициализируем AsyncOpenAI клиент через Langfuse для параллельной работы
+        self.client = AsyncOpenAI(
             api_key=self.openrouter_api_key,
             base_url=config.OPENROUTER_BASE_URL,
             default_headers={
@@ -85,26 +89,44 @@ class LLMClient:
                 "X-Title": "A101 HR Profile Generator",
             },
         )
-        logger.info(f"✅ LLM client initialized with model: {config.OPENROUTER_MODEL}")
+        logger.info(f"✅ Async LLM client initialized with model: {config.OPENROUTER_MODEL}")
 
-    def _create_generation_with_prompt(
+    async def _create_generation_with_prompt(
         self,
-        prompt,
-        messages,
-        model,
-        temperature,
-        max_tokens,
-        response_format,
-        trace_metadata=None,
-    ):
+        prompt: Optional[Any],
+        messages: List[Dict[str, str]],
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        response_format: Optional[Any],
+        trace_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         """
-        @doc Внутренняя функция для создания generation с правильной связкой промпта
+        Внутренняя асинхронная функция для создания generation с правильной связкой промпта.
 
-        Используется в качестве декорированной функции для Langfuse tracing
+        Используется в качестве декорированной функции для Langfuse tracing.
+        Выполняет асинхронный вызов OpenAI API через AsyncOpenAI клиент.
+
+        Args:
+            prompt: Langfuse prompt object (может быть None при fallback)
+            messages: Список сообщений для API в формате ChatML
+            model: Название модели (например, "google/gemini-2.5-flash")
+            temperature: Температура генерации (0.0-2.0)
+            max_tokens: Максимальное количество токенов в ответе
+            response_format: Формат ответа (JSON schema или None)
+            trace_metadata: Метаданные для трейсинга (опционально)
+
+        Returns:
+            ChatCompletion response объект от OpenAI SDK
+
+        Raises:
+            httpx.HTTPStatusError: При ошибках HTTP (4xx, 5xx)
+            httpx.TimeoutException: При таймауте запроса
 
         Examples:
-            python>
-            result = self._create_generation_with_prompt(prompt, messages, model, temp, max_tokens, format, metadata)
+            >>> result = await self._create_generation_with_prompt(
+            ...     prompt, messages, "google/gemini-2.5-flash", 0.1, 4000, None, {}
+            ... )
         """
         # Обогащенные metadata для полного трекинга (убираем только prompt content)
         enriched_metadata = {
@@ -123,8 +145,8 @@ class LLMClient:
             **(trace_metadata or {}),
         }
 
-        # Правильная связка промпта согласно документации 2025 года
-        response = self.client.chat.completions.create(
+        # Правильная связка промпта согласно документации 2025 года (асинхронный вызов)
+        response = await self.client.chat.completions.create(
             model=model,
             messages=messages,
             temperature=temperature,
@@ -236,8 +258,20 @@ class LLMClient:
             try:
                 prompt_obj = self.langfuse.get_prompt(prompt_name, label="production")
                 logger.info(f"✅ Retrieved prompt from Langfuse directly: {prompt_name}")
-            except Exception as langfuse_error:
-                logger.warning(f"Failed to get prompt from Langfuse: {langfuse_error}")
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as langfuse_error:
+                logger.warning(
+                    "Failed to get prompt from Langfuse",
+                    extra={
+                        "error": str(langfuse_error),
+                        "prompt_name": prompt_name,
+                        "error_type": type(langfuse_error).__name__
+                    }
+                )
+            except Exception as e:
+                logger.exception(
+                    "Unexpected error getting prompt from Langfuse",
+                    extra={"prompt_name": prompt_name}
+                )
 
         # Извлекаем конфигурацию с fallback через PromptManager
         config = self.prompt_manager.get_prompt_config(
@@ -383,7 +417,7 @@ class LLMClient:
             "raw_response": generated_text,
         }
 
-    def generate_profile_from_langfuse(
+    async def generate_profile_from_langfuse(
         self,
         prompt_name: str,
         variables: Dict[str, Any],
@@ -391,7 +425,7 @@ class LLMClient:
         session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        @doc Генерация профиля должности через Langfuse prompt с traced execution
+        @doc Асинхронная генерация профиля должности через Langfuse prompt с traced execution
 
         Args:
             prompt_name: Имя промпта в Langfuse
@@ -405,7 +439,7 @@ class LLMClient:
         Examples:
             python>
             client = LLMClient(api_key, langfuse_keys...)
-            result = client.generate_profile_from_langfuse(
+            result = await client.generate_profile_from_langfuse(
                 prompt_name="a101-hr-profile-gemini-v2",
                 variables={"position": "Senior Developer", "department": "IT"}
             )
@@ -433,9 +467,9 @@ class LLMClient:
                 prompt_name, prompt_obj, variables, user_id, session_id
             )
 
-            # Выполняем запрос через правильную функцию с декоратором для связки промптов
+            # Выполняем асинхронный запрос через правильную функцию с декоратором для связки промптов
             try:
-                response = self._create_generation_with_prompt(
+                response = await self._create_generation_with_prompt(
                     prompt=prompt_obj,  # Может быть None при fallback
                     messages=messages,
                     model=model,
@@ -445,10 +479,47 @@ class LLMClient:
                     trace_metadata=trace_metadata,
                 )
                 logger.info("✅ Generation with prompt linking completed")
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    "OpenAI API HTTP error",
+                    extra={
+                        "status_code": e.response.status_code,
+                        "prompt_name": prompt_name,
+                        "model": model,
+                        "response_text": e.response.text[:500] if e.response else None
+                    }
+                )
+                raise
+            except httpx.TimeoutException as e:
+                logger.error(
+                    "OpenAI API timeout",
+                    extra={
+                        "prompt_name": prompt_name,
+                        "model": model,
+                        "timeout": str(e)
+                    }
+                )
+                raise
+            except httpx.ConnectError as e:
+                logger.error(
+                    "OpenAI API connection error",
+                    extra={
+                        "prompt_name": prompt_name,
+                        "model": model,
+                        "error": str(e)
+                    }
+                )
+                raise
             except Exception as api_error:
-                logger.error(f"OpenAI API error: {api_error}")
-                logger.error(f"Error type: {type(api_error)}")
-                raise api_error
+                logger.exception(
+                    "Unexpected OpenAI API error",
+                    extra={
+                        "prompt_name": prompt_name,
+                        "model": model,
+                        "error_type": type(api_error).__name__
+                    }
+                )
+                raise
 
             # Извлекаем ответ и парсим JSON
             generated_text = response.choices[0].message.content
@@ -786,93 +857,3 @@ class LLMClient:
                             f"performance_metrics должен содержать '{field}'"
                         )
 
-    def test_connection(self) -> Dict[str, Any]:
-        """Тестирование подключения через Langfuse к OpenRouter API"""
-        try:
-            response = self.client.chat.completions.create(
-                model="google/gemini-2.5-flash",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": 'Hello! Please respond with a simple JSON: {"status": "ok", "message": "Connection test successful"}',
-                    }
-                ],
-                max_tokens=100,
-                temperature=0.1,
-            )
-
-            return {
-                "success": True,
-                "model": "google/gemini-2.5-flash",
-                "response": response.choices[0].message.content,
-            }
-
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-
-if __name__ == "__main__":
-    # Тестирование обновленного LLM клиента с Langfuse
-    import os
-
-    logging.basicConfig(level=logging.INFO)
-
-    def test_llm_client():
-        # Получаем все необходимые ключи
-        openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        langfuse_public = os.getenv("LANGFUSE_PUBLIC_KEY")
-        langfuse_secret = os.getenv("LANGFUSE_SECRET_KEY")
-
-        if not all([openrouter_key, langfuse_public, langfuse_secret]):
-            print("❌ Missing required API keys")
-            print(f"  OpenRouter: {'✅' if openrouter_key else '❌'}")
-            print(f"  Langfuse public: {'✅' if langfuse_public else '❌'}")
-            print(f"  Langfuse secret: {'✅' if langfuse_secret else '❌'}")
-            return
-
-        client = LLMClient(
-            openrouter_api_key=openrouter_key,
-            langfuse_public_key=langfuse_public,
-            langfuse_secret_key=langfuse_secret,
-        )
-
-        print("=== Тестирование подключения ===")
-        connection_test = client.test_connection()
-
-        if connection_test["success"]:
-            print("✅ Подключение через Langfuse успешно")
-        else:
-            print(f"❌ Ошибка подключения: {connection_test['error']}")
-            return
-
-        print("\n=== Тестирование генерации через Langfuse ===")
-        test_variables = {
-            "position": "Senior ML Engineer",
-            "department": "ДИТ",
-            "employee_name": "Тестовая Генерация",
-            "org_structure": "Тестовая структура",
-            "kpi_data": "Тестовые KPI",
-            "it_systems": "Тестовые системы",
-        }
-
-        result = client.generate_profile_from_langfuse(
-            prompt_name="a101-hr-profile-gemini-v2",
-            variables=test_variables,
-            user_id="test-user",
-            session_id="test-session",
-        )
-
-        if result["metadata"]["success"]:
-            print("✅ Генерация через Langfuse успешна")
-            print(f"📊 Токены: {result['metadata']['tokens']}")
-            print(f"⏱️ Время: {result['metadata']['generation_time']:.2f}s")
-            print(f"🔗 Trace ID: {result['metadata']['langfuse_trace_id']}")
-
-            if result["profile"]:
-                validation = client.validate_profile_structure(result["profile"])
-                print(f"✓ Валидация: {validation['completeness_score']:.2%} заполнено")
-        else:
-            print(f"❌ Ошибка генерации: {result['metadata']['error']}")
-
-    # Раскомментируйте для запуска теста
-    # test_llm_client()

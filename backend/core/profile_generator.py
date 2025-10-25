@@ -131,7 +131,7 @@ class ProfileGenerator:
                     "LLMClient not initialized - Langfuse credentials required"
                 )
 
-            llm_result = self.llm_client.generate_profile_from_langfuse(
+            llm_result = await self.llm_client.generate_profile_from_langfuse(
                 prompt_name="a101-hr-profile-gemini-v3-simple",
                 variables=variables,
                 user_id=employee_name or f"user_{department}_{position}",
