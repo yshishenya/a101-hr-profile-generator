@@ -9,14 +9,16 @@ LLM клиент для интеграции с Gemini 2.5 Flash через Lang
 """
 
 import json
-import time
 import logging
-from typing import Dict, Any, Optional
+import time
 from datetime import datetime
-from langfuse.openai import OpenAI
+from typing import Any, Dict, Optional
+
 from langfuse import Langfuse
+from langfuse.openai import OpenAI
 
 from .config import config
+from .prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,14 @@ class LLMClient:
                 "⚠️ Langfuse credentials not found in config - tracing disabled"
             )
             self.langfuse = None
+
+        # 🔥 НОВАЯ ФИЧА: Инициализируем PromptManager для fallback и синхронизации
+        self.prompt_manager = PromptManager(
+            langfuse_client=self.langfuse,
+            templates_dir="/home/yan/A101/HR/templates",
+            cache_ttl=300,  # 5 минут кеш
+        )
+        logger.info("✅ PromptManager initialized with Langfuse sync")
 
         # Инициализируем OpenAI клиент через Langfuse
         self.client = OpenAI(
@@ -239,28 +249,51 @@ class LLMClient:
         start_time = time.time()
 
         try:
-            # Проверяем что Langfuse доступен
-            if not self.langfuse:
-                raise ValueError(
-                    "Langfuse не инициализирован - невозможно получить промпт"
-                )
+            # 🔥 НОВАЯ ФИЧА: Используем PromptManager для получения промпта с fallback
+            # Попытка 1: Получаем через Langfuse напрямую (для использования prompt.compile())
+            prompt_obj = None
+            if self.langfuse:
+                try:
+                    prompt_obj = self.langfuse.get_prompt(
+                        prompt_name, label="production"
+                    )
+                    logger.info(
+                        f"✅ Retrieved prompt from Langfuse directly: {prompt_name}"
+                    )
+                except Exception as langfuse_error:
+                    logger.warning(
+                        f"Failed to get prompt from Langfuse: {langfuse_error}"
+                    )
 
-            # Получаем промпт из Langfuse с label="production"
-            prompt = self.langfuse.get_prompt(prompt_name, label="production")
+            # Извлекаем конфигурацию с fallback через PromptManager
+            config = self.prompt_manager.get_prompt_config(
+                "profile_generation", environment="production"
+            )
+            model = config.get("model", "google/gemini-2.5-flash")
+            temperature = config.get("temperature", 0.1)
+            max_tokens = config.get("max_tokens", 4000)
+            response_format = config.get("response_format")
 
-            # Извлекаем конфигурацию
-            model = prompt.config.get("model", "google/gemini-2.5-flash")
-            temperature = prompt.config.get("temperature", 0.1)
-            max_tokens = prompt.config.get("max_tokens", 4000)
-            response_format = prompt.config.get("response_format")
-
-            logger.info(f"Starting Langfuse generation with prompt: {prompt_name}")
+            logger.info(f"Starting generation with prompt: {prompt_name}")
             logger.info(f"Model: {model}, Temperature: {temperature}")
             logger.info(f"Response format: {response_format}")
 
             # Компилируем промпт с переменными
-            compiled_prompt = prompt.compile(**variables)
-            logger.info(f"Compiled prompt type: {type(compiled_prompt)}")
+            if prompt_obj:
+                # Если промпт получен из Langfuse - используем compile()
+                compiled_prompt = prompt_obj.compile(**variables)
+                logger.info(
+                    f"Compiled prompt using Langfuse compile(), type: {type(compiled_prompt)}"
+                )
+            else:
+                # Fallback: используем PromptManager для получения промпта и подстановки
+                logger.warning("⚠️ Using local fallback prompt from PromptManager")
+                compiled_prompt = self.prompt_manager.get_prompt(
+                    "profile_generation", variables=variables
+                )
+                logger.info(
+                    f"Compiled prompt using PromptManager fallback, length: {len(compiled_prompt)}"
+                )
 
             # Преобразуем в формат messages если нужно
             if isinstance(compiled_prompt, str):
@@ -289,7 +322,7 @@ class LLMClient:
             # Метаданные для декорированной функции
             trace_metadata = {
                 "prompt_name": prompt_name,
-                "prompt_version": prompt.version,
+                "prompt_version": getattr(prompt_obj, "version", "local_fallback"),
                 "department": variables.get("department"),
                 "position": variables.get("position"),
                 "employee_name": variables.get("employee_name"),
@@ -297,11 +330,12 @@ class LLMClient:
                 "session_id": session_id,
                 "environment": "production",
                 "source": "hr_profile_generator",
+                "prompt_source": "langfuse" if prompt_obj else "local_fallback",
             }
             # Выполняем запрос через правильную функцию с декоратором для связки промптов
             try:
                 response = self._create_generation_with_prompt(
-                    prompt=prompt,
+                    prompt=prompt_obj,  # Может быть None при fallback
                     messages=messages,
                     model=model,
                     temperature=temperature,
@@ -361,7 +395,8 @@ class LLMClient:
                     "success": True,
                     "langfuse_trace_id": trace_id,
                     "prompt_name": prompt_name,
-                    "prompt_version": prompt.version,
+                    "prompt_version": getattr(prompt_obj, "version", "local_fallback"),
+                    "prompt_source": "langfuse" if prompt_obj else "local_fallback",
                     "tracing_mode": "decorator_based",
                     "department": variables.get("department"),
                     "position": variables.get("position"),

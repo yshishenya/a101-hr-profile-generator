@@ -251,9 +251,16 @@ class PromptManager:
 
         return template
 
-    def get_prompt_config(self, prompt_name: str) -> Dict[str, Any]:
+    def get_prompt_config(
+        self, prompt_name: str, environment: str = "production"
+    ) -> Dict[str, Any]:
         """
         @doc Получение конфигурации промпта
+
+        Приоритет:
+        1. Langfuse (если доступен)
+        2. Локальный файл config.json (новая структура)
+        3. Реестр в коде (fallback)
 
         Examples:
             python>
@@ -264,7 +271,7 @@ class PromptManager:
         if prompt_name not in self.prompt_registry:
             raise ValueError(f"Unknown prompt: {prompt_name}")
 
-        # Получаем конфиг из реестра
+        # Получаем конфиг из реестра (базовый fallback)
         local_config = self.prompt_registry[prompt_name].get("config", {})
 
         # Если Langfuse включен, пытаемся получить конфиг оттуда
@@ -273,8 +280,10 @@ class PromptManager:
                 registry_entry = self.prompt_registry[prompt_name]
                 langfuse_name = registry_entry["langfuse_name"]
 
-                # Получаем промпт из Langfuse
-                prompt_obj = self.langfuse_client.get_prompt(langfuse_name)
+                # Получаем промпт из Langfuse с label="production"
+                prompt_obj = self.langfuse_client.get_prompt(
+                    langfuse_name, label=environment
+                )
 
                 if prompt_obj and hasattr(prompt_obj, "config") and prompt_obj.config:
                     # Объединяем локальный и Langfuse конфиг
@@ -286,7 +295,25 @@ class PromptManager:
             except Exception as e:
                 logger.warning(f"Failed to get prompt config from Langfuse: {e}")
 
-        logger.info(f"Using local config for '{prompt_name}'")
+        # Пытаемся загрузить из локального файла config.json
+        try:
+            env_dir = self.templates_dir / "prompts" / environment
+            config_file = env_dir / "config.json"
+
+            if config_file.exists():
+                with open(config_file, "r", encoding="utf-8") as f:
+                    file_config = json.load(f)
+
+                merged_config = {**local_config, **file_config}
+                logger.info(
+                    f"Using local file config for '{prompt_name}' from {config_file}"
+                )
+                return merged_config
+
+        except Exception as e:
+            logger.debug(f"Failed to load config from local file: {e}")
+
+        logger.info(f"Using registry config for '{prompt_name}'")
         return local_config
 
     def _get_prompt_template(
@@ -342,21 +369,63 @@ class PromptManager:
             if version:
                 prompt = self.langfuse_client.get_prompt(langfuse_name, version=version)
             else:
-                prompt = self.langfuse_client.get_prompt(langfuse_name)
+                prompt = self.langfuse_client.get_prompt(
+                    langfuse_name, label="production"
+                )
 
-            if prompt and hasattr(prompt, "prompt"):
-                return prompt.prompt
-            elif prompt and hasattr(prompt, "content"):
-                return prompt.content
-            else:
-                return str(prompt) if prompt else None
+            if prompt:
+                # 🔥 НОВАЯ ФИЧА: Сохраняем промпт в локальные файлы при успешном получении
+                try:
+                    prompt_text = None
+                    if hasattr(prompt, "prompt"):
+                        prompt_text = prompt.prompt
+                    elif hasattr(prompt, "content"):
+                        prompt_text = prompt.content
+                    else:
+                        prompt_text = str(prompt) if prompt else None
+
+                    if prompt_text:
+                        # Сохраняем промпт и конфиг локально
+                        self._save_prompt_to_local(prompt_name, prompt, prompt_text)
+                        return prompt_text
+                except Exception as save_error:
+                    logger.warning(
+                        f"Failed to save prompt to local files: {save_error}"
+                    )
+                    # Продолжаем работу даже если сохранение не удалось
+                    if hasattr(prompt, "prompt"):
+                        return prompt.prompt
+                    elif hasattr(prompt, "content"):
+                        return prompt.content
+                    else:
+                        return str(prompt) if prompt else None
+
+            return None
 
         except Exception as e:
             logger.error(f"Error fetching prompt from Langfuse: {e}")
             return None
 
     def _get_from_local_file(self, prompt_name: str) -> str:
-        """Получение промпта из локального файла"""
+        """
+        Получение промпта из локального файла
+
+        Приоритет:
+        1. Новая структура: /templates/prompts/production/prompt.txt
+        2. Старый файл: /templates/generation_prompt.txt (fallback)
+        """
+        # Пытаемся загрузить из новой структуры
+        try:
+            prompt_text = self._load_prompt_from_local(
+                prompt_name, environment="production"
+            )
+            if prompt_text:
+                logger.info(f"Loaded prompt '{prompt_name}' from new local structure")
+                return prompt_text
+        except Exception as e:
+            logger.debug(f"Failed to load from new structure: {e}")
+
+        # Fallback к старому формату
         registry_entry = self.prompt_registry[prompt_name]
         local_file = registry_entry["local_file"]
         file_path = self.templates_dir / local_file
@@ -366,6 +435,129 @@ class PromptManager:
 
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
+
+    def _save_prompt_to_local(
+        self,
+        prompt_name: str,
+        prompt_obj: Any,
+        prompt_text: str,
+        environment: str = "production",
+    ):
+        """
+        @doc Сохранение промпта в локальные файлы для fallback
+
+        Структура:
+        /templates/prompts/production/
+          prompt.txt           # Текст промпта
+          config.json          # Конфигурация (model, temperature, JSON schema)
+          metadata.json        # Метаданные (version, timestamp, hash)
+
+        Examples:
+            python>
+            # Автоматически вызывается при успешном получении из Langfuse
+            pm._save_prompt_to_local("profile_generation", prompt_obj, prompt_text)
+        """
+        try:
+            # Создаем директорию для окружения
+            env_dir = self.templates_dir / "prompts" / environment
+            env_dir.mkdir(parents=True, exist_ok=True)
+
+            # 1. Сохраняем текст промпта
+            prompt_file = env_dir / "prompt.txt"
+            with open(prompt_file, "w", encoding="utf-8") as f:
+                f.write(prompt_text)
+
+            # 2. Сохраняем конфигурацию (если есть)
+            config_data = {}
+            if hasattr(prompt_obj, "config") and prompt_obj.config:
+                config_data = prompt_obj.config
+            elif hasattr(prompt_obj, "model_config"):
+                config_data = prompt_obj.model_config
+
+            config_file = env_dir / "config.json"
+            with open(config_file, "w", encoding="utf-8") as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+
+            # 3. Сохраняем метаданные
+            metadata = {
+                "prompt_name": prompt_name,
+                "environment": environment,
+                "saved_at": datetime.now().isoformat(),
+                "version": getattr(prompt_obj, "version", None),
+                "hash": hashlib.sha256(prompt_text.encode()).hexdigest(),
+                "character_count": len(prompt_text),
+                "line_count": len(prompt_text.split("\n")),
+            }
+
+            # Добавляем labels если есть
+            if hasattr(prompt_obj, "labels"):
+                metadata["labels"] = prompt_obj.labels
+
+            metadata_file = env_dir / "metadata.json"
+            with open(metadata_file, "w", encoding="utf-8") as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+            logger.info(
+                f"Saved prompt '{prompt_name}' to local files: {env_dir} "
+                f"(version: {metadata['version']}, hash: {metadata['hash'][:8]}...)"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to save prompt to local files: {e}")
+            raise
+
+    def _load_prompt_from_local(
+        self, prompt_name: str, environment: str = "production"
+    ) -> Optional[str]:
+        """
+        @doc Загрузка промпта из локальных файлов
+
+        Examples:
+            python>
+            # Загрузка production промпта
+            prompt_text = pm._load_prompt_from_local("profile_generation", "production")
+
+            # Загрузка development промпта
+            prompt_text = pm._load_prompt_from_local("profile_generation", "development")
+        """
+        try:
+            env_dir = self.templates_dir / "prompts" / environment
+            prompt_file = env_dir / "prompt.txt"
+
+            if not prompt_file.exists():
+                logger.debug(f"Local prompt file not found: {prompt_file}")
+                return None
+
+            # Загружаем текст промпта
+            with open(prompt_file, "r", encoding="utf-8") as f:
+                prompt_text = f.read()
+
+            # Проверяем метаданные для верификации
+            metadata_file = env_dir / "metadata.json"
+            if metadata_file.exists():
+                with open(metadata_file, "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+
+                # Верифицируем hash
+                actual_hash = hashlib.sha256(prompt_text.encode()).hexdigest()
+                stored_hash = metadata.get("hash", "")
+
+                if actual_hash != stored_hash:
+                    logger.warning(
+                        f"Hash mismatch for local prompt '{prompt_name}': "
+                        f"stored={stored_hash[:8]}..., actual={actual_hash[:8]}..."
+                    )
+
+                logger.info(
+                    f"Loaded local prompt '{prompt_name}' (version: {metadata.get('version')}, "
+                    f"saved: {metadata.get('saved_at')})"
+                )
+
+            return prompt_text
+
+        except Exception as e:
+            logger.error(f"Failed to load prompt from local files: {e}")
+            return None
 
     def _substitute_variables(
         self, template: str, variables: Dict[str, Any], prompt_name: str

@@ -58,19 +58,27 @@ class DataLoader:
         logger.info(f"Preparing variables for {department} - {position}")
 
         try:
-            # 🎯 ДЕТЕРМИНИРОВАННОЕ ИЗВЛЕЧЕНИЕ СТРУКТУРЫ
-            org_structure = self._load_org_structure_for_department(department)
+            # 🔥 FIX: Извлекаем короткое имя департамента для методов, которые его ожидают
+            if "/" in department:
+                department_parts = [p.strip() for p in department.split("/") if p.strip()]
+                department_short_name = department_parts[-1]  # Последний элемент
+                logger.info(f"Extracted short department name '{department_short_name}' from path '{department}'")
+            else:
+                department_short_name = department
 
-            # 🎯 НОВОЕ: ИЗВЛЕЧЕНИЕ ПОЛНОЙ ИЕРАРХИИ ДО ПОЗИЦИИ
+            # 🎯 ДЕТЕРМИНИРОВАННОЕ ИЗВЛЕЧЕНИЕ СТРУКТУРЫ (использует короткое имя)
+            org_structure = self._load_org_structure_for_department(department_short_name)
+
+            # 🎯 НОВОЕ: ИЗВЛЕЧЕНИЕ ПОЛНОЙ ИЕРАРХИИ ДО ПОЗИЦИИ (принимает полный путь или короткое имя)
             hierarchy_info = self._extract_full_position_path(department, position)
             department_path = hierarchy_info.get("department_path_legacy", department)
 
-            # 🎯 ДЕТЕРМИНИРОВАННЫЙ ВЫБОР KPI ФАЙЛА
-            kpi_content = self.kpi_mapper.load_kpi_content(department)
+            # 🎯 ДЕТЕРМИНИРОВАННЫЙ ВЫБОР KPI ФАЙЛА (использует короткое имя)
+            kpi_content = self.kpi_mapper.load_kpi_content(department_short_name)
 
-            # 🎯 ИЗВЛЕЧЕНИЕ ДАННЫХ О ЧИСЛЕННОСТИ
-            headcount_info = self.org_mapper.get_headcount_info(department)
-            subordinates_count = self.org_mapper.calculate_subordinates_count(department, position)
+            # 🎯 ИЗВЛЕЧЕНИЕ ДАННЫХ О ЧИСЛЕННОСТИ (использует короткое имя)
+            headcount_info = self.org_mapper.get_headcount_info(department_short_name)
+            subordinates_count = self.org_mapper.calculate_subordinates_count(department_short_name, position)
 
             # Подготовка всех переменных
             variables = {
@@ -92,7 +100,8 @@ class DataLoader:
                 ),  # ~229K символов - полная структура с выделением
                 # ПОЗИЦИОННЫЕ ДАННЫЕ
                 "position": position,
-                "department": department,
+                "department": department,  # Полный путь (как передано генератором)
+                "department_name": department_short_name,  # Короткое имя для логики в промпте
                 "employee_name": employee_name or "",
                 # ДИНАМИЧЕСКИЙ КОНТЕКСТ (детерминированно найденный)
                 "kpi_data": kpi_content,  # 0-15K токенов
@@ -540,18 +549,26 @@ class DataLoader:
         Извлечение полного пути до позиции включая все уровни иерархии.
 
         Args:
-            department: Название департамента
+            department: Название департамента (может быть полный путь или короткое имя)
             position: Название должности
 
         Returns:
             Dict с полным путем и разложением по уровням
         """
         try:
-            # Сначала находим департамент
-            dept_info = organization_cache.find_department(department)
+            # 🔥 FIX: Если передан полный путь, извлекаем последний элемент как имя департамента
+            if "/" in department:
+                department_parts = [p.strip() for p in department.split("/") if p.strip()]
+                department_name = department_parts[-1]  # Последний элемент = имя департамента
+                logger.info(f"Extracted department name '{department_name}' from full path '{department}'")
+            else:
+                department_name = department
+
+            # Сначала находим департамент по короткому имени
+            dept_info = organization_cache.find_department(department_name)
             if not dept_info:
-                logger.warning(f"Department not found: {department}")
-                return self._create_fallback_hierarchy_info(department, position)
+                logger.warning(f"Department not found: {department_name}")
+                return self._create_fallback_hierarchy_info(department_name, position)
 
             # Получаем базовый путь департамента
             dept_path = dept_info["path"]
@@ -624,7 +641,17 @@ class DataLoader:
         }
 
     def _create_fallback_hierarchy_info(self, department: str, position: str) -> Dict[str, Any]:
-        """Создание fallback информации при ошибках (поддержка до 6 уровней)"""
+        """
+        Создание fallback информации при ошибках (поддержка до 6 уровней).
+
+        Если department содержит полный путь, разбираем его.
+        """
+        # 🔥 FIX: Если передан полный путь, разбираем его
+        if "/" in department:
+            path_parts = [p.strip() for p in department.split("/") if p.strip()]
+            return self._build_hierarchy_info(path_parts, path_parts[-1], position)
+
+        # Иначе простой fallback
         return {
             "full_path_parts": [department],
             "hierarchy_level": 1,

@@ -1,0 +1,15 @@
+{
+  "prompt_name": "profile_generation",
+  "environment": "production",
+  "saved_at": "2025-10-25T13:53:59.862914",
+  "version": 46,
+  "hash": "a9d2d3c0e0e595f80fb02ac312802d925e09211e6d030fb3ba24b6ea980b9661",
+  "character_count": 8338,
+  "line_count": 126,
+  "labels": [
+    "production",
+    "latest"
+  ],
+  "config_updated_at": "2025-10-25T13:53:59.862922",
+  "config_note": "Fixed: Added professional_skills_reasoning to required array"
+}
