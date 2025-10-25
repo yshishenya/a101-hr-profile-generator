@@ -36,6 +36,7 @@
 - [x] [PERF-02] Organization catalog caching - 75x speedup (3ms vs 225ms)
 - [x] [BUG-01] Fix JSON schema validation error (2025-10-25)
 - [x] [BUG-02] Fix HTTP 401 authentication error - password migration (2025-10-25)
+- [x] [BUG-03] Fix backend Docker container startup - missing List import (2025-10-25)
 
 ### DevOps (Q1 2025)
 - [x] [DOCKER-01] Docker containerization

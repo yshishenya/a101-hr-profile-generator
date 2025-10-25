@@ -12,7 +12,7 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from langfuse import Langfuse
 from langfuse.openai import OpenAI
