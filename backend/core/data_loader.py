@@ -6,15 +6,104 @@ DataLoader с детерминированной логикой для сист�
 """
 
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional, List
+from enum import Enum
 import logging
 
 from .data_mapper import OrganizationMapper, KPIMapper
 from .organization_cache import organization_cache
 
 logger = logging.getLogger(__name__)
+
+
+class PositionType(Enum):
+    """Position type for IT systems relevance categorization."""
+    IT_TECHNICAL = "it_technical"  # Full 15K tokens - technical roles
+    IT_MANAGEMENT = "it_management"  # 3K tokens - IT leadership
+    BUSINESS_TECHNICAL = "business_technical"  # 5K tokens - product/project roles
+    BUSINESS_GENERAL = "business_general"  # 1K tokens - general business roles
+    SUPPORT = "support"  # 1K tokens - administrative/support roles
+
+
+# Position keywords mapping for categorization
+POSITION_KEYWORDS = {
+    PositionType.IT_TECHNICAL: [
+        r"программист", r"разработчик", r"developer",
+        r"архитектор", r"engineer", r"инженер",
+        r"devops", r"администратор", r"тестировщик",
+        r"qa", r"аналитик.*данных", r"data",
+        r"backend", r"frontend", r"fullstack",
+        r"системн.*инженер", r"сетев.*инженер"
+    ],
+
+    PositionType.IT_MANAGEMENT: [
+        r"руководитель.*ит", r"директор.*технолог", r"директор.*ит",
+        r"cto", r"cio", r"начальник.*разработки",
+        r"руководитель.*информац", r"руководитель.*цифров",
+        r"начальник.*информац"
+    ],
+
+    PositionType.BUSINESS_TECHNICAL: [
+        r"продукт", r"product", r"owner",
+        r"менеджер.*проект", r"project.*manager",
+        r"scrum.*master", r"agile", r"бизнес.*аналитик"
+    ],
+
+    PositionType.BUSINESS_GENERAL: [
+        r"менеджер", r"специалист", r"координатор",
+        r"директор", r"руководитель", r"начальник"
+    ],
+
+    PositionType.SUPPORT: [
+        r"ассистент", r"секретарь", r"помощник",
+        r"стажер", r"junior", r"делопроизводител"
+    ]
+}
+
+
+def detect_position_type(position: str, department: str) -> PositionType:
+    """
+    Detect position type for IT systems relevance.
+
+    Logic:
+    1. Check position keywords (most specific)
+    2. Check if department is IT-related
+    3. Default to BUSINESS_GENERAL
+
+    Args:
+        position: Position name
+        department: Department name
+
+    Returns:
+        PositionType enum value
+    """
+    pos_lower = position.lower()
+    dept_lower = department.lower()
+
+    # Check position keywords by priority (most specific first)
+    for pos_type in [
+        PositionType.IT_TECHNICAL,
+        PositionType.IT_MANAGEMENT,
+        PositionType.BUSINESS_TECHNICAL,
+        PositionType.SUPPORT,
+        PositionType.BUSINESS_GENERAL
+    ]:
+        keywords = POSITION_KEYWORDS[pos_type]
+        if any(re.search(keyword, pos_lower) for keyword in keywords):
+            logger.debug(f"Position '{position}' classified as {pos_type.value} by keyword match")
+            return pos_type
+
+    # Department-based fallback for IT departments
+    it_dept_keywords = [r"ит", r"информационн", r"цифров", r"данных", r"digital"]
+    if any(re.search(kw, dept_lower) for kw in it_dept_keywords):
+        logger.debug(f"Position '{position}' in IT dept '{department}' classified as IT_MANAGEMENT")
+        return PositionType.IT_MANAGEMENT
+
+    logger.debug(f"Position '{position}' defaulted to BUSINESS_GENERAL")
+    return PositionType.BUSINESS_GENERAL
 
 
 class DataLoader:
@@ -76,6 +165,9 @@ class DataLoader:
             # 🎯 ДЕТЕРМИНИРОВАННЫЙ ВЫБОР KPI ФАЙЛА (использует короткое имя)
             kpi_content = self.kpi_mapper.load_kpi_content(department_short_name)
 
+            # 🆕 METADATA: Track KPI source (specific file vs template)
+            kpi_metadata = self._detect_kpi_source(department_short_name)
+
             # 🎯 ИЗВЛЕЧЕНИЕ ДАННЫХ О ЧИСЛЕННОСТИ (использует короткое имя)
             headcount_info = self.org_mapper.get_headcount_info(department_short_name)
             subordinates_count = self.org_mapper.calculate_subordinates_count(department_short_name, position)
@@ -105,7 +197,10 @@ class DataLoader:
                 "employee_name": employee_name or "",
                 # ДИНАМИЧЕСКИЙ КОНТЕКСТ (детерминированно найденный)
                 "kpi_data": kpi_content,  # 0-15K токенов
-                "it_systems": self._load_it_systems_cached(),  # ~15K токенов
+                "kpi_source": kpi_metadata["source"],  # NEW: "specific" or "template"
+                "kpi_type": kpi_metadata["dept_type"],  # NEW: "IT", "SALES", "GENERIC" etc
+                "it_systems": self._load_it_systems_conditional(position, department_short_name),  # 1K-15K токенов (conditional)
+                "it_systems_detail_level": detect_position_type(position, department_short_name).value,  # metadata
                 # ДАННЫЕ О ЧИСЛЕННОСТИ И ПОДЧИНЕННЫХ
                 "headcount_info": headcount_info,  # Полная информация о численности департамента
                 "subordinates_calculation": subordinates_count,  # Расчет подчиненных на основе реальных данных
@@ -130,7 +225,7 @@ class DataLoader:
                 "position_location": f"{hierarchy_info.get('final_unit', department)}/{position}",
                 # МЕТАДАННЫЕ
                 "generation_timestamp": datetime.now().isoformat(),
-                "data_version": "v1.2",  # Увеличена версия из-за добавления иерархических данных
+                "data_version": "v1.3",  # v1.3: Added KPI templates for 100% coverage + metadata tracking
             }
 
             # Подсчет токенов для мониторинга
@@ -145,6 +240,43 @@ class DataLoader:
         except Exception as e:
             logger.error(f"Error preparing Langfuse variables: {e}")
             raise
+
+    def _detect_kpi_source(self, department: str) -> Dict[str, str]:
+        """
+        Detect KPI source: specific file or generic template.
+
+        Args:
+            department: Department name
+
+        Returns:
+            Dict with 'source' and 'dept_type' metadata
+        """
+        # Check if specific KPI file exists
+        kpi_filename = self.kpi_mapper.find_kpi_file(department)
+        kpi_path = self.kpi_mapper.kpi_dir / kpi_filename
+
+        if kpi_path.exists():
+            return {
+                "source": "specific",
+                "dept_type": "N/A",  # Specific file, no template type
+                "kpi_file": kpi_filename
+            }
+
+        # Using template
+        if self.kpi_mapper.templates_available:
+            dept_type = self.kpi_mapper.detect_department_type(department)
+            return {
+                "source": "template",
+                "dept_type": dept_type,
+                "kpi_file": "N/A"
+            }
+
+        # Fallback (shouldn't happen)
+        return {
+            "source": "fallback",
+            "dept_type": "GENERIC",
+            "kpi_file": "N/A"
+        }
 
     def _load_company_map_cached(self) -> str:
         """Загрузка карты компании А101 с кешированием"""
@@ -269,6 +401,269 @@ class DataLoader:
                 )
 
         return self._cache[cache_key]
+
+    def _load_it_systems_conditional(
+        self,
+        position: str,
+        department: str
+    ) -> str:
+        """
+        Load IT systems with conditional complexity based on position type.
+
+        Args:
+            position: Position name
+            department: Department name
+
+        Returns:
+            IT systems content tailored to position type
+        """
+        # Detect position type
+        pos_type = detect_position_type(position, department)
+
+        # Load full content
+        full_content = self._load_it_systems_cached()
+
+        # Apply compression based on type
+        if pos_type == PositionType.IT_TECHNICAL:
+            # Full content (~15K tokens)
+            tokens = len(full_content) / 3.5
+            logger.info(f"IT_TECHNICAL: Loading full IT systems (~{tokens:.0f} tokens)")
+            return full_content
+
+        elif pos_type == PositionType.IT_MANAGEMENT:
+            # Summary + key systems (~3K tokens)
+            compressed = self._compress_it_systems_for_management(full_content)
+            tokens = len(compressed) / 3.5
+            logger.info(f"IT_MANAGEMENT: Loading compressed IT systems (~{tokens:.0f} tokens)")
+            return compressed
+
+        elif pos_type == PositionType.BUSINESS_TECHNICAL:
+            # Business systems only (~5K tokens)
+            business_only = self._extract_business_systems(full_content)
+            tokens = len(business_only) / 3.5
+            logger.info(f"BUSINESS_TECHNICAL: Loading business systems (~{tokens:.0f} tokens)")
+            return business_only
+
+        else:  # BUSINESS_GENERAL or SUPPORT
+            # High-level overview (~1K tokens)
+            minimal = self._compress_it_systems_minimal(full_content)
+            tokens = len(minimal) / 3.5
+            logger.info(f"{pos_type.value}: Loading minimal IT systems (~{tokens:.0f} tokens)")
+            return minimal
+
+    def _parse_markdown_sections(self, content: str) -> Dict[str, str]:
+        """
+        Parse markdown content into sections by headers.
+
+        Args:
+            content: Markdown content
+
+        Returns:
+            Dict mapping header to section content
+        """
+        sections = {}
+        current_header = None
+        current_content = []
+
+        for line in content.split("\n"):
+            if line.startswith("#"):
+                if current_header:
+                    sections[current_header] = "\n".join(current_content)
+                current_header = line
+                current_content = []
+            else:
+                current_content.append(line)
+
+        if current_header:
+            sections[current_header] = "\n".join(current_content)
+
+        return sections
+
+    def _compress_it_systems_for_management(self, full_content: str) -> str:
+        """
+        Compress IT systems for management roles.
+
+        Include:
+        - Overview section
+        - Key strategic systems (first 3 items from each category)
+        Omit:
+        - Detailed system lists beyond first 3 items
+
+        Target: ~3K tokens (10K chars)
+
+        Args:
+            full_content: Full IT systems content
+
+        Returns:
+            Compressed content for management
+        """
+        lines = full_content.split("\n")
+        compressed = []
+        current_category = None
+        items_in_category = 0
+        max_items_per_category = 3
+
+        for line in lines:
+            # Keep headers and warnings
+            if line.startswith("#") or line.startswith(">"):
+                compressed.append(line)
+                if line.startswith("###"):
+                    current_category = line
+                    items_in_category = 0
+            # Keep first N items per category
+            elif line.startswith("-") and current_category:
+                if items_in_category < max_items_per_category:
+                    compressed.append(line)
+                    items_in_category += 1
+                elif items_in_category == max_items_per_category:
+                    compressed.append(f"- *...и другие системы категории {current_category.replace('###', '').strip()}*")
+                    items_in_category += 1  # Increment to prevent repeated ellipsis
+            elif not line.strip():
+                compressed.append(line)
+
+        result = "\n".join(compressed)
+
+        # Ensure target size (~10K chars)
+        if len(result) > 10000:
+            result = result[:10000] + "\n\n*[...сокращено для релевантности руководящей позиции...]*"
+
+        return result
+
+    def _extract_business_systems(self, full_content: str) -> str:
+        """
+        Extract only business-facing systems.
+
+        Include categories:
+        - Маркетинг и продажи
+        - Персонал и HR
+        - Документооборот и делопроизводство
+        - Бюджетирование и финансы
+        - Передача и эксплуатация
+
+        Omit:
+        - Информационные технологии (infrastructure)
+        - Deep technical details
+
+        Target: ~5K tokens (15K chars)
+
+        Args:
+            full_content: Full IT systems content
+
+        Returns:
+            Business-oriented systems content
+        """
+        business_categories = [
+            "Маркетинг и продажи",
+            "Персонал и HR",
+            "Документооборот и делопроизводство",
+            "Бюджетирование и финансы",
+            "Передача и эксплуатация",
+            "Закупки и снабжение",
+            "Планирование и отчетность"
+        ]
+
+        lines = full_content.split("\n")
+        business_lines = []
+        in_business_section = False
+        current_section = None
+
+        for line in lines:
+            # Check if we're entering a business category
+            if line.startswith("###"):
+                section_name = line.replace("###", "").strip().split(".")[1].strip() if "." in line else ""
+                if any(cat in section_name for cat in business_categories):
+                    in_business_section = True
+                    current_section = section_name
+                    business_lines.append(line)
+                else:
+                    in_business_section = False
+
+            elif in_business_section:
+                business_lines.append(line)
+
+        if not business_lines:
+            # Fallback to minimal if no business sections found
+            return self._compress_it_systems_minimal(full_content)
+
+        result = "# IT-системы (бизнес-ориентированные)\n\n"
+        result += "> Фокус на системах, непосредственно используемых в бизнес-процессах\n\n"
+        result += "\n".join(business_lines)
+
+        # Limit to ~15K chars
+        if len(result) > 15000:
+            result = result[:15000] + "\n\n*[...сокращено для фокуса на бизнес-системах...]*"
+
+        return result
+
+    def _compress_it_systems_minimal(self, full_content: str) -> str:
+        """
+        Minimal IT systems overview for non-technical roles.
+
+        Just key systems overview with 3-5 bullet points per category.
+        Target: ~1K tokens (3K chars)
+
+        Args:
+            full_content: Full IT systems content (unused, for consistency)
+
+        Returns:
+            Minimal overview
+        """
+        return """# IT-системы компании (обзор)
+
+> Общий обзор ключевых корпоративных систем
+
+## Основные категории систем
+
+### Управление бизнес-процессами
+- **ERP-система** — планирование ресурсов, учет, финансы
+- **ECM-система** — управление корпоративным контентом и документооборотом
+- **CRM-система** — управление продажами и взаимоотношениями с клиентами
+
+### Проектная деятельность
+- **Система управления проектами** — планирование и контроль проектов
+- **CAD/BIM-системы** — проектирование и моделирование
+- **Система контроля строительства** — надзор за объектами
+
+### Коммуникации и совместная работа
+- **Корпоративная почта** — электронная почта и календари
+- **Корпоративный мессенджер** — внутренние коммуникации
+- **ВКС-платформа** — видеоконференции и онлайн-встречи
+
+### HR и кадры
+- **Корпоративный портал** — внутренний портал сотрудников
+- **Система зарплаты и кадров** — расчет зарплаты и кадровый учет
+- **Система обучения** — корпоративное обучение
+
+**Для работы предоставляется доступ к релевантным системам согласно должностным обязанностям.**
+"""
+
+    def _detect_kpi_source(self, department: str) -> Dict[str, Any]:
+        """
+        Detect whether KPI comes from specific file or template.
+
+        Args:
+            department: Department name
+
+        Returns:
+            Dict with KPI source metadata
+        """
+        try:
+            # Check if department has specific KPI file
+            kpi_file_path = Path("data/KPI") / f"KPI_{department}.md"
+            has_specific_file = kpi_file_path.exists()
+
+            return {
+                "has_specific_kpi_file": has_specific_file,
+                "kpi_source": "specific" if has_specific_file else "template",
+                "kpi_file": str(kpi_file_path) if has_specific_file else "template"
+            }
+        except Exception as e:
+            logger.error(f"Error detecting KPI source for {department}: {e}")
+            return {
+                "has_specific_kpi_file": False,
+                "kpi_source": "unknown",
+                "kpi_file": "error"
+            }
 
     def _load_architect_examples_cached(self) -> str:
         """Загрузка примеров профилей архитекторов с кешированием"""

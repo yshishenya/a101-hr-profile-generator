@@ -485,20 +485,20 @@ class UniversalAPIClient:
 
     async def __aenter__(self):
         # Настраиваем таймауты для разных этапов запроса
-        # Используем None для sock_read чтобы не прерывать длительные LLM запросы
+        # С host networking убираем агрессивные таймауты на чтение
         timeout = aiohttp.ClientTimeout(
-            total=REQUEST_TIMEOUT,      # Общий таймаут (300s)
-            connect=30,                 # Таймаут на установку соединения
+            total=REQUEST_TIMEOUT,      # Общий таймаут (300s) - для долгих операций
+            connect=10,                 # Таймаут на установку соединения
             sock_connect=10,            # Таймаут на сокет
-            sock_read=None              # Без таймаута на чтение (для долгих LLM генераций)
+            sock_read=None              # Без таймаута на чтение - полагаемся на total
         )
 
         # Настраиваем connector для управления пулом соединений
+        # С host networking не нужен force_close - используем keep-alive
         connector = aiohttp.TCPConnector(
             limit=100,                  # Максимум одновременных соединений
             limit_per_host=30,          # Максимум соединений на хост
             ttl_dns_cache=300,          # Кэш DNS на 5 минут
-            force_close=False,          # Переиспользуем соединения
             enable_cleanup_closed=True  # Очистка закрытых соединений
         )
 

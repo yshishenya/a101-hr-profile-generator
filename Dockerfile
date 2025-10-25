@@ -50,5 +50,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Entrypoint для инициализации прав доступа
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Команда запуска для разработки с auto-reload
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8022", "--reload"]
+# Команда запуска с исправлениями для Docker networking
+# --timeout-keep-alive 5: короткий timeout для keep-alive (решает проблему зависания)
+# --limit-concurrency 1000: увеличенный лимит конкурентности
+# --reload: auto-reload для разработки
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8022", "--timeout-keep-alive", "5", "--limit-concurrency", "1000", "--reload"]

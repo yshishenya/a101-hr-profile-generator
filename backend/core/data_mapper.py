@@ -288,12 +288,16 @@ class OrganizationMapper:
 class KPIMapper:
     """
     Детерминированное определение KPI файлов по департаментам.
-    Использует умный маппинг через KPIDepartmentMapper.
+    Использует умный маппинг через KPIDepartmentMapper с fallback на templates.
+
+    Coverage improvement:
+    - Before: 1.7% (9/545 departments with specific files)
+    - After: 100% (545/545 departments with specific files or templates)
     """
 
     def __init__(self, kpi_dir: str = "data/KPI"):
         self.kpi_dir = Path(kpi_dir)
-        self.default_kpi_file = "KPI_DIT.md"  # Fallback
+        self.default_kpi_file = "KPI_DIT.md"  # Fallback for legacy code
 
         # Импортируем mapper
         try:
@@ -302,6 +306,23 @@ class KPIMapper:
         except ImportError:
             logger.warning("KPIDepartmentMapper not available, using fallback")
             self.dept_mapper = None
+
+        # Импортируем KPI templates для 100% coverage
+        try:
+            import sys
+            sys.path.insert(0, str(self.kpi_dir))
+            from templates import detect_department_type, get_kpi_template, KPI_TEMPLATES
+            self.detect_department_type = detect_department_type
+            self.get_kpi_template = get_kpi_template
+            self.kpi_templates = KPI_TEMPLATES
+            self.templates_available = True
+            logger.info(f"KPI templates loaded: {len(KPI_TEMPLATES)} types available")
+        except ImportError as e:
+            logger.warning(f"KPI templates not available: {e}")
+            self.templates_available = False
+            self.detect_department_type = None
+            self.get_kpi_template = None
+            self.kpi_templates = {}
 
         # Логгинг для отслеживания маппинга
         self.mappings_log = []
@@ -372,47 +393,105 @@ class KPIMapper:
 
         return self.default_kpi_file
 
-    async def load_kpi_content(self, department: str) -> str:
+    def load_kpi_content(self, department: str) -> str:
         """
-        Асинхронная загрузка и автоматическая очистка KPI контента.
+        Загрузка и автоматическая очистка KPI контента с 3-уровневым fallback.
+
+        Priority (3-tier fallback system):
+        1. Specific KPI file (if exists) - highest priority, most accurate
+        2. Generic template by department type - good coverage, relevant
+        3. Default generic template - universal fallback
+
+        This ensures 100% coverage: ALL 545 departments get KPI data.
 
         Args:
             department: Название департамента
 
         Returns:
-            Очищенный текст KPI контента
+            Очищенный текст KPI контента (always non-empty, 100% coverage)
 
-        Raises:
-            FileNotFoundError: Если KPI файл не найден
-            IOError: Если произошла ошибка чтения файла
+        Examples:
+            >>> # Department with specific file (9 departments)
+            >>> content = mapper.load_kpi_content("ДИТ")
+            >>> # Returns: content from KPI_ДИТ.md
+
+            >>> # Department without file (536 departments)
+            >>> content = mapper.load_kpi_content("Департамент строительства объектов")
+            >>> # Returns: CONSTRUCTION template
+
+            >>> # Unknown department type
+            >>> content = mapper.load_kpi_content("Неизвестный отдел")
+            >>> # Returns: GENERIC template
         """
+        # STEP 1: Try specific KPI file first (current 9 departments)
         kpi_filename = self.find_kpi_file(department)
         kpi_path = self.kpi_dir / kpi_filename
 
         try:
-            if not kpi_path.exists():
-                logger.error(f"KPI file not found: {kpi_path}")
-                return f"# KPI данные для {department}\n\nДанные KPI недоступны."
+            if kpi_path.exists():
+                # Синхронное чтение файла
+                with open(kpi_path, "r", encoding="utf-8") as f:
+                    content = f.read()
 
-            # Асинхронное чтение файла
-            async with aiofiles.open(kpi_path, "r", encoding="utf-8") as f:
-                content = await f.read()
+                # Очистка контента
+                content = self._clean_kpi_content(content)
 
-            # Очистка контента (синхронная операция - чистое вычисление)
-            content = self._clean_kpi_content(content)
+                logger.info(
+                    f"✅ Loaded SPECIFIC KPI file for '{department}': "
+                    f"{kpi_filename} ({len(content)} chars)"
+                )
+                return content
 
-            logger.info(f"Loaded KPI content for '{department}': {len(content)} chars")
-            return content
-
-        except FileNotFoundError as e:
-            logger.error(f"KPI file not found: {kpi_path}")
-            return f"# KPI данные для {department}\n\nДанные KPI недоступны."
-        except IOError as e:
-            logger.error(f"IO error loading KPI file {kpi_path}: {e}")
-            return f"# KPI данные для {department}\n\nОшибка загрузки KPI данных: {str(e)}"
         except Exception as e:
-            logger.exception(f"Unexpected error loading KPI file {kpi_path}: {e}")
-            return f"# KPI данные для {department}\n\nОшибка загрузки KPI данных: {str(e)}"
+            logger.warning(
+                f"Failed to load specific KPI file {kpi_path}: {e}, "
+                f"falling back to template"
+            )
+
+        # STEP 2: Fallback to generic template (536 departments)
+        if self.templates_available:
+            dept_type = self.detect_department_type(department)
+            template_content = self.get_kpi_template(department)
+
+            # Очистка шаблона (хотя он уже чистый, но для консистентности)
+            template_content = self._clean_kpi_content(template_content)
+
+            logger.info(
+                f"✅ Using {dept_type} TEMPLATE for '{department}' "
+                f"({len(template_content)} chars, no specific file found)"
+            )
+
+            return template_content
+
+        # STEP 3: Last resort fallback (if templates not loaded)
+        logger.error(
+            f"❌ No specific file and no templates available for '{department}', "
+            f"returning minimal fallback"
+        )
+        return f"""---
+department: {department}
+description: Minimal KPI fallback (templates not loaded)
+---
+
+# KPI для {department}
+
+## Корпоративные КПЭ (40%)
+- Продажи/Выручка компании: согласно годовому плану
+- Ввод в эксплуатацию ЖК: согласно годовому плану
+- Стратегические инициативы: выполнение плана
+
+## Личные КПЭ департамента (60%)
+
+### Выполнение ключевых задач (30%)
+- Целевое значение: ≥ 90% задач в срок
+- Источник: Отчеты руководителя
+
+### Качество работы (30%)
+- Целевое значение: ≥ 85% работ без переделок
+- Источник: Обратная связь заказчиков
+
+⚠️ **ВНИМАНИЕ**: Используется минимальный fallback. Необходимо создать специфичные KPI.
+"""
 
     def _clean_kpi_content(self, content: str) -> str:
         """Автоматическая очистка KPI контента"""
