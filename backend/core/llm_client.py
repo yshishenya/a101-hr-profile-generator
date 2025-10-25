@@ -71,7 +71,7 @@ class LLMClient:
         # 🔥 НОВАЯ ФИЧА: Инициализируем PromptManager для fallback и синхронизации
         self.prompt_manager = PromptManager(
             langfuse_client=self.langfuse,
-            templates_dir="/home/yan/A101/HR/templates",
+            templates_dir=config.TEMPLATES_DIR,  # Используем путь из конфигурации
             cache_ttl=300,  # 5 минут кеш
         )
         logger.info("✅ PromptManager initialized with Langfuse sync")
@@ -219,6 +219,170 @@ class LLMClient:
 
         return response
 
+    def _get_prompt_and_config(
+        self, prompt_name: str
+    ) -> tuple[Optional[Any], Dict[str, Any]]:
+        """
+        Получение промпта из Langfuse и конфигурации с fallback.
+
+        Args:
+            prompt_name: Имя промпта в Langfuse
+
+        Returns:
+            Tuple из (prompt_obj, config)
+        """
+        prompt_obj = None
+        if self.langfuse:
+            try:
+                prompt_obj = self.langfuse.get_prompt(prompt_name, label="production")
+                logger.info(f"✅ Retrieved prompt from Langfuse directly: {prompt_name}")
+            except Exception as langfuse_error:
+                logger.warning(f"Failed to get prompt from Langfuse: {langfuse_error}")
+
+        # Извлекаем конфигурацию с fallback через PromptManager
+        config = self.prompt_manager.get_prompt_config(
+            "profile_generation", environment="production"
+        )
+
+        return prompt_obj, config
+
+    def _compile_prompt_to_messages(
+        self, prompt_obj: Optional[Any], variables: Dict[str, Any]
+    ) -> List[Dict[str, str]]:
+        """
+        Компиляция промпта в формат messages.
+
+        Args:
+            prompt_obj: Объект промпта из Langfuse или None
+            variables: Переменные для подстановки
+
+        Returns:
+            Список messages для API запроса
+        """
+        if prompt_obj:
+            # Если промпт получен из Langfuse - используем compile()
+            compiled_prompt = prompt_obj.compile(**variables)
+            logger.info(f"Compiled prompt using Langfuse compile(), type: {type(compiled_prompt)}")
+        else:
+            # Fallback: используем PromptManager для получения промпта и подстановки
+            logger.warning("⚠️ Using local fallback prompt from PromptManager")
+            compiled_prompt = self.prompt_manager.get_prompt(
+                "profile_generation", variables=variables
+            )
+            logger.info(f"Compiled prompt using PromptManager fallback, length: {len(compiled_prompt)}")
+
+        # Преобразуем в формат messages если нужно
+        if isinstance(compiled_prompt, str):
+            messages = [{"role": "user", "content": compiled_prompt}]
+            logger.info(f"Converted string prompt to messages format, length: {len(compiled_prompt)}")
+        elif isinstance(compiled_prompt, list):
+            messages = compiled_prompt
+            logger.info(f"Using existing messages format, count: {len(messages)}")
+        else:
+            raise ValueError(f"Unexpected prompt format: {type(compiled_prompt)}")
+
+        return messages
+
+    def _build_trace_metadata(
+        self,
+        prompt_name: str,
+        prompt_obj: Optional[Any],
+        variables: Dict[str, Any],
+        user_id: Optional[str],
+        session_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """
+        Построение метаданных для трейсинга.
+
+        Args:
+            prompt_name: Имя промпта
+            prompt_obj: Объект промпта
+            variables: Переменные генерации
+            user_id: ID пользователя
+            session_id: ID сессии
+
+        Returns:
+            Словарь метаданных
+        """
+        return {
+            "prompt_name": prompt_name,
+            "prompt_version": getattr(prompt_obj, "version", "local_fallback"),
+            "department": variables.get("department"),
+            "position": variables.get("position"),
+            "employee_name": variables.get("employee_name"),
+            "user_id": user_id,
+            "session_id": session_id,
+            "environment": "production",
+            "source": "hr_profile_generator",
+            "prompt_source": "langfuse" if prompt_obj else "local_fallback",
+        }
+
+    def _build_success_response(
+        self,
+        profile_json: Dict[str, Any],
+        generated_text: str,
+        model: str,
+        generation_time: float,
+        usage: Any,
+        prompt_obj: Optional[Any],
+        prompt_name: str,
+        variables: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Построение успешного ответа генерации.
+
+        Args:
+            profile_json: Распарсенный JSON профиля
+            generated_text: Сырой текст ответа
+            model: Имя модели
+            generation_time: Время генерации
+            usage: Объект с данными использования токенов
+            prompt_obj: Объект промпта
+            prompt_name: Имя промпта
+            variables: Переменные генерации
+
+        Returns:
+            Словарь с результатом генерации
+        """
+        input_tokens = usage.prompt_tokens if usage else 0
+        output_tokens = usage.completion_tokens if usage else 0
+        total_tokens = usage.total_tokens if usage else input_tokens + output_tokens
+
+        # Получаем trace_id если доступны декораторы
+        trace_id = None
+        try:
+            from langfuse.decorators import langfuse_context
+            trace_id = langfuse_context.get_current_trace_id()
+            logger.info("✅ Langfuse tracing with decorators completed")
+        except ImportError:
+            logger.info("✅ Basic Langfuse tracing completed")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to get trace ID: {e}")
+
+        return {
+            "profile": profile_json,
+            "metadata": {
+                "model": model,
+                "generation_time": generation_time,
+                "tokens": {
+                    "input": input_tokens,
+                    "output": output_tokens,
+                    "total": total_tokens,
+                },
+                "temperature": self.prompt_manager.get_prompt_config("profile_generation").get("temperature", 0.1),
+                "timestamp": datetime.now().isoformat(),
+                "success": True,
+                "langfuse_trace_id": trace_id,
+                "prompt_name": prompt_name,
+                "prompt_version": getattr(prompt_obj, "version", "local_fallback"),
+                "prompt_source": "langfuse" if prompt_obj else "local_fallback",
+                "tracing_mode": "decorator_based",
+                "department": variables.get("department"),
+                "position": variables.get("position"),
+            },
+            "raw_response": generated_text,
+        }
+
     def generate_profile_from_langfuse(
         self,
         prompt_name: str,
@@ -249,26 +413,9 @@ class LLMClient:
         start_time = time.time()
 
         try:
-            # 🔥 НОВАЯ ФИЧА: Используем PromptManager для получения промпта с fallback
-            # Попытка 1: Получаем через Langfuse напрямую (для использования prompt.compile())
-            prompt_obj = None
-            if self.langfuse:
-                try:
-                    prompt_obj = self.langfuse.get_prompt(
-                        prompt_name, label="production"
-                    )
-                    logger.info(
-                        f"✅ Retrieved prompt from Langfuse directly: {prompt_name}"
-                    )
-                except Exception as langfuse_error:
-                    logger.warning(
-                        f"Failed to get prompt from Langfuse: {langfuse_error}"
-                    )
+            # Получаем промпт и конфигурацию
+            prompt_obj, config = self._get_prompt_and_config(prompt_name)
 
-            # Извлекаем конфигурацию с fallback через PromptManager
-            config = self.prompt_manager.get_prompt_config(
-                "profile_generation", environment="production"
-            )
             model = config.get("model", "google/gemini-2.5-flash")
             temperature = config.get("temperature", 0.1)
             max_tokens = config.get("max_tokens", 4000)
@@ -276,62 +423,16 @@ class LLMClient:
 
             logger.info(f"Starting generation with prompt: {prompt_name}")
             logger.info(f"Model: {model}, Temperature: {temperature}")
-            logger.info(f"Response format: {response_format}")
 
-            # Компилируем промпт с переменными
-            if prompt_obj:
-                # Если промпт получен из Langfuse - используем compile()
-                compiled_prompt = prompt_obj.compile(**variables)
-                logger.info(
-                    f"Compiled prompt using Langfuse compile(), type: {type(compiled_prompt)}"
-                )
-            else:
-                # Fallback: используем PromptManager для получения промпта и подстановки
-                logger.warning("⚠️ Using local fallback prompt from PromptManager")
-                compiled_prompt = self.prompt_manager.get_prompt(
-                    "profile_generation", variables=variables
-                )
-                logger.info(
-                    f"Compiled prompt using PromptManager fallback, length: {len(compiled_prompt)}"
-                )
-
-            # Преобразуем в формат messages если нужно
-            if isinstance(compiled_prompt, str):
-                # Если compiled_prompt - строка, преобразуем в messages формат
-                messages = [{"role": "user", "content": compiled_prompt}]
-                logger.info(
-                    f"Converted string prompt to messages format, length: {len(compiled_prompt)}"
-                )
-            elif isinstance(compiled_prompt, list):
-                # Если уже список messages
-                messages = compiled_prompt
-                logger.info(f"Using existing messages format, count: {len(messages)}")
-            else:
-                raise ValueError(f"Unexpected prompt format: {type(compiled_prompt)}")
-
+            # Компилируем промпт в формат messages
+            messages = self._compile_prompt_to_messages(prompt_obj, variables)
             logger.info(f"Final messages count: {len(messages)}")
 
-            # Логируем параметры запроса
-            logger.info(f"Request parameters:")
-            logger.info(f"  Model: {model}")
-            logger.info(f"  Messages count: {len(messages)}")
-            logger.info(f"  Temperature: {temperature}")
-            logger.info(f"  Max tokens: {max_tokens}")
-            logger.info(f"  Response format type: {type(response_format)}")
+            # Строим метаданные для трейсинга
+            trace_metadata = self._build_trace_metadata(
+                prompt_name, prompt_obj, variables, user_id, session_id
+            )
 
-            # Метаданные для декорированной функции
-            trace_metadata = {
-                "prompt_name": prompt_name,
-                "prompt_version": getattr(prompt_obj, "version", "local_fallback"),
-                "department": variables.get("department"),
-                "position": variables.get("position"),
-                "employee_name": variables.get("employee_name"),
-                "user_id": user_id,
-                "session_id": session_id,
-                "environment": "production",
-                "source": "hr_profile_generator",
-                "prompt_source": "langfuse" if prompt_obj else "local_fallback",
-            }
             # Выполняем запрос через правильную функцию с декоратором для связки промптов
             try:
                 response = self._create_generation_with_prompt(
@@ -349,60 +450,24 @@ class LLMClient:
                 logger.error(f"Error type: {type(api_error)}")
                 raise api_error
 
-            # Извлекаем ответ
+            # Извлекаем ответ и парсим JSON
             generated_text = response.choices[0].message.content
-
-            # Парсим JSON из ответа
             profile_json = self._extract_and_parse_json(generated_text)
 
             generation_time = time.time() - start_time
-
-            # Подсчитываем токены из usage
-            usage = response.usage
-            input_tokens = usage.prompt_tokens if usage else 0
-            output_tokens = usage.completion_tokens if usage else 0
-            total_tokens = usage.total_tokens if usage else input_tokens + output_tokens
-
             logger.info(f"Langfuse generation completed in {generation_time:.2f}s")
-            logger.info(
-                f"Tokens used: {input_tokens} input + {output_tokens} output = {total_tokens} total"
+
+            # Строим и возвращаем успешный ответ
+            return self._build_success_response(
+                profile_json,
+                generated_text,
+                model,
+                generation_time,
+                response.usage,
+                prompt_obj,
+                prompt_name,
+                variables,
             )
-
-            # Получаем trace_id если доступны декораторы
-            trace_id = None
-            try:
-                from langfuse.decorators import langfuse_context
-
-                trace_id = langfuse_context.get_current_trace_id()
-                logger.info("✅ Langfuse tracing with decorators completed")
-            except ImportError:
-                logger.info("✅ Basic Langfuse tracing completed")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to get trace ID: {e}")
-
-            return {
-                "profile": profile_json,
-                "metadata": {
-                    "model": model,
-                    "generation_time": generation_time,
-                    "tokens": {
-                        "input": input_tokens,
-                        "output": output_tokens,
-                        "total": total_tokens,
-                    },
-                    "temperature": temperature,
-                    "timestamp": datetime.now().isoformat(),
-                    "success": True,
-                    "langfuse_trace_id": trace_id,
-                    "prompt_name": prompt_name,
-                    "prompt_version": getattr(prompt_obj, "version", "local_fallback"),
-                    "prompt_source": "langfuse" if prompt_obj else "local_fallback",
-                    "tracing_mode": "decorator_based",
-                    "department": variables.get("department"),
-                    "position": variables.get("position"),
-                },
-                "raw_response": generated_text,
-            }
 
         except Exception as e:
             generation_time = time.time() - start_time

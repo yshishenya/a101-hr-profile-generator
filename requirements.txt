@@ -9,6 +9,7 @@ uvicorn[standard]>=0.24.0
 pydantic>=2.5.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+bcrypt==4.1.3
 python-multipart>=0.0.6
 
 # Frontend NiceGUI
@@ -16,6 +17,9 @@ nicegui>=2.24.0
 
 # Environment management
 python-dotenv>=1.0.0
+
+# Async file operations
+aiofiles>=23.2.1
 
 # Data processing
 pandas>=2.1.0

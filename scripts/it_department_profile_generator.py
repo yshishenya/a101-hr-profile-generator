@@ -30,6 +30,10 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import aiohttp
 import click
+from dotenv import load_dotenv
+
+# Загрузка переменных окружения из .env
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
@@ -43,14 +47,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы
-PROGRESS_FILE = "scripts/.it_dept_generator_progress.json"
-API_BASE_URL = "http://localhost:8022"
-STRUCTURE_FILE = "data/structure.json"
-IT_DEPT_NAME = "Департамент информационных технологий"
-BATCH_SIZE = 10
-MAX_CONCURRENT = 10
-REQUEST_TIMEOUT = 300
-POLL_INTERVAL = 5
+PROGRESS_FILE = "scripts/.it_dept_generator_progress.json"  # Файл для сохранения прогресса генерации
+API_BASE_URL = "http://localhost:8022"  # Базовый URL API сервера
+STRUCTURE_FILE = "data/structure.json"  # Путь к файлу организационной структуры
+IT_DEPT_NAME = "Департамент информационных технологий"  # Название целевого департамента
+
+# Параметры производительности
+BATCH_SIZE = 10  # Оптимальный размер пакета для параллельной обработки без перегрузки API
+MAX_CONCURRENT = 10  # Максимальное количество одновременных запросов для предотвращения rate limiting
+REQUEST_TIMEOUT = 300  # Таймаут запроса в секундах (5 минут для LLM генерации)
+POLL_INTERVAL = 5  # Интервал опроса статуса задач в секундах
 
 
 class ITPositionsExtractor:
@@ -212,17 +218,14 @@ class APIClient:
     async def authenticate(self) -> bool:
         """Получает JWT токен для аутентификации"""
         try:
-            # Используем test token из .env
-            test_token = os.getenv('TEST_JWT_TOKEN')
-            if test_token:
-                self.auth_token = test_token
-                logger.info("🔑 Используется тестовый JWT токен")
-                return True
+            # Получаем учетные данные из .env
+            admin_username = os.getenv('ADMIN_USERNAME', 'admin')
+            admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
 
-            # Если нет test токена, попробуем аутентификацию
+            # Пробуем аутентификацию через API
             auth_data = {
-                "username": "admin",
-                "password": "q4Mrpwty7t9F"
+                "username": admin_username,
+                "password": admin_password
             }
 
             async with self.session.post(f"{self.base_url}/api/auth/login", json=auth_data) as resp:
@@ -464,8 +467,12 @@ class ArchiveBuilder:
                                     it_files.append(file_path)
                                 else:
                                     logger.warning(f"⚠️ Файл недоступен для чтения: {file_path}")
-                            except Exception as access_error:
-                                logger.warning(f"⚠️ Ошибка доступа к файлу {file_path}: {access_error}")
+                            except (FileNotFoundError, PermissionError) as e:
+                                logger.warning(f"⚠️ Ошибка доступа к файлу {file_path}: {e}")
+                            except OSError as e:
+                                logger.warning(f"⚠️ OS ошибка при проверке файла {file_path}: {e}")
+                            except Exception as e:
+                                logger.exception(f"⚠️ Неожиданная ошибка при проверке файла {file_path}: {e}")
 
             if not it_files:
                 logger.warning("⚠️ Не найдено доступных файлов ИТ-департамента для архивирования")

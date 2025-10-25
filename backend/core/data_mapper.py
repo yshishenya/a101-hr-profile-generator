@@ -9,8 +9,9 @@
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import logging
+import aiofiles
 
 from .organization_cache import organization_cache
 
@@ -31,7 +32,7 @@ class OrganizationMapper:
         return organization_cache.get_full_structure()
 
     @property
-    def _department_index(self) -> Dict[str, Dict[str, any]]:
+    def _department_index(self) -> Dict[str, Dict[str, Any]]:
         """Получение индекса департаментов из централизованного кеша"""
         return organization_cache.get_department_index()
 
@@ -157,13 +158,13 @@ class OrganizationMapper:
             # Специалисты без подчиненных
             return {"departments": 0, "direct_reports": 0}
 
-    def get_headcount_info(self, department_name: str) -> Dict[str, any]:
+    def get_headcount_info(self, department_name: str) -> Dict[str, Any]:
         """
         Получение полной информации о численности департамента.
-        
+
         Args:
             department_name: Название департамента
-            
+
         Returns:
             Dict с данными о численности, источнике и метаданных
         """
@@ -371,8 +372,20 @@ class KPIMapper:
 
         return self.default_kpi_file
 
-    def load_kpi_content(self, department: str) -> str:
-        """Загрузка и автоматическая очистка KPI контента"""
+    async def load_kpi_content(self, department: str) -> str:
+        """
+        Асинхронная загрузка и автоматическая очистка KPI контента.
+
+        Args:
+            department: Название департамента
+
+        Returns:
+            Очищенный текст KPI контента
+
+        Raises:
+            FileNotFoundError: Если KPI файл не найден
+            IOError: Если произошла ошибка чтения файла
+        """
         kpi_filename = self.find_kpi_file(department)
         kpi_path = self.kpi_dir / kpi_filename
 
@@ -381,20 +394,25 @@ class KPIMapper:
                 logger.error(f"KPI file not found: {kpi_path}")
                 return f"# KPI данные для {department}\n\nДанные KPI недоступны."
 
-            with open(kpi_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            # Асинхронное чтение файла
+            async with aiofiles.open(kpi_path, "r", encoding="utf-8") as f:
+                content = await f.read()
 
-            # Очистка контента
+            # Очистка контента (синхронная операция - чистое вычисление)
             content = self._clean_kpi_content(content)
 
             logger.info(f"Loaded KPI content for '{department}': {len(content)} chars")
             return content
 
+        except FileNotFoundError as e:
+            logger.error(f"KPI file not found: {kpi_path}")
+            return f"# KPI данные для {department}\n\nДанные KPI недоступны."
+        except IOError as e:
+            logger.error(f"IO error loading KPI file {kpi_path}: {e}")
+            return f"# KPI данные для {department}\n\nОшибка загрузки KPI данных: {str(e)}"
         except Exception as e:
-            logger.error(f"Error loading KPI file {kpi_path}: {e}")
-            return (
-                f"# KPI данные для {department}\n\nОшибка загрузки KPI данных: {str(e)}"
-            )
+            logger.exception(f"Unexpected error loading KPI file {kpi_path}: {e}")
+            return f"# KPI данные для {department}\n\nОшибка загрузки KPI данных: {str(e)}"
 
     def _clean_kpi_content(self, content: str) -> str:
         """Автоматическая очистка KPI контента"""
@@ -424,9 +442,12 @@ class KPIMapper:
         return [f.name for f in self.kpi_dir.glob("*.md")]
 
     def validate_kpi_mappings(self) -> Dict[str, bool]:
-        """Проверка существования KPI файла"""
-        file_path = self.kpi_dir / self.kpi_file
-        return {self.kpi_file: file_path.exists()}
+        """Проверка существования всех KPI файлов"""
+        result = {}
+        for kpi_file in self.get_available_kpi_files():
+            file_path = self.kpi_dir / kpi_file
+            result[kpi_file] = file_path.exists()
+        return result if result else {self.default_kpi_file: (self.kpi_dir / self.default_kpi_file).exists()}
 
 
 if __name__ == "__main__":
