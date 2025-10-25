@@ -142,3 +142,5 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+# AI SWE Memory Bank - Don't ignore the structure, only volatile files
+# .memory_bank/current_tasks.md  # Uncomment if tasks are personal
