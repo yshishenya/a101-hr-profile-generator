@@ -42,13 +42,6 @@ export interface OrganizationNode {
   total_positions?: number
 }
 
-interface OrganizationStructureResponse {
-  id: string
-  name: string
-  type?: string
-  children?: OrganizationStructureResponse[]
-}
-
 class CatalogError extends Error {
   constructor(
     message: string,
@@ -166,75 +159,41 @@ export const useCatalogStore = defineStore('catalog', () => {
   }
 
   /**
-   * Load organization tree structure from API
-   * Falls back to building tree from searchable items if API fails
+   * Load organization tree structure by building it from searchable items
+   * This method constructs the complete tree hierarchy from the cached searchable items
    *
-   * @throws CatalogError if both API and fallback fail
+   * @throws CatalogError if searchable items are not loaded
    */
   async function loadOrganizationTree(): Promise<void> {
     try {
-      // Load structure.json from backend
-      const response = await api.get('/api/organization/structure')
-      const structure: OrganizationStructureResponse = response.data.data
+      // Build tree directly from searchable items (no API call needed)
+      // We already have all the data we need from loadSearchableItems()
+      organizationTree.value = buildTreeFromItems()
 
-      // Transform structure into tree format with profile counts
-      organizationTree.value = transformToTree(structure)
+      if (import.meta.env.DEV) {
+        console.log('Organization tree built successfully with', organizationTree.value.length, 'root nodes')
+      }
     } catch (err: unknown) {
       if (import.meta.env.DEV) {
-        console.error('Failed to load organization tree:', err)
+        console.error('Failed to build organization tree:', err)
       }
 
-      // Fallback: build tree from searchable items
-      organizationTree.value = buildTreeFromItems()
-    }
-  }
-
-  /**
-   * Transform backend organization structure into tree with profile counts
-   *
-   * @param structure - Raw organization structure from API
-   * @returns Transformed organization tree nodes
-   */
-  function transformToTree(structure: OrganizationStructureResponse): OrganizationNode[] {
-    // Recursive function to transform backend structure
-    function transformNode(node: OrganizationStructureResponse): OrganizationNode {
-      const positions = searchableItems.value.filter(
-        item => item.business_unit_id === node.id
+      throw new CatalogError(
+        'Failed to build organization tree',
+        'TREE_BUILD_ERROR',
+        err
       )
-
-      const transformed: OrganizationNode = {
-        id: node.id,
-        name: node.name,
-        type: (node.type as OrganizationNode['type']) || 'unit',
-        positions,
-        profile_count: positions.filter(p => p.profile_exists).length,
-        total_positions: positions.length
-      }
-
-      if (node.children && node.children.length > 0) {
-        transformed.children = node.children.map(transformNode)
-
-        // Aggregate counts from children
-        transformed.children.forEach(child => {
-          transformed.profile_count! += child.profile_count || 0
-          transformed.total_positions! += child.total_positions || 0
-        })
-      }
-
-      return transformed
     }
-
-    return structure.children?.map(transformNode) || []
   }
 
   /**
-   * Build organization tree from department paths (fallback method)
-   * Used when API structure endpoint is unavailable
+   * Build organization tree from department paths
+   * Constructs the tree hierarchy from searchable items using department paths
    *
    * @returns Organization tree built from searchable items
    */
   function buildTreeFromItems(): OrganizationNode[] {
-    // Fallback method: build tree from department paths
+    // Build tree from department paths
     const nodeMap = new Map<string, OrganizationNode>()
     const rootNodes: OrganizationNode[] = []
 

@@ -5,20 +5,17 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 
-const auth = useAuthStore()
 const { initTheme } = useTheme()
 
 /**
  * Initialize application on mount
  * - Restore theme from localStorage
- * - Load user session if token exists
+ * Note: Auth initialization is handled in router guard (see router/index.ts)
  */
-onMounted(async () => {
+onMounted(() => {
   initTheme()
-  await auth.initialize()
 })
 </script>
 
