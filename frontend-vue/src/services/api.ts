@@ -8,7 +8,9 @@ import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axio
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8022',
+  // Use empty baseURL in development to enable Vite proxy
+  // In production, set VITE_API_BASE_URL to the full backend URL
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'

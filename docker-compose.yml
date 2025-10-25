@@ -87,10 +87,13 @@ services:
       - .env
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - VITE_API_BASE_URL=http://app:8022
+      - VITE_BACKEND_URL=http://host.docker.internal:8022
       - VITE_APP_TITLE=A101 HR Profile Generator
       - VITE_APP_VERSION=1.0.0
       - VITE_ENABLE_DEBUG=true
+    extra_hosts:
+      # Enable host.docker.internal on Linux
+      - "host.docker.internal:host-gateway"
     volumes:
       # Development mode - mount source code for hot reload
       - ./frontend-vue/src:/app/src:ro

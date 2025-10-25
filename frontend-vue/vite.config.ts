@@ -19,8 +19,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Proxy API requests to backend
+      // Use environment variable or default to localhost
       '/api': {
-        target: 'http://localhost:8022',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:8022',
         changeOrigin: true,
         secure: false
       }
