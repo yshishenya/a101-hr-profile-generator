@@ -157,7 +157,9 @@ def upload_to_langfuse(
                 if extra:
                     print(f"      Extra in required: {extra}")
             else:
-                print(f"   ✅ Schema validation: All {properties_count} fields consistent")
+                print(
+                    f"   ✅ Schema validation: All {properties_count} fields consistent"
+                )
 
     if dry_run:
         print(f"\n🔍 DRY RUN: Would upload to Langfuse")
@@ -363,7 +365,9 @@ def main():
         print(f"\n✅ Loaded local files from {args.environment}")
         print(f"   Prompt: {len(prompt_text)} chars")
         print(f"   Config keys: {list(config.keys())}")
-        print(f"   Metadata: {metadata.get('version', 'unknown')} ({metadata.get('saved_at', 'unknown')})")
+        print(
+            f"   Metadata: {metadata.get('version', 'unknown')} ({metadata.get('saved_at', 'unknown')})"
+        )
 
         if "config_note" in metadata:
             print(f"   📝 Note: {metadata['config_note']}")
@@ -382,7 +386,8 @@ def main():
         # Проверяем загрузку
         if success and args.verify and not args.dry_run:
             verify_success = verify_upload(
-                prompt_name=args.prompt_name, label=args.labels[0] if args.labels else "production"
+                prompt_name=args.prompt_name,
+                label=args.labels[0] if args.labels else "production",
             )
 
             if not verify_success:

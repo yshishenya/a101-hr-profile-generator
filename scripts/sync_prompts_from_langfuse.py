@@ -31,12 +31,16 @@ import sys
 from pathlib import Path
 
 # Добавляем путь к backend для импорта модулей
-sys.path.insert(0, str(Path(__file__).parent.parent))
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+TEMPLATES_DIR = PROJECT_ROOT / "templates"
+
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # Загружаем .env файл напрямую
 from dotenv import load_dotenv
 
-env_path = Path(__file__).parent.parent / ".env"
+env_path = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=env_path)
 
 from backend.core.prompt_manager import PromptManager
@@ -92,7 +96,7 @@ def sync_prompts(environment: str = "production", dry_run: bool = False):
         # Инициализируем PromptManager
         prompt_manager = PromptManager(
             langfuse_client=langfuse,
-            templates_dir="/home/yan/A101/HR/templates",
+            templates_dir=str(TEMPLATES_DIR),
             cache_ttl=0,  # Отключаем кеш для синхронизации
         )
         logger.info("✅ PromptManager initialized")
@@ -262,8 +266,7 @@ def verify_local_files(environment: str = "production"):
     logger.info(f"VERIFYING LOCAL FILES for {environment}")
     logger.info(f"{'='*60}\n")
 
-    templates_dir = Path("/home/yan/A101/HR/templates")
-    env_dir = templates_dir / "prompts" / environment
+    env_dir = TEMPLATES_DIR / "prompts" / environment
 
     if not env_dir.exists():
         logger.error(f"❌ Directory not found: {env_dir}")

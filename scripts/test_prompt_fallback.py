@@ -18,12 +18,16 @@ import sys
 from pathlib import Path
 
 # Добавляем путь к backend
-sys.path.insert(0, str(Path(__file__).parent.parent))
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+TEMPLATES_DIR = PROJECT_ROOT / "templates"
+
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv
 import os
 
-env_path = Path(__file__).parent.parent / ".env"
+env_path = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=env_path)
 
 from backend.core.prompt_manager import PromptManager
@@ -53,7 +57,7 @@ def test_scenario_1_langfuse_available():
         # Инициализируем PromptManager с Langfuse
         pm = PromptManager(
             langfuse_client=langfuse,
-            templates_dir="/home/yan/A101/HR/templates",
+            templates_dir=str(TEMPLATES_DIR),
             cache_ttl=0,  # Отключаем кеш для теста
         )
 
@@ -86,7 +90,7 @@ def test_scenario_1_langfuse_available():
         logger.info(f"   First 100 chars: {prompt[:100]}...")
 
         # Проверяем что файлы были сохранены
-        prod_dir = Path("/home/yan/A101/HR/templates/prompts/production")
+        prod_dir = TEMPLATES_DIR / "prompts" / "production"
         files_exist = (
             (prod_dir / "prompt.txt").exists()
             and (prod_dir / "config.json").exists()
@@ -118,7 +122,7 @@ def test_scenario_2_langfuse_unavailable():
         # Инициализируем PromptManager БЕЗ Langfuse
         pm = PromptManager(
             langfuse_client=None,  # Симулируем отсутствие Langfuse
-            templates_dir="/home/yan/A101/HR/templates",
+            templates_dir=str(TEMPLATES_DIR),
             cache_ttl=0,
         )
 
@@ -176,7 +180,7 @@ def test_scenario_3_config_fallback():
         )
 
         pm_with_langfuse = PromptManager(
-            langfuse_client=langfuse, templates_dir="/home/yan/A101/HR/templates"
+            langfuse_client=langfuse, templates_dir=str(TEMPLATES_DIR)
         )
 
         config = pm_with_langfuse.get_prompt_config("profile_generation")
@@ -188,7 +192,7 @@ def test_scenario_3_config_fallback():
         # Тест 3b: Без Langfuse
         logger.info("\n--- Test 3b: Without Langfuse ---")
         pm_without_langfuse = PromptManager(
-            langfuse_client=None, templates_dir="/home/yan/A101/HR/templates"
+            langfuse_client=None, templates_dir=str(TEMPLATES_DIR)
         )
 
         config_fallback = pm_without_langfuse.get_prompt_config("profile_generation")
