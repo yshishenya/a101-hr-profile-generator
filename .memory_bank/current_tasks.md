@@ -15,13 +15,13 @@
   - **No RBAC - simple username/password auth**
   - Plan: `docs/VUE_MVP_SIMPLIFIED_PLAN.md`
   - ✅ Week 1-2: Foundation + Auth + Dark theme (CORS fixed, login working)
-  - 🔄 Week 3: Dashboard (next)
-  - Week 4: Single generation
+  - ✅ Week 3: Dashboard (real-time stats, auto-refresh, loading states)
+  - 🔄 Week 4: Single generation (next)
   - Week 5: Profiles list
   - Week 6: Bulk generation (frontend orchestration)
   - Week 7: Inline editing + XLSX (requires minor backend changes)
   - Week 8: Bulk download + Polish
-  - **Progress**: Auth infrastructure complete, ready for dashboard implementation
+  - **Progress**: Dashboard complete with real API integration, ready for generator page
 - [x] [DOCS-03] Documentation reorganization and cleanup (2025-10-25)
 
 ## ✅ Completed Tasks (Recent)
