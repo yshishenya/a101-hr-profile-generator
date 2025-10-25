@@ -39,7 +39,7 @@
 - All I/O operations (HTTP requests, database queries, file operations) MUST be asynchronous
 - Use `async def` and `await` for all functions with I/O
 - For HTTP requests use **httpx**, NOT requests
-- For database queries use async drivers (asyncpg for PostgreSQL)
+- For database queries use synchronous SQLite with connection pooling
 - **FORBIDDEN** to block event loop with synchronous calls
 
 Correct approach example:
@@ -122,10 +122,10 @@ async def handle_check_command(message: types.Message) -> None:
 ```
 
 #### 6. Data Processing & Storage
-- **PostgreSQL** for storing structured data (companies, reports, users)
-- **Redis** for caching and task queues
-- All database models must be in `data/models.py`
-- Use migrations (Alembic) for database schema changes
+- **SQLite** for storing structured data (profiles, users, sessions, organization cache)
+- **In-memory caching** for organization structure and department catalogs
+- All database models must be in `backend/models/database.py`
+- Schema management through `db_manager.create_schema()` in `backend/models/database.py`
 - Data validation via Pydantic before saving
 
 ---

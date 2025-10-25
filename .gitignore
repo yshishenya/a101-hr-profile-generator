@@ -81,6 +81,8 @@ $RECYCLE.BIN/
 *.bak
 *.backup
 *~
+*.md.backup
+.memory_bank.backup/
 
 # Local configuration
 config.local.*

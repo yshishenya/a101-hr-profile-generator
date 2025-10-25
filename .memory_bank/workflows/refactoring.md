@@ -390,9 +390,9 @@ If code uses outdated patterns:
 ## 5. Code Quality Verification
 
 ### 5.1 Linting and Formatting
-- [ ] Run Black: `poetry run black .`
-- [ ] Run Ruff: `poetry run ruff check .`
-- [ ] Run mypy: `poetry run mypy .`
+- [ ] Run Black: `black .`
+- [ ] Run Ruff: `ruff check .`
+- [ ] Run mypy: `mypy .`
 - [ ] Fix all found issues
 
 ### 5.2 Code Quality Metrics

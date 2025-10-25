@@ -101,7 +101,7 @@ Self-Review is a systematic check of your own work before presenting it for code
 - [ ] All functions have type hints for return values
 - [ ] No use of `Any` (or justified)
 - [ ] Correct types from `typing` are used
-- [ ] Run mypy: `poetry run mypy .`
+- [ ] Run mypy: `mypy .`
 - [ ] Fix all type checking errors
 
 ### 5.2 Coding Standards Check
@@ -110,8 +110,8 @@ Self-Review is a systematic check of your own work before presenting it for code
   - `snake_case` for variables and functions
   - `PascalCase` for classes
   - `UPPER_SNAKE_CASE` for constants
-- [ ] Run Black: `poetry run black .`
-- [ ] Run Ruff: `poetry run ruff check .`
+- [ ] Run Black: `black .`
+- [ ] Run Ruff: `ruff check .`
 - [ ] Fix all found issues
 
 ### 5.3 Documentation Check
@@ -307,9 +307,9 @@ Self-Review is a systematic check of your own work before presenting it for code
 ### 13.1 Code Quality Tools
 ```bash
 # Run all tools sequentially
-poetry run black .                    # Formatting
-poetry run ruff check .               # Linting
-poetry run mypy .                     # Type checking
+black .                    # Formatting
+ruff check .               # Linting
+mypy .                     # Type checking
 ```
 
 **Checklist:**
@@ -335,7 +335,7 @@ pytest -v tests/ --asyncio-mode=auto
 ### 13.3 Security Scanning (Optional)
 ```bash
 # Check dependencies for vulnerabilities
-poetry show --outdated
+pip list --outdated
 pip-audit
 
 # Search for potential security issues

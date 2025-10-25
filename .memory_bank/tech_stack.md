@@ -2,9 +2,12 @@
 
 ## Core Stack
 - **Language**: Python 3.11+ (modern, type-safe approach)
-- **Framework**: FastAPI (FastAPI/Django/Flask)
+- **Framework**: FastAPI (async web framework)
+- **Frontend**: NiceGUI (Python-based web UI framework)
 - **Asynchronous Runtime**: asyncio with async/await patterns
-- **Package Management**: Poetry (dependency management and virtual environments)
+- **Package Management**: pip + requirements.txt (Python standard package management)
+- **Database**: SQLite (file-based SQL database)
+- **LLM Integration**: OpenRouter (Gemini 2.5 Flash) + Langfuse (observability)
 
 ## Python-Specific Best Practices
 
@@ -29,16 +32,25 @@
 
 ### Project Structure
 ```
-HR profile generator/
-├── src/              # Source code
-│   ├── api/         # API endpoints (if applicable)
+HR/
+├── backend/         # FastAPI Backend
+│   ├── api/         # API endpoints
 │   ├── core/        # Business logic
 │   ├── models/      # Data models (Pydantic/SQLAlchemy)
 │   ├── services/    # Service layer
-│   └── utils/       # Utilities
+│   ├── tools/       # Utilities and tools
+│   ├── utils/       # Helper functions
+│   └── main.py      # FastAPI application entry point
+├── frontend/        # NiceGUI Frontend
+│   ├── pages/       # UI pages
+│   ├── components/  # Reusable UI components
+│   ├── services/    # Frontend services
+│   └── main.py      # NiceGUI application entry point
+├── data/            # Data files and SQLite database
+├── templates/       # JSON schemas and prompts
 ├── tests/           # Test suite
 ├── scripts/         # Utility scripts
-├── pyproject.toml   # Poetry configuration
+├── requirements.txt # pip dependencies
 └── .env.example     # Environment variables template
 ```
 
@@ -60,16 +72,18 @@ async def fetch_data(url: str) -> Dict[str, Any]:
 ```
 
 ### Database Operations
-- **Async ORM**: SQLAlchemy 2.0+ with asyncio extension
-- **Async Driver**: asyncpg for PostgreSQL
-- **Connection Pooling**: Use connection pools for efficiency
+- **Database**: SQLite (file-based, simple deployment)
+- **ORM**: SQLAlchemy 2.0+ with sync/async support
+- **Driver**: sqlite3 (built-in) / aiosqlite (for async operations)
 
 ```python
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
-engine = create_async_engine("postgresql+asyncpg://...")
-async with AsyncSession(engine) as session:
-    result = await session.execute(query)
+# SQLite connection
+engine = create_engine("sqlite:///./data/profiles.db")
+with Session(engine) as session:
+    result = session.execute(query)
 ```
 
 ### File Operations
@@ -308,49 +322,74 @@ async def db_session():
 
 ## Dependency Management
 
-### pyproject.toml
-```toml
-[tool.poetry]
-name = "HR profile generator"
-version = "0.1.0"
-description = "Profile generatorof empleyyes"
-python = "^3.11"
+### requirements.txt
+```txt
+# Core Backend Dependencies
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.0.0
+httpx>=0.27.0
 
-[tool.poetry.dependencies]
-python = "^3.11"
-FastAPI = "*"
-pydantic = "^2.0"
-pydantic-settings = "^2.0"
-httpx = "^0.25"
+# Database
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4"
-pytest-asyncio = "^0.21"
-pytest-cov = "^4.1"
-black = "^23.0"
-ruff = "^0.1"
-mypy = "^1.7"
+# Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt==4.1.3
+python-multipart>=0.0.6
+
+# Frontend
+nicegui>=2.24.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Async Operations
+aiofiles>=23.2.1
+
+# Data Processing
+pandas>=2.1.0
+openpyxl>=3.1.0
+python-docx>=1.1.0
+
+# LLM & Monitoring
+langfuse
+openai>=1.0.0
+
+# Development & Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+structlog>=23.2.0
+```
+
+### Tool Configuration
+Tools like black, ruff, mypy can be configured in `setup.cfg`:
+
+```ini
+# setup.cfg
+[tool:pytest]
+asyncio_mode = auto
+testpaths = tests
+python_files = test_*.py
+python_functions = test_*
 
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = py311
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = py311
 
 [tool.mypy]
-python_version = "3.11"
+python_version = 3.11
 strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_functions = ["test_*"]
 ```
 
 ## Version Control
@@ -412,7 +451,7 @@ def expensive_computation(n: int) -> List[int]:
 1. **Environment Variables**: All secrets in `.env` file
 2. **Input Validation**: Pydantic models for all inputs
 3. **SQL Injection**: Use ORM or parameterized queries
-4. **Dependency Scanning**: Regular `poetry update` and security audits
+4. **Dependency Scanning**: Regular `pip list --outdated` and security audits with pip-audit
 5. **HTTPS Only**: All external API calls over HTTPS
 
 ---
