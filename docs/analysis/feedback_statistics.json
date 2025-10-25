@@ -1,0 +1,249 @@
+{
+  "analysis": {
+    "date": "2025-10-25",
+    "source_directory": "/home/yan/A101/HR/feedback/",
+    "total_files": 7,
+    "analysis_status": "complete"
+  },
+  "files": [
+    {
+      "filename": "Ведущий_программист_1С_20250924_202830_b61c5428.docx",
+      "position": "Ведущий программист 1С",
+      "department": "IT/Программирование",
+      "level": "Senior",
+      "date_generated": "2025-09-24T20:28:30",
+      "size_kb": 39,
+      "paragraphs": 138,
+      "words": 660,
+      "avg_words_per_paragraph": 4.8,
+      "metadata_created_date": "2013-12-23T23:15:00Z",
+      "issues": "Некорректная дата в метаданных"
+    },
+    {
+      "filename": "Владелец_продукта_20250924_202743_753db5ba.docx",
+      "position": "Владелец продукта",
+      "department": "Product Management",
+      "level": "Lead",
+      "date_generated": "2025-09-24T20:27:43",
+      "size_kb": 39,
+      "paragraphs": 138,
+      "words": 574,
+      "avg_words_per_paragraph": 4.2,
+      "metadata_created_date": "2013-12-23T23:15:00Z",
+      "issues": "Меньше слов чем Senior позиции, некорректная дата в метаданных"
+    },
+    {
+      "filename": "ДИ ДИТ.docx",
+      "position": "ДИ ДИТ",
+      "department": "IT/Управление ИТ услугами",
+      "level": "Unknown",
+      "date_generated": null,
+      "size_kb": 39,
+      "paragraphs": 191,
+      "words": 871,
+      "avg_words_per_paragraph": 4.6,
+      "metadata_created_date": "2025-09-23T12:48:00Z",
+      "issues": "Неоднозначное название, нет временной метки в имени файла, наибольший объем"
+    },
+    {
+      "filename": "Директор_по_информационным_технологиям_20250917_184235_ef1015eb.docx",
+      "position": "Директор по информационным технологиям",
+      "department": "IT/Руководство",
+      "level": "Executive",
+      "date_generated": "2025-09-17T18:42:35",
+      "size_kb": 38,
+      "paragraphs": 191,
+      "words": 871,
+      "avg_words_per_paragraph": 4.6,
+      "metadata_created_date": "2013-12-23T23:15:00Z",
+      "issues": "Некорректная дата в метаданных"
+    },
+    {
+      "filename": "Руководитель_отдела_20250924_202753_c18470ff (1).docx",
+      "position": "Руководитель отдела",
+      "department": "General Management",
+      "level": "Lead",
+      "date_generated": "2025-09-24T20:27:53",
+      "size_kb": 38,
+      "paragraphs": 124,
+      "words": 486,
+      "avg_words_per_paragraph": 3.9,
+      "metadata_created_date": "2013-12-23T23:15:00Z",
+      "issues": "Суффикс (1) указывает на конфликт имен, минимальный объем, некорректная дата в метаданных"
+    },
+    {
+      "filename": "Системный_администратор_20250924_111807_458d8f2d.docx",
+      "position": "Системный администратор",
+      "department": "IT/Администрирование",
+      "level": "Middle",
+      "date_generated": "2025-09-24T11:18:07",
+      "size_kb": 37,
+      "paragraphs": 163,
+      "words": 665,
+      "avg_words_per_paragraph": 4.1,
+      "metadata_created_date": "2013-12-23T23:15:00Z",
+      "issues": "Некорректная дата в метаданных, больше слов чем Lead позиции"
+    },
+    {
+      "filename": "Старший_аналитик_BI_20250917_184301_b45d0579.docx",
+      "position": "Старший аналитик BI",
+      "department": "IT/Аналитика",
+      "level": "Senior",
+      "date_generated": "2025-09-17T18:43:01",
+      "size_kb": 37,
+      "paragraphs": 162,
+      "words": 678,
+      "avg_words_per_paragraph": 4.2,
+      "metadata_created_date": "2013-12-23T23:15:00Z",
+      "issues": "Некорректная дата в метаданных"
+    }
+  ],
+  "statistics": {
+    "by_level": {
+      "Executive": {
+        "count": 1,
+        "percentage": 14.3,
+        "avg_words": 871,
+        "avg_paragraphs": 191,
+        "positions": ["Директор по информационным технологиям"]
+      },
+      "Lead": {
+        "count": 2,
+        "percentage": 28.6,
+        "avg_words": 530,
+        "avg_paragraphs": 131,
+        "positions": ["Владелец продукта", "Руководитель отдела"],
+        "note": "Меньше контента чем Senior уровень - проблема!"
+      },
+      "Senior": {
+        "count": 2,
+        "percentage": 28.6,
+        "avg_words": 669,
+        "avg_paragraphs": 150,
+        "positions": ["Ведущий программист 1С", "Старший аналитик BI"]
+      },
+      "Middle": {
+        "count": 1,
+        "percentage": 14.3,
+        "avg_words": 665,
+        "avg_paragraphs": 163,
+        "positions": ["Системный администратор"]
+      },
+      "Unknown": {
+        "count": 1,
+        "percentage": 14.3,
+        "avg_words": 871,
+        "avg_paragraphs": 191,
+        "positions": ["ДИ ДИТ"]
+      }
+    },
+    "by_department": {
+      "IT": {
+        "count": 5,
+        "percentage": 71.4,
+        "subdepartments": {
+          "Программирование": 1,
+          "Администрирование": 1,
+          "Аналитика": 1,
+          "Руководство": 1,
+          "Управление ИТ": 1
+        }
+      },
+      "Product Management": {
+        "count": 1,
+        "percentage": 14.3
+      },
+      "General Management": {
+        "count": 1,
+        "percentage": 14.3
+      }
+    },
+    "by_generation_date": {
+      "2025-09-17": {
+        "count": 2,
+        "positions": ["Директор по информационным технологиям", "Старший аналитик BI"],
+        "time_range": "18:42:35 - 18:43:01",
+        "duration_seconds": 26,
+        "note": "Ранняя волна - Executive и Senior"
+      },
+      "2025-09-24": {
+        "count": 4,
+        "positions": ["Системный администратор", "Владелец продукта", "Руководитель отдела", "Ведущий программист 1С"],
+        "time_range": "11:18:07 - 20:28:30",
+        "note": "Поздняя волна - Mixed batch (Middle, Senior, Lead)"
+      },
+      "Unknown": {
+        "count": 1,
+        "positions": ["ДИ ДИТ"]
+      }
+    },
+    "content_distribution": {
+      "words": {
+        "min": 486,
+        "max": 871,
+        "avg": 674.0,
+        "median": 665,
+        "range": 385,
+        "std_dev": 123.2
+      },
+      "paragraphs": {
+        "min": 124,
+        "max": 191,
+        "avg": 153.0,
+        "median": 162,
+        "range": 67,
+        "std_dev": 27.6
+      }
+    },
+    "metadata_issues": {
+      "incorrect_dates": 6,
+      "correct_dates": 1,
+      "percentage_incorrect": 85.7,
+      "note": "Только файл 'ДИ ДИТ' имеет корректную дату создания"
+    }
+  },
+  "critical_findings": [
+    {
+      "issue": "Перевернутая иерархия объема контента",
+      "severity": "HIGH",
+      "details": "Lead позиции содержат меньше слов чем Senior: Владелец продукта (574) < Программист (660), Руководитель (486) < Администратор (665)"
+    },
+    {
+      "issue": "Некорректные метаданные DOCX",
+      "severity": "HIGH",
+      "details": "85.7% файлов имеют дату создания 2013-12-23, что не соответствует реальности"
+    },
+    {
+      "issue": "Конфликт имен при сохранении",
+      "severity": "MEDIUM",
+      "details": "Файл 'Руководитель_отдела' имеет суффикс (1), что указывает на конфликт имен при сохранении"
+    },
+    {
+      "issue": "Неоднозначное название позиции",
+      "severity": "MEDIUM",
+      "details": "Позиция 'ДИ ДИТ' - сокращение без раскрытия, нет временной метки в имени файла"
+    },
+    {
+      "issue": "Низкое представление других направлений",
+      "severity": "MEDIUM",
+      "details": "71.4% позиций в IT, отсутствуют примеры для HR, Finance, Sales, Operations"
+    }
+  ],
+  "recommendations": {
+    "critical": [
+      "Исправить экспорт DOCX - обновлять метаданные при создании файла",
+      "Исправить механизм сохранения - добавить проверку конфликтов имен",
+      "Проверить логику выбора шаблонов - объем должен расти с уровнем"
+    ],
+    "important": [
+      "Внедрить адаптивные шаблоны для разных уровней позиций",
+      "Расширить feedback coverage - добавить другие направления",
+      "Внедрить качественный контроль генерации"
+    ],
+    "future": [
+      "Система версионирования профилей",
+      "Аналитика качества генерации",
+      "Сбор user feedback от HR специалистов"
+    ]
+  }
+}

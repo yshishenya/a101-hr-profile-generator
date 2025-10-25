@@ -3,8 +3,8 @@ services:
   app:
     build: .
     container_name: a101hr_app
-    ports:
-      - "8022:8022"
+    # Используем host network для решения проблемы медленной передачи данных через Docker bridge
+    network_mode: "host"
     env_file:
       - .env
     environment:
@@ -29,10 +29,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - a101hr_network
 
-  # NiceGUI Frontend
+  # NiceGUI Frontend (Legacy - will be replaced by Vue.js)
   frontend:
     build:
       context: .
@@ -70,6 +68,48 @@ services:
       - a101hr_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8033/_nicegui/status || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Vue.js Frontend (Modern SPA)
+  frontend-vue:
+    build:
+      context: ./frontend-vue
+      dockerfile: Dockerfile
+      target: ${FRONTEND_MODE:-development}
+    container_name: a101hr_frontend_vue
+    ports:
+      - "5173:5173"  # Development mode (Vite)
+      - "8080:80"    # Production mode (Nginx)
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_BASE_URL=http://app:8022
+      - VITE_APP_TITLE=A101 HR Profile Generator
+      - VITE_APP_VERSION=1.0.0
+      - VITE_ENABLE_DEBUG=true
+    volumes:
+      # Development mode - mount source code for hot reload
+      - ./frontend-vue/src:/app/src:ro
+      - ./frontend-vue/public:/app/public:ro
+      - ./frontend-vue/index.html:/app/index.html:ro
+      - ./frontend-vue/vite.config.ts:/app/vite.config.ts:ro
+      - ./frontend-vue/tsconfig.json:/app/tsconfig.json:ro
+      - ./frontend-vue/tsconfig.app.json:/app/tsconfig.app.json:ro
+      - ./frontend-vue/tsconfig.node.json:/app/tsconfig.node.json:ro
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - a101hr_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/", "||", "exit", "0"]
       interval: 30s
       timeout: 10s
       retries: 3
