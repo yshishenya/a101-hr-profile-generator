@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
+import { defineAsyncComponent } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 /**
@@ -14,7 +15,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/LoginView.vue'),
+    component: defineAsyncComponent(() => import('@/views/LoginView.vue')),
     meta: {
       requiresAuth: false,
       title: 'Login'
@@ -22,13 +23,13 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
-    component: () => import('@/components/layout/AppLayout.vue'),
+    component: defineAsyncComponent(() => import('@/components/layout/AppLayout.vue')),
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
         name: 'Dashboard',
-        component: () => import('@/views/DashboardView.vue'),
+        component: defineAsyncComponent(() => import('@/views/DashboardView.vue')),
         meta: {
           title: 'Dashboard'
         }
@@ -36,7 +37,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'generator',
         name: 'Generator',
-        component: () => import('@/views/GeneratorView.vue'),
+        component: defineAsyncComponent(() => import('@/views/GeneratorView.vue')),
         meta: {
           title: 'Profile Generator'
         }
