@@ -40,8 +40,20 @@
       </v-col>
     </v-row>
 
+    <!-- Loading State -->
+    <v-row v-if="isLoading">
+      <v-col>
+        <v-card>
+          <v-card-text class="text-center py-12">
+            <v-progress-circular indeterminate color="primary" size="64" />
+            <div class="text-h6 mt-4">Loading catalog data...</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <!-- Tabs -->
-    <v-row>
+    <v-row v-else>
       <v-col>
         <v-card>
           <v-tabs v-model="activeTab" bg-color="surface">
@@ -124,6 +136,7 @@ const generatorStore = useGeneratorStore()
 
 // State
 const activeTab = ref('search')
+const isLoading = ref(true)
 
 // Lifecycle
 onMounted(async () => {
@@ -132,6 +145,8 @@ onMounted(async () => {
     await catalogStore.loadSearchableItems()
   } catch (error) {
     console.error('Failed to load catalog data:', error)
+  } finally {
+    isLoading.value = false
   }
 })
 </script>
