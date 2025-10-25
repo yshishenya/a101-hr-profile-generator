@@ -484,8 +484,29 @@ class UniversalAPIClient:
         self.auth_token: Optional[str] = None
 
     async def __aenter__(self):
-        timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
-        self.session = aiohttp.ClientSession(timeout=timeout)
+        # Настраиваем таймауты для разных этапов запроса
+        # Используем None для sock_read чтобы не прерывать длительные LLM запросы
+        timeout = aiohttp.ClientTimeout(
+            total=REQUEST_TIMEOUT,      # Общий таймаут (300s)
+            connect=30,                 # Таймаут на установку соединения
+            sock_connect=10,            # Таймаут на сокет
+            sock_read=None              # Без таймаута на чтение (для долгих LLM генераций)
+        )
+
+        # Настраиваем connector для управления пулом соединений
+        connector = aiohttp.TCPConnector(
+            limit=100,                  # Максимум одновременных соединений
+            limit_per_host=30,          # Максимум соединений на хост
+            ttl_dns_cache=300,          # Кэш DNS на 5 минут
+            force_close=False,          # Переиспользуем соединения
+            enable_cleanup_closed=True  # Очистка закрытых соединений
+        )
+
+        self.session = aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector,
+            raise_for_status=False      # Обрабатываем статусы вручную
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -519,13 +540,14 @@ class UniversalAPIClient:
             logger.error(f"❌ Ошибка получения токена: {e}")
             return False
 
-    async def start_generation(self, department_path: str, position: str) -> Optional[str]:
+    async def start_generation(self, department_path: str, position: str, max_retries: int = 3) -> Optional[str]:
         """
         Запускает генерацию профиля через API (поддерживает любые пути департаментов)
 
         Args:
             department_path: Полный путь департамента (может быть любого уровня)
             position: Название должности
+            max_retries: Максимальное количество попыток при ошибках
 
         Returns:
             task_id или None в случае ошибки
@@ -543,46 +565,91 @@ class UniversalAPIClient:
             "save_result": True
         }
 
-        try:
-            async with self.session.post(
-                f"{self.base_url}/api/generation/start",
-                json=payload,
-                headers=headers
-            ) as resp:
-                if resp.status == 200:
-                    result = await resp.json()
-                    task_id = result.get('task_id')
-                    logger.info(f"🚀 Запущена генерация: {position} в {department_path} (task: {task_id[:8]}...)")
-                    return task_id
+        # Retry logic для обработки транзиентных ошибок сети
+        for attempt in range(max_retries):
+            try:
+                async with self.session.post(
+                    f"{self.base_url}/api/generation/start",
+                    json=payload,
+                    headers=headers
+                ) as resp:
+                    if resp.status == 200:
+                        result = await resp.json()
+                        task_id = result.get('task_id')
+                        logger.info(f"🚀 Запущена генерация: {position} в {department_path} (task: {task_id[:8]}...)")
+                        return task_id
+                    else:
+                        error_text = await resp.text()
+                        logger.error(f"❌ Ошибка запуска генерации {position}: HTTP {resp.status} - {error_text}")
+                        return None
+
+            except (aiohttp.ClientError, aiohttp.ServerDisconnectedError, asyncio.TimeoutError) as e:
+                # Транзиентные ошибки - повторяем попытку
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    logger.warning(
+                        f"⚠️ Транзиентная ошибка для {position} (попытка {attempt + 1}/{max_retries}): {type(e).__name__}: {e}. "
+                        f"Повтор через {wait_time}с..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
                 else:
-                    error_text = await resp.text()
-                    logger.error(f"❌ Ошибка запуска генерации {position}: HTTP {resp.status} - {error_text}")
+                    logger.error(f"❌ Исчерпаны попытки для {position}: {type(e).__name__}: {e}")
                     return None
 
-        except Exception as e:
-            logger.error(f"❌ Исключение при запуске генерации {position}: {e}")
-            return None
+            except Exception as e:
+                # Непредвиденные ошибки - не повторяем
+                logger.error(f"❌ Исключение при запуске генерации {position}: {type(e).__name__}: {e}")
+                return None
 
-    async def get_task_status(self, task_id: str) -> Dict[str, Any]:
-        """Получает статус задачи генерации"""
+        return None
+
+    async def get_task_status(self, task_id: str, max_retries: int = 3) -> Dict[str, Any]:
+        """
+        Получает статус задачи генерации с retry logic
+
+        Args:
+            task_id: ID задачи
+            max_retries: Максимальное количество попыток
+
+        Returns:
+            Словарь с данными статуса или ошибкой
+        """
         if not self.auth_token:
             return {"status": "error", "error": "No auth token"}
 
         headers = {"Authorization": f"Bearer {self.auth_token}"}
 
-        try:
-            async with self.session.get(
-                f"{self.base_url}/api/generation/{task_id}/status",
-                headers=headers
-            ) as resp:
-                if resp.status == 200:
-                    return await resp.json()
-                else:
-                    error_text = await resp.text()
-                    return {"status": "error", "error": f"HTTP {resp.status}: {error_text}"}
+        # Retry logic для обработки транзиентных ошибок
+        for attempt in range(max_retries):
+            try:
+                async with self.session.get(
+                    f"{self.base_url}/api/generation/{task_id}/status",
+                    headers=headers
+                ) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+                    else:
+                        error_text = await resp.text()
+                        return {"status": "error", "error": f"HTTP {resp.status}: {error_text}"}
 
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
+            except (aiohttp.ClientError, aiohttp.ServerDisconnectedError, asyncio.TimeoutError) as e:
+                # Транзиентные ошибки - повторяем попытку
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logger.warning(
+                        f"⚠️ Ошибка получения статуса задачи {task_id[:8]} (попытка {attempt + 1}/{max_retries}): {type(e).__name__}. "
+                        f"Повтор через {wait_time}с..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    return {"status": "error", "error": f"Network error after {max_retries} attempts: {str(e)}"}
+
+            except Exception as e:
+                return {"status": "error", "error": str(e)}
+
+        return {"status": "error", "error": "Max retries exceeded"}
 
 
 class UniversalBatchProcessor:
