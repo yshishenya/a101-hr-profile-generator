@@ -63,7 +63,7 @@ const router = createRouter({
  * Global navigation guard for authentication
  *
  * Logic:
- * 1. Initialize auth store if needed (restore session from token)
+ * 1. Ensure auth is initialized (safe to call multiple times)
  * 2. Check if route requires authentication (meta.requiresAuth)
  * 3. If protected route and user not authenticated → redirect to /login
  * 4. If /login and user already authenticated → redirect to /
@@ -76,11 +76,9 @@ router.beforeEach(async (
 ) => {
   const authStore = useAuthStore()
 
-  // Initialize auth store if token exists but user not loaded yet
-  // This handles page refresh - token is in localStorage but user data not loaded
-  if (authStore.token && !authStore.user && !authStore.loading) {
-    await authStore.initialize()
-  }
+  // Ensure auth is initialized (handles page refresh case)
+  // Safe to call multiple times - will only run once
+  await authStore.initialize()
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false)
   const isAuthenticated = authStore.isAuthenticated

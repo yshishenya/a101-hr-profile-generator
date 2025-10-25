@@ -17,6 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
+  const initialized = ref<boolean>(false)
 
   // Computed
   const isAuthenticated = computed(() => !!token.value && !!user.value)
@@ -76,6 +77,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Clear local state regardless of API result
       token.value = null
       user.value = null
+      initialized.value = false
       localStorage.removeItem(TOKEN_KEY)
       loading.value = false
     }
@@ -104,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Clear invalid token
       token.value = null
       user.value = null
+      initialized.value = false
       localStorage.removeItem(TOKEN_KEY)
     } finally {
       loading.value = false
@@ -113,11 +116,18 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Initialize auth state on app start
    * Loads user if token exists in localStorage
+   * Safe to call multiple times - will only run once
    */
   async function initialize(): Promise<void> {
-    if (token.value) {
-      await loadUser()
+    // Skip if already initialized or no token
+    if (initialized.value || !token.value) {
+      return
     }
+
+    // Mark as initialized to prevent duplicate calls
+    initialized.value = true
+
+    await loadUser()
   }
 
   /**
