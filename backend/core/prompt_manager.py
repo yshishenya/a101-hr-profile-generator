@@ -52,7 +52,7 @@ class PromptManager:
     def __init__(
         self,
         langfuse_client=None,
-        templates_dir: str = "/home/yan/A101/HR/templates",
+        templates_dir: str = None,
         cache_ttl: int = 300,
     ):
         """
@@ -60,11 +60,19 @@ class PromptManager:
 
         Args:
             langfuse_client: Клиент Langfuse (опционально)
-            templates_dir: Директория с локальными шаблонами
+            templates_dir: Директория с локальными шаблонами (если None, используется PROJECT_ROOT/templates)
             cache_ttl: Время жизни кеша в секундах
         """
         self.langfuse_client = langfuse_client
-        self.templates_dir = Path(templates_dir)
+
+        # Определяем templates_dir: переданный путь или default
+        if templates_dir is None:
+            # Вычисляем относительно расположения этого файла
+            project_root = Path(__file__).parent.parent.parent
+            self.templates_dir = project_root / "templates"
+        else:
+            self.templates_dir = Path(templates_dir)
+
         self.cache_ttl = cache_ttl
         self.langfuse_enabled = langfuse_client is not None
 
@@ -94,121 +102,12 @@ class PromptManager:
                     "data_version",
                 ],
                 "config": {
+                    # Базовая конфигурация - полная схема загружается из templates/prompts/production/config.json
                     "model": "google/gemini-2.5-flash",
                     "temperature": 0.1,
                     "max_tokens": 4000,
                     "structured_output": True,
-                    "response_format": {
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "job_profile",
-                            "strict": True,
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "position_title": {"type": "string"},
-                                    "department_broad": {"type": "string"},
-                                    "department_specific": {"type": "string"},
-                                    "category": {
-                                        "type": "string",
-                                        "enum": [
-                                            "Специалист",
-                                            "Линейный руководитель (группа, направление)",
-                                            "Руководитель среднего уровня (отдел, управление)",
-                                            "Руководитель высшего уровня (департамент)",
-                                        ],
-                                    },
-                                    "direct_manager": {"type": "string"},
-                                    "primary_activity": {"type": "string"},
-                                    "responsibility_areas": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "title": {"type": "string"},
-                                                "tasks": {
-                                                    "type": "array",
-                                                    "items": {"type": "string"},
-                                                },
-                                            },
-                                            "required": ["title", "tasks"],
-                                        },
-                                    },
-                                    "professional_skills": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "category": {"type": "string"},
-                                                "skills": {
-                                                    "type": "array",
-                                                    "items": {"type": "string"},
-                                                },
-                                                "target_level": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "Базовый",
-                                                        "Продвинутый",
-                                                        "Экспертный",
-                                                    ],
-                                                },
-                                            },
-                                            "required": ["category", "skills"],
-                                        },
-                                    },
-                                    "corporate_competencies": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "enum": [
-                                                "Инновационность и развитие",
-                                                "Ориентация на результат",
-                                                "Стратегическое видение и принятие решений",
-                                                "Клиентоориентированность",
-                                                "Эффективная коммуникация",
-                                                "Работа в команде",
-                                                "Лидерство",
-                                            ],
-                                        },
-                                    },
-                                    "personal_qualities": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "enum": [
-                                                "Внимательность",
-                                                "Ответственность",
-                                                "Коммуникабельность",
-                                                "Стрессоустойчивость",
-                                                "Настойчивость",
-                                                "Исполнительность",
-                                                "Системность мышления",
-                                                "Инициативность",
-                                                "Проактивность",
-                                                "Критическое мышление",
-                                                "Лидерство",
-                                                "Аналитический склад ума",
-                                                "Многозадачность",
-                                                "Решительность",
-                                            ],
-                                        },
-                                    },
-                                },
-                                "required": [
-                                    "position_title",
-                                    "department_broad",
-                                    "department_specific",
-                                    "category",
-                                    "primary_activity",
-                                    "responsibility_areas",
-                                    "professional_skills",
-                                    "corporate_competencies",
-                                    "personal_qualities",
-                                ],
-                                "additionalProperties": False,
-                            },
-                        },
-                    },
+                    # response_format будет загружен из config.json через get_prompt_config()
                 },
             }
         }

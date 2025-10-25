@@ -9,8 +9,10 @@
 - [ ] [SCRAPE-01] Implement module for collecting data from open sources
 
 ## In Progress
-- [x] [SETUP-00] Create Memory Bank structure for the project
+- [ ] No active tasks
 
 ## Done
 - [x] [INIT-01] Initialize Git repository
 - [x] [DOCS-01] Create basic project documentation
+- [x] [SETUP-00] Create Memory Bank structure for the project
+- [x] [BUG-01] Fix JSON schema validation error - removed hardcoded schema fallback (2025-10-25)
