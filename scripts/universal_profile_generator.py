@@ -33,6 +33,10 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Set
 import aiohttp
 import click
+from dotenv import load_dotenv
+
+# Загрузка переменных окружения из .env
+load_dotenv()
 
 # Добавляем путь к backend модулям
 sys.path.append(os.path.abspath('.'))
@@ -491,17 +495,14 @@ class UniversalAPIClient:
     async def authenticate(self) -> bool:
         """Получает JWT токен для аутентификации"""
         try:
-            # Используем test token из .env
-            test_token = os.getenv('TEST_JWT_TOKEN')
-            if test_token:
-                self.auth_token = test_token
-                logger.info("🔑 Используется тестовый JWT токен")
-                return True
+            # Получаем учетные данные из .env
+            admin_username = os.getenv('ADMIN_USERNAME', 'admin')
+            admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
 
-            # Если нет test токена, попробуем аутентификацию
+            # Пробуем аутентификацию через API
             auth_data = {
-                "username": "admin",
-                "password": os.getenv('ADMIN_PASSWORD', 'q4Mrpwty7t9F')
+                "username": admin_username,
+                "password": admin_password
             }
 
             async with self.session.post(f"{self.base_url}/api/auth/login", json=auth_data) as resp:
@@ -619,10 +620,30 @@ class UniversalBatchProcessor:
         logger.info(f"🏢 Пакет охватывает {len(departments_in_batch)} различных подразделений")
 
         # 1. Запускаем все задачи параллельно
+        logger.info(f"🚀 Запуск {len(positions_batch)} задач параллельно...")
+
+        # Создаем корутины для параллельного запуска
+        start_tasks = [
+            self.api_client.start_generation(dept_path, pos)
+            for dept_path, pos in positions_batch
+        ]
+
+        # Запускаем все задачи параллельно
+        task_ids = await asyncio.gather(*start_tasks, return_exceptions=True)
+
+        # Формируем список задач с результатами
         tasks = []
-        for dept_path, pos in positions_batch:
-            task_id = await self.api_client.start_generation(dept_path, pos)
-            if task_id:
+        for (dept_path, pos), task_id in zip(positions_batch, task_ids):
+            if isinstance(task_id, Exception):
+                tasks.append({
+                    "task_id": None,
+                    "department": dept_path,
+                    "position": pos,
+                    "status": "failed",
+                    "error": f"Failed to start generation: {str(task_id)}"
+                })
+                logger.error(f"❌ Ошибка запуска: {pos} - {task_id}")
+            elif task_id:
                 tasks.append({
                     "task_id": task_id,
                     "department": dept_path,
@@ -630,6 +651,7 @@ class UniversalBatchProcessor:
                     "status": "processing",
                     "started_at": time.time()
                 })
+                logger.info(f"🚀 Запущена генерация: {pos} в {dept_path.split('/')[-1]} (task: {task_id[:8]}...)")
             else:
                 tasks.append({
                     "task_id": None,
@@ -638,6 +660,7 @@ class UniversalBatchProcessor:
                     "status": "failed",
                     "error": "Failed to start generation"
                 })
+                logger.error(f"❌ Не удалось запустить: {pos}")
 
         # 2. Ждем завершения всех задач
         completed_tasks = await self._wait_for_completion(tasks)
