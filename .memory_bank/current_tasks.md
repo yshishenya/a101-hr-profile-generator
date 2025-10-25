@@ -14,13 +14,14 @@
   - **Simplified plan based on existing backend API**
   - **No RBAC - simple username/password auth**
   - Plan: `docs/VUE_MVP_SIMPLIFIED_PLAN.md`
-  - Week 1-2: Foundation + Auth + Dark theme
-  - Week 3: Dashboard
+  - ✅ Week 1-2: Foundation + Auth + Dark theme (CORS fixed, login working)
+  - 🔄 Week 3: Dashboard (next)
   - Week 4: Single generation
   - Week 5: Profiles list
   - Week 6: Bulk generation (frontend orchestration)
   - Week 7: Inline editing + XLSX (requires minor backend changes)
   - Week 8: Bulk download + Polish
+  - **Progress**: Auth infrastructure complete, ready for dashboard implementation
 - [x] [DOCS-03] Documentation reorganization and cleanup (2025-10-25)
 
 ## ✅ Completed Tasks (Recent)
@@ -45,10 +46,12 @@
 ### Performance & Bug Fixes (Q1 2025)
 - [x] [PERF-01] Implement parallel profile generation - 10x speedup (2025-10-25)
 - [x] [PERF-02] Organization catalog caching - 75x speedup (3ms vs 225ms)
+- [x] [PERF-03] IT systems relevance filtering - 40% cost reduction (2025-10-25)
 - [x] [BUG-01] Fix JSON schema validation error (2025-10-25)
 - [x] [BUG-02] Fix HTTP 401 authentication error - password migration (2025-10-25)
 - [x] [BUG-03] Fix backend Docker container startup - missing List import (2025-10-25)
 - [x] [BUG-04] Fix parallel generation network errors - improved aiohttp connector and retry logic (2025-10-25)
+- [x] [BUG-05] Fix Vue.js frontend CORS and Docker networking (2025-10-25)
 
 ### DevOps (Q1 2025)
 - [x] [DOCKER-01] Docker containerization
