@@ -8,6 +8,7 @@ API endpoints для асинхронной генерации профилей 
 4. DELETE /api/generation/{task_id} - отмена задачи
 """
 
+import asyncio
 import uuid
 import logging
 import json
@@ -222,12 +223,11 @@ async def save_generation_to_db(
 @router.post("/start", response_model=GenerationResponse)
 async def start_generation(
     request: GenerationRequest,
-    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
 ):
     """
     Запуск асинхронной генерации профиля должности
-    
+
     ### Пример запроса:
     ```bash
     curl -X POST "http://localhost:8001/api/generation/start" \
@@ -241,7 +241,7 @@ async def start_generation(
         "save_result": true
       }'
     ```
-    
+
     ### Пример успешного ответа:
     ```json
     {
@@ -275,9 +275,10 @@ async def start_generation(
         "user_id": current_user["user_id"],
     }
 
-    # Запускаем background task
-    background_tasks.add_task(
-        background_generate_profile, task_id, request, current_user["user_id"]
+    # Запускаем background task используя asyncio.create_task для true async execution
+    # BackgroundTasks блокирует ответ до завершения задачи - используем asyncio напрямую
+    asyncio.create_task(
+        background_generate_profile(task_id, request, current_user["user_id"])
     )
 
     logger.info(
