@@ -54,9 +54,9 @@
             <!-- Tree -->
             <OrganizationTree
               v-else-if="catalogStore.organizationTree.length > 0"
+              ref="treeRef"
               :items="catalogStore.organizationTree"
               v-model="selectedPositions"
-              :open-all="openAll"
               @select="handleSelectionChange"
             />
 
@@ -271,16 +271,17 @@ import GenerationForm from './GenerationForm.vue'
 // Constants
 const DEFAULT_TEMPERATURE = 0.7
 const POLL_INTERVAL_MS = 2000 // Poll every 2 seconds
-const TREE_EXPAND_DELAY_MS = 100
 
 // Composables
 const catalogStore = useCatalogStore()
 const generatorStore = useGeneratorStore()
 const { getTaskStatusColor, getTaskStatusIcon } = useTaskStatus()
 
+// Refs
+const treeRef = ref<InstanceType<typeof OrganizationTree> | null>(null)
+
 // State
 const selectedPositions = ref<SearchableItem[]>([])
-const openAll = ref(false)
 const temperature = ref<number>(DEFAULT_TEMPERATURE)
 const employeeName = ref<string>('')
 const isGenerating = ref(false)
@@ -311,16 +312,11 @@ async function loadTree(): Promise<void> {
 }
 
 function expandAll(): void {
-  openAll.value = true
-  // Reset after a tick to allow tree to re-render
-  setTimeout(() => {
-    openAll.value = false
-  }, TREE_EXPAND_DELAY_MS)
+  treeRef.value?.expandAll()
 }
 
 function collapseAll(): void {
-  // Vuetify doesn't have a built-in collapse all, so we refresh the tree
-  loadTree()
+  treeRef.value?.collapseAll()
 }
 
 function handleSelectionChange(items: SearchableItem[]): void {

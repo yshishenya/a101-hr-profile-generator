@@ -97,6 +97,68 @@
   - **Impact**: Fixes broken statistics display and search functionality (PositionSearchAutocomplete)
   - **Backwards compatibility**: Old /search-items endpoint preserved unchanged
   - Files: backend/api/organization.py (new endpoint lines 119-257), frontend-vue/src/stores/catalog.ts (line 119)
+- [x] [BUG-10] Fix browser freeze and tree navigation issues (2025-10-26)
+  - **Problem A**: Browser freezes when navigating organization tree with "Maximum recursive updates exceeded" error
+  - **Problem B**: EXPAND ALL and COLLAPSE ALL buttons don't work
+  - **Root cause A**: Infinite reactive loop between two watchers in OrganizationTree.vue (modelValue watch → selected update → emit update:modelValue → modelValue watch...)
+  - **Root cause B**: Using boolean prop instead of managing opened nodes array; incorrect prop configuration (return-object conflict with item-value)
+  - **Solution**:
+    - Added equality checks in both watchers to prevent unnecessary updates
+    - Implemented v-model:opened for proper tree state management
+    - Created expandAll() and collapseAll() methods exposed via defineExpose()
+    - Removed return-object prop to avoid ID/object conflicts
+    - Added deep tree traversal to collect all node IDs for expansion
+  - **Impact**: Resolves browser freeze, enables proper tree navigation, EXPAND ALL/COLLAPSE ALL now work correctly
+  - **Tree depth**: Supports 6 levels of hierarchy (division → block → department → unit → unit → unit)
+  - Files: frontend-vue/src/components/generator/OrganizationTree.vue, frontend-vue/src/components/generator/BrowseTreeTab.vue, frontend-vue/src/stores/catalog.ts
+- [x] [UX-11] Implement dual selection buttons for organization tree (2025-10-26)
+  - **Problem**: When selecting a unit (e.g., "IT Development Management"), only direct positions were selected, not positions in nested sub-units
+  - **User need**: Two distinct selection modes - direct positions only vs. all nested positions recursively
+  - **Solution**: Replaced single "Select All" button with two adaptive buttons:
+    - **"Direct (N)"** - selects only positions directly under this unit (non-recursive)
+    - **"All (M)"** - selects all positions including nested children (recursive)
+  - **UX features**:
+    - Both buttons use `variant="outlined"` for equal visual weight
+    - Tooltips explain difference: "Select only positions directly under this unit" vs "Select all positions including nested units"
+    - Adaptive responsive design: Desktop (icons+text), Tablet (text only), Mobile (compact "Dir: N" / "All: M")
+    - Toggle behavior: click again to deselect
+  - **Technical implementation**:
+    - Added `collectAllPositionIdsRecursive()` helper for recursive ID collection
+    - Renamed `selectAllPositions()` → `selectDirectPositions()` for clarity
+    - Created `selectAllNestedPositions()` for recursive selection
+    - Breakpoints: Desktop (≥960px), Tablet (600-959px), Mobile (<600px)
+  - **Icons**: `mdi-file-document-outline` (Direct), `mdi-file-tree` (All)
+  - **Impact**: Users can now efficiently select entire departments with all nested positions, or just top-level positions as needed
+  - Files: frontend-vue/src/components/generator/OrganizationTree.vue
+- [x] [REFACTOR-03] Code quality improvements for UX-11 (2025-10-26)
+  - **Problem**: Code review identified 5 improvement areas: DRY violation (6 repeated button blocks), type safety (`any` used 7 times), hardcoded strings, missing tests, undocumented breakpoints
+  - **Improvements implemented**:
+    1. **Type Safety**: Created `TreeItem` interface, replaced all 7 instances of `any` with proper types
+    2. **DRY Principle**: Extracted `TreeSelectionButton` component, eliminated 100+ lines of repetitive code
+    3. **i18n Preparation**: Created `constants/treeSelection.ts` with all UI strings, icons, and breakpoint configurations
+    4. **Documentation**: Documented Vuetify breakpoint logic and responsive design patterns
+    5. **Unit Tests**: Created comprehensive test suite in `tests/components/OrganizationTree.spec.ts` with 15+ test cases
+  - **New files created**:
+    - `TreeSelectionButton.vue`: Reusable selection button component with responsive design
+    - `constants/treeSelection.ts`: Centralized constants for i18n and configuration (85 lines)
+    - `OrganizationTree.spec.ts`: Unit tests covering edge cases and deep hierarchy (240+ lines)
+    - `TreeSelectionButton.README.md`: Complete component documentation
+  - **Code metrics**:
+    - Lines of code reduced: ~100 lines in template (6 blocks → 2 loops)
+    - Type safety: 100% (0 `any` types remaining)
+    - Test coverage: 15+ test cases covering all edge cases
+    - i18n readiness: 100% (all strings extracted)
+  - **Technical details**:
+    - Responsive breakpoints: Desktop (≥960px), Tablet (600-959px), Mobile (<600px)
+    - Helper functions: `getButtonText()`, `getTooltipText()`, `getIconName()`, `getBreakpointClass()`
+    - Accessibility: ARIA labels and descriptive tooltips
+  - **Impact**: Improved code maintainability, type safety, testability, and i18n readiness; easier to add features in future
+  - Files:
+    - frontend-vue/src/components/generator/OrganizationTree.vue (refactored)
+    - frontend-vue/src/components/generator/TreeSelectionButton.vue (new)
+    - frontend-vue/src/constants/treeSelection.ts (new)
+    - frontend-vue/tests/components/OrganizationTree.spec.ts (new)
+    - frontend-vue/src/components/generator/TreeSelectionButton.README.md (new)
 
 ### DevOps (Q1 2025)
 - [x] [DOCKER-01] Docker containerization
