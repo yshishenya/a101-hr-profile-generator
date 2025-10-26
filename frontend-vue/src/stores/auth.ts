@@ -42,6 +42,9 @@ export const useAuthStore = defineStore('auth', () => {
         // Store user info
         user.value = response.user_info
 
+        // Mark as initialized to prevent re-fetching user on next navigation
+        initialized.value = true
+
         loading.value = false
         return true
       } else {

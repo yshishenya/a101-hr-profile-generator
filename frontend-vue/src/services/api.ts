@@ -58,13 +58,11 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      // Token expired or invalid
+      // Token expired or invalid - clear it
       localStorage.removeItem('auth_token')
 
-      // Redirect to login (if not already there)
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
-      }
+      // Don't redirect here - let router guard handle it
+      // This prevents page reload and maintains SPA navigation
     }
 
     return Promise.reject(error)
