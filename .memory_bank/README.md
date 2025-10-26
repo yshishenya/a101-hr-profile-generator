@@ -5,8 +5,13 @@ This memory bank is your main source of information. Before starting any task, *
 ## Mandatory Reading Sequence Before ANY Task
 
 1. **[Tech Stack](./tech_stack.md)**: Learn which technologies, libraries and versions we use.
-2. **[Coding Standards](./guides/coding_standards.md)**: Review formatting rules, naming conventions and best practices.
+2. **Coding Standards** (depends on task type):
+   - **Backend**: [Coding Standards](./guides/coding_standards.md)
+   - **Frontend**: [Frontend Coding Standards](./guides/frontend_coding_standards.md) ⚠️ **MANDATORY!**
 3. **[Current Tasks](./current_tasks.md)**: Check the list of active tasks to understand the team's current focus.
+4. **For Frontend work** (additional mandatory reading):
+   - **[Frontend Architecture](./architecture/frontend_architecture.md)**: Understand the app structure
+   - **[Component Library](./architecture/component_library.md)**: **Check BEFORE creating components!**
 
 ## Knowledge System Map
 
@@ -18,8 +23,12 @@ This memory bank is your main source of information. Before starting any task, *
 - **[Architectural Patterns](./patterns/)**: Fundamental decisions. Study them before making changes to module structure.
   - **[API Standards](./patterns/api_standards.md)**: API design standards
   - **[Error Handling](./patterns/error_handling.md)**: Error handling patterns
+- **[Frontend Architecture](./architecture/)**: **⚠️ MANDATORY for frontend work!**
+  - **[Frontend Architecture](./architecture/frontend_architecture.md)**: Complete Vue 3 + TypeScript architecture guide
+  - **[Component Library](./architecture/component_library.md)**: **Check BEFORE creating any component!** Full catalog of reusable components
 - **[Subsystem Guides](./guides/)**: Detailed description of key modules and practices.
-  - **[Coding Standards](./guides/coding_standards.md)**: Coding standards
+  - **[Coding Standards](./guides/coding_standards.md)**: Backend coding standards
+  - **[Frontend Coding Standards](./guides/frontend_coding_standards.md)**: **⚠️ MANDATORY for frontend!** Vue 3 + TypeScript standards
   - **[Testing Strategy](./guides/testing_strategy.md)**: Testing strategy
 
 ### 3. Processes and Tasks (Context "WHAT TO DO")

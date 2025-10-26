@@ -7,9 +7,13 @@
 1. Read the **`.memory_bank/README.md`** file completely.
 2. Follow the mandatory reading sequence instructions from this file:
    - **[Tech Stack](.memory_bank/tech_stack.md)**: Learn which technologies, libraries and versions we use
-   - **[Coding Standards](.memory_bank/guides/coding_standards.md)**: Formatting rules, naming conventions and best practices
+   - **[Coding Standards](.memory_bank/guides/coding_standards.md)**: Backend formatting rules, naming conventions and best practices
    - **[Current Tasks](.memory_bank/current_tasks.md)**: List of active tasks and current team focus
-3. Follow links to relevant documents depending on task type:
+3. **For Frontend work** (MANDATORY additional reading):
+   - **[Frontend Coding Standards](.memory_bank/guides/frontend_coding_standards.md)**: Vue 3 + TypeScript rules
+   - **[Frontend Architecture](.memory_bank/architecture/frontend_architecture.md)**: Application structure and patterns
+   - **[Component Library](.memory_bank/architecture/component_library.md)**: ⚠️ **CHECK BEFORE creating ANY component!**
+4. Follow links to relevant documents depending on task type:
    - For new features → study specification in `.memory_bank/specs/`
    - For bugs → study workflow `.memory_bank/workflows/bug_fix.md`
    - For technology questions → check `.memory_bank/tech_stack.md`
@@ -128,6 +132,40 @@ async def handle_check_command(message: types.Message) -> None:
 - Schema management through `db_manager.create_schema()` in `backend/models/database.py`
 - Data validation via Pydantic before saving
 
+#### 7. Vue 3 Frontend Architecture
+**CRITICALLY IMPORTANT for Frontend Work:**
+- Using **Vue 3** with **Composition API** (`<script setup>`)
+- **TypeScript** with **strict mode enabled** (NO `any` types allowed)
+- **Pinia** for state management (Composition API style)
+- **Vuetify 3** for UI components
+- **Vitest** for testing (minimum 80% coverage)
+
+**MANDATORY Rules**:
+- ❌ **NEVER use `any` types** - use `unknown` with type guards
+- ❌ **NEVER create components without checking [Component Library](.memory_bank/architecture/component_library.md) first**
+- ✅ **ALWAYS check existing components before creating new ones**
+- ✅ **ALWAYS use `error: unknown` in catch blocks**
+- ✅ **ALWAYS follow [Frontend Coding Standards](.memory_bank/guides/frontend_coding_standards.md)**
+- ✅ Files must be < 300 lines (components) or < 500 lines (stores)
+
+**Frontend Architecture**:
+```
+Views (Pages) → Components → Stores → Services → API
+```
+- **Views**: Route components in `src/views/`
+- **Components**: Reusable UI in `src/components/`
+  - `common/`: Base components (BaseCard, etc.)
+  - `generator/`: OrganizationTree, PositionSearchAutocomplete
+  - `profiles/`: PositionsTable, ProfileContent
+- **Stores**: Pinia stores in `src/stores/` (auth, catalog, generator, profiles)
+- **Services**: API clients in `src/services/`
+- **Types**: TypeScript definitions in `src/types/`
+
+**Before ANY frontend work**:
+1. Read [Frontend Architecture](.memory_bank/architecture/frontend_architecture.md)
+2. **Check [Component Library](.memory_bank/architecture/component_library.md)** - avoid duplicates!
+3. Read [Frontend Coding Standards](.memory_bank/guides/frontend_coding_standards.md)
+
 ---
 
 ## Self-Documentation Principle
@@ -179,6 +217,7 @@ Before starting any task, determine its type and choose the corresponding workfl
 
 **NEVER** do the following:
 
+### Backend:
 1. **Don't add new dependencies** without updating `.memory_bank/tech_stack.md`
 2. **Don't violate patterns** from `.memory_bank/patterns/`
 3. **Don't reinvent** what already exists in the project
@@ -187,6 +226,16 @@ Before starting any task, determine its type and choose the corresponding workfl
 6. **Don't store secrets** in code - only via environment variables
 7. **Don't write SQL manually** - use ORM or parameterized queries
 8. **Don't ignore errors** through empty `except` blocks
+
+### Frontend (Vue 3):
+1. ❌ **NEVER use `any` types** - TypeScript strict mode is enabled
+2. ❌ **NEVER create components without checking Component Library first**
+3. ❌ **NEVER use `catch (error)` without `: unknown` type annotation**
+4. ❌ **NEVER import Services directly in Components** - use Stores
+5. ❌ **NEVER create files > 300 lines (components) or > 500 lines (stores)**
+6. ❌ **NEVER skip writing tests** - minimum 80% coverage required
+7. ❌ **NEVER use Options API** - only Composition API with `<script setup>`
+8. ❌ **NEVER commit without running**: `npm run lint && npm run type-check && npm test && npm run build`
 
 ---
 
@@ -198,7 +247,18 @@ Before writing code ALWAYS check:
    - Which libraries are allowed for this task?
    - Which practices are forbidden?
 
-2. **Existing Components**:
+2. **For Frontend Work** (MANDATORY):
+   - **Component Library** (`.memory_bank/architecture/component_library.md`):
+     - Does a component already exist for this purpose?
+     - Can existing components be composed?
+   - **Frontend Architecture** (`.memory_bank/architecture/frontend_architecture.md`):
+     - Which layer does this belong to (View/Component/Store/Service)?
+     - Am I following the correct data flow pattern?
+   - **Frontend Coding Standards** (`.memory_bank/guides/frontend_coding_standards.md`):
+     - Am I using TypeScript strict mode correctly?
+     - Are all props and events properly typed?
+
+3. **Existing Components** (Backend):
    - Does this functionality already exist?
    - Which modules can be reused?
 
