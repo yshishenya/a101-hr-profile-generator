@@ -32,11 +32,6 @@ export interface GenerationResponse {
   estimated_duration: number | null
 }
 
-export interface TaskStatusResponse {
-  task: GenerationTask
-  result: GenerationResult | null
-}
-
 export interface GenerationResult {
   success: boolean
   profile: any // Full profile content (flexible structure)

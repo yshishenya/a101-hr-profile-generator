@@ -1,0 +1,134 @@
+/**
+ * Unified Profiles Interface Types
+ * Combines position catalog data with profile status and generation tasks
+ */
+
+/**
+ * Unified position with profile status
+ * Merges catalog position, profile data, and generation task status
+ */
+export interface UnifiedPosition {
+  // Position metadata (from catalog)
+  position_id: string
+  position_name: string
+  business_unit_id: string
+  business_unit_name: string
+  department_id?: string
+  department_name: string
+  department_path: string
+
+  // Status (derived from multiple sources)
+  status: PositionStatus
+
+  // Profile data (if generated)
+  profile_id?: number
+  current_version?: number
+  version_count?: number
+  quality_score?: number
+  completeness_score?: number
+  created_at?: string
+  created_by?: string
+
+  // Task data (if generating)
+  task_id?: string
+  progress?: number
+  current_step?: string
+  estimated_duration?: number
+
+  // Actions available (computed based on status)
+  actions: PositionActions
+}
+
+/**
+ * Position status enum
+ */
+export type PositionStatus = 'generated' | 'not_generated' | 'generating'
+
+/**
+ * Available actions for a position
+ * Computed based on current status
+ */
+export interface PositionActions {
+  canView: boolean       // Can open profile viewer
+  canGenerate: boolean   // Can start generation
+  canDownload: boolean   // Can download profile
+  canEdit: boolean       // Can edit profile (Week 7)
+  canCancel: boolean     // Can cancel generation
+  canRegenerate: boolean // Can regenerate profile
+}
+
+/**
+ * Profile version information
+ * Used in version history and comparison
+ */
+export interface ProfileVersion {
+  version_number: number
+  created_at: string
+  created_by: string
+  type: VersionType
+  quality_score: number
+  completeness_score: number
+  changes_summary?: string[]
+  is_current: boolean
+}
+
+/**
+ * Version creation type
+ */
+export type VersionType = 'generated' | 'regenerated' | 'edited'
+
+/**
+ * View mode for profiles page
+ */
+export type ViewMode = 'table' | 'tree'
+
+/**
+ * Filters for profiles list
+ */
+export interface ProfileFilters {
+  search: string
+  department: string | null
+  status: StatusFilter
+}
+
+/**
+ * Status filter options
+ */
+export type StatusFilter = 'all' | 'generated' | 'not_generated' | 'generating'
+
+/**
+ * Version comparison result
+ */
+export interface VersionComparison {
+  v1: ProfileVersion
+  v2: ProfileVersion
+  differences: {
+    added: string[]
+    removed: string[]
+    modified: string[]
+    summary: ChangeDescription[]
+  }
+}
+
+/**
+ * Change description for version comparison
+ */
+export interface ChangeDescription {
+  type: 'added' | 'removed' | 'modified'
+  field: string
+  description: string
+  old_value?: any
+  new_value?: any
+}
+
+/**
+ * Statistics for overview
+ */
+export interface ProfileStatistics {
+  total_positions: number
+  generated_count: number
+  generating_count: number
+  not_generated_count: number
+  coverage_percentage: number
+  last_updated: string
+}

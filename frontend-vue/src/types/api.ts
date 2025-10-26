@@ -13,14 +13,14 @@
 export interface ApiError {
   message: string
   status?: number
-  details?: any
+  details?: Record<string, unknown>
 }
 
 /**
  * Base API response structure - all endpoints extend this
  * Backend BaseResponse model ensures consistent format
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   timestamp?: string
   message?: string
@@ -176,7 +176,7 @@ export interface DashboardStatsResponse {
 /**
  * Type guard to check if response has nested structure
  */
-export function isDashboardStatsResponse(data: any): data is DashboardStatsResponse {
+export function isDashboardStatsResponse(data: unknown): data is DashboardStatsResponse {
   return (
     data &&
     typeof data === 'object' &&

@@ -5,6 +5,7 @@
 
 import axios from 'axios'
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { logger } from '@/utils/logger'
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -28,16 +29,12 @@ api.interceptors.request.use(
     }
 
     // Development logging
-    if (import.meta.env.DEV) {
-      console.log(`→ ${config.method?.toUpperCase()} ${config.url}`, config.data)
-    }
+    logger.debug(`→ ${config.method?.toUpperCase()} ${config.url}`, config.data)
 
     return config
   },
   (error: AxiosError) => {
-    if (import.meta.env.DEV) {
-      console.error('← Request error:', error)
-    }
+    logger.error('Request error', error)
     return Promise.reject(error)
   }
 )
@@ -46,16 +43,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Development logging
-    if (import.meta.env.DEV) {
-      console.log(`← ${response.status} ${response.config.url}`, response.data)
-    }
+    logger.debug(`← ${response.status} ${response.config.url}`, response.data)
     return response
   },
   (error: AxiosError) => {
     // Development logging
-    if (import.meta.env.DEV) {
-      console.error(`← ${error.response?.status || 'NETWORK_ERROR'} ${error.config?.url}`, error.response?.data)
-    }
+    logger.error(
+      `← ${error.response?.status || 'NETWORK_ERROR'} ${error.config?.url}`,
+      error.response?.data
+    )
 
     if (error.response?.status === 401) {
       // Token expired or invalid

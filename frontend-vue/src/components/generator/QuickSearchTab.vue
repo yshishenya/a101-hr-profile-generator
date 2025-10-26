@@ -144,13 +144,11 @@
 import { ref, computed } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { useTaskStatus } from '@/composables/useTaskStatus'
+import { logger } from '@/utils/logger'
 import type { SearchableItem } from '@/stores/catalog'
-import type { GenerationResult } from '@/stores/generator'
+import type { GenerationResultResponse } from '@/types/api'
 import PositionSearchAutocomplete from './PositionSearchAutocomplete.vue'
 import GenerationProgressTracker from './GenerationProgressTracker.vue'
-
-// Constants
-const DEFAULT_TEMPERATURE = 0.7
 
 // Composables
 const generatorStore = useGeneratorStore()
@@ -193,7 +191,7 @@ async function handleGenerate(): Promise<void> {
 
     currentTaskId.value = taskId
   } catch (error: any) {
-    console.error('Failed to start generation:', error)
+    logger.error('Failed to start generation', error)
     // Show error notification (TODO: add notification system)
     alert(`Failed to start generation: ${error.message}`)
   } finally {
@@ -201,13 +199,11 @@ async function handleGenerate(): Promise<void> {
   }
 }
 
-function handleGenerationComplete(result: GenerationResult): void {
+function handleGenerationComplete(result: GenerationResultResponse): void {
   currentTaskId.value = null
   isGenerating.value = false
 
-  if (import.meta.env.DEV) {
-    console.log('Generation completed:', result)
-  }
+  logger.debug('Generation completed', result)
 
   // TODO(developer): Replace with toast notification system (Week 8)
   // For now, rely on the progress tracker dialog for user feedback
@@ -220,9 +216,7 @@ function handleGenerationError(error: string): void {
   currentTaskId.value = null
   isGenerating.value = false
 
-  if (import.meta.env.DEV) {
-    console.error('Generation error:', error)
-  }
+  logger.error('Generation error', error)
 
   // TODO(developer): Replace alert() with toast notification system (Week 8)
   alert(`Generation failed: ${error}`)

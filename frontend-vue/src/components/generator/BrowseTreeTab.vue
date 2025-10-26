@@ -253,12 +253,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useGeneratorStore } from '@/stores/generator'
 import { useTaskStatus } from '@/composables/useTaskStatus'
+import { logger } from '@/utils/logger'
 import type { SearchableItem } from '@/stores/catalog'
 import BaseCard from '@/components/common/BaseCard.vue'
 import OrganizationTree from './OrganizationTree.vue'
 
 // Constants
-const DEFAULT_TEMPERATURE = 0.7
 const POLL_INTERVAL_MS = 2000 // Poll every 2 seconds
 
 // Composables
@@ -294,7 +294,7 @@ async function loadTree(): Promise<void> {
   try {
     await catalogStore.loadOrganizationTree()
   } catch (error) {
-    console.error('Failed to load organization tree:', error)
+    logger.error('Failed to load organization tree', error)
   }
 }
 
@@ -337,9 +337,7 @@ async function handleBulkGenerate(): Promise<void> {
       }
     }, POLL_INTERVAL_MS)
   } catch (error: any) {
-    if (import.meta.env.DEV) {
-      console.error('Failed to start bulk generation:', error)
-    }
+    logger.error('Failed to start bulk generation', error)
     // TODO(developer): Replace alert() with toast notification system (Week 8)
     alert(`Failed to start bulk generation: ${error.message}`)
     isGenerating.value = false

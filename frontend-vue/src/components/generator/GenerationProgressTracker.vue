@@ -129,7 +129,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
-import type { GenerationTask, GenerationResult } from '@/stores/generator'
+import { logger } from '@/utils/logger'
+import type { GenerationTask } from '@/stores/generator'
+import type { GenerationResultResponse } from '@/types/api'
 
 // Constants
 const POLL_INTERVAL_MS = 2000 // Poll every 2 seconds
@@ -143,7 +145,7 @@ const props = defineProps<Props>()
 
 // Emits
 const emit = defineEmits<{
-  'complete': [result: GenerationResult]
+  'complete': [result: GenerationResultResponse]
   'error': [error: string]
   'cancel': []
 }>()
@@ -311,7 +313,7 @@ async function handleCancel(): Promise<void> {
     emit('cancel')
     dialog.value = false
   } catch (error) {
-    console.error('Failed to cancel task:', error)
+    logger.error('Failed to cancel task', error)
   }
 }
 
@@ -319,9 +321,7 @@ function handleClose(): void {
   if (task.value?.status === 'completed' && task.value.result) {
     // TODO(developer): Implement profile view navigation once ProfileView is created (Week 5)
     // Will navigate to profile detail page: router.push(`/profiles/${task.value.result.profile_id}`)
-    if (import.meta.env.DEV) {
-      console.log('Navigate to profile:', task.value.result)
-    }
+    logger.debug('Navigate to profile', task.value.result)
   }
   dialog.value = false
 }

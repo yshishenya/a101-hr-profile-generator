@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { logger } from '@/utils/logger'
 
 /**
  * Application routes configuration
@@ -39,6 +40,14 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/GeneratorView.vue'),
         meta: {
           title: 'Profile Generator'
+        }
+      },
+      {
+        path: 'profiles',
+        name: 'Profiles',
+        component: () => import('@/views/UnifiedProfilesView.vue'),
+        meta: {
+          title: 'Profiles Management'
         }
       }
     ]
@@ -83,9 +92,7 @@ router.beforeEach(async (
   } catch (error) {
     // If initialization fails, treat as unauthenticated
     // This prevents infinite loading and allows user to retry login
-    if (import.meta.env.DEV) {
-      console.error('Auth initialization failed:', error)
-    }
+    logger.error('Auth initialization failed', error)
 
     // Clear any stale state
     authStore.clearError()

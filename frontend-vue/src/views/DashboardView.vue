@@ -268,6 +268,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { logger } from '@/utils/logger'
 import BaseCard from '@/components/common/BaseCard.vue'
 import dashboardService from '@/services/dashboard.service'
 import type { DashboardStats } from '@/types/api'
@@ -316,7 +317,7 @@ async function fetchStats() {
       stats.value = rawData as DashboardStats
     }
   } catch (err: unknown) {
-    console.error('Failed to fetch dashboard stats:', err)
+    logger.error('Failed to fetch dashboard stats', err)
 
     // Safe error message extraction
     const errorMessage = err instanceof Error

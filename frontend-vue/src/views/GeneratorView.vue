@@ -127,6 +127,7 @@
 import { ref, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useGeneratorStore } from '@/stores/generator'
+import { logger } from '@/utils/logger'
 import BaseCard from '@/components/common/BaseCard.vue'
 import QuickSearchTab from '@/components/generator/QuickSearchTab.vue'
 import BrowseTreeTab from '@/components/generator/BrowseTreeTab.vue'
@@ -145,7 +146,7 @@ onMounted(async () => {
   try {
     await catalogStore.loadSearchableItems()
   } catch (error) {
-    console.error('Failed to load catalog data:', error)
+    logger.error('Failed to load catalog data', error)
   } finally {
     isLoading.value = false
   }

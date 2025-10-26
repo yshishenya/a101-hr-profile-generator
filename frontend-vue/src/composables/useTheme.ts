@@ -5,6 +5,7 @@
 
 import { computed, type WritableComputedRef } from 'vue'
 import { useTheme as useVuetifyTheme } from 'vuetify'
+import { logger } from '@/utils/logger'
 
 /**
  * Valid theme names supported by the application
@@ -45,7 +46,7 @@ export function useTheme(): {
         theme.change(themeName)
         localStorage.setItem(THEME_STORAGE_KEY, themeName)
       } catch (error) {
-        console.error('Failed to change theme:', error)
+        logger.error('Failed to change theme', error)
       }
     }
   })
@@ -70,7 +71,7 @@ export function useTheme(): {
       try {
         theme.change(savedTheme)
       } catch (error) {
-        console.error('Failed to initialize theme:', error)
+        logger.error('Failed to initialize theme', error)
       }
     }
   }

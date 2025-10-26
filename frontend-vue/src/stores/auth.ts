@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AxiosError } from 'axios'
 import { authService } from '@/services/auth.service'
+import { logger } from '@/utils/logger'
 import type { User, LoginRequest } from '@/types/auth'
 
 const TOKEN_KEY = 'auth_token'
@@ -74,9 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
       await authService.logout()
     } catch (err) {
       // Log error but continue with local cleanup
-      if (import.meta.env.DEV) {
-        console.error('Logout error:', err)
-      }
+      logger.error('Logout error', err)
     } finally {
       // Clear local state regardless of API result
       token.value = null
@@ -177,9 +176,7 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = false
     localStorage.removeItem(TOKEN_KEY)
 
-    if (import.meta.env.DEV) {
-      console.log('Auth state cleared due to 401 response')
-    }
+    logger.debug('Auth state cleared due to 401 response')
   }
 
   // Listen for unauthorized events from axios interceptor

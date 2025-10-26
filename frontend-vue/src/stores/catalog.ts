@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import api from '@/services/api'
+import { logger } from '@/utils/logger'
 
 // Constants
 const CACHE_KEY = 'org_positions_cache' // Changed from org_catalog_cache to invalidate old business unit cache (BUG-09)
@@ -128,19 +129,14 @@ export const useCatalogStore = defineStore('catalog', () => {
       // Cache the results
       saveToCache(items)
 
-      if (import.meta.env.DEV) {
-        console.log(`✅ Loaded ${items.length} positions from /api/organization/positions`)
-        const withProfiles = items.filter(item => item.profile_exists).length
-        console.log(`   ${withProfiles} positions have profiles (${Math.round(withProfiles/items.length*100)}% coverage)`)
-      }
+      logger.debug(`✅ Loaded ${items.length} positions from /api/organization/positions`)
+      const withProfiles = items.filter(item => item.profile_exists).length
+      logger.debug(`   ${withProfiles} positions have profiles (${Math.round(withProfiles/items.length*100)}% coverage)`)
     } catch (err: unknown) {
       const errorMessage = (err as any).response?.data?.detail ||
                           'Failed to load organization data'
       error.value = errorMessage
-
-      if (import.meta.env.DEV) {
-        console.error('Failed to load searchable items:', err)
-      }
+      logger.error('Failed to load searchable items', err)
 
       throw new CatalogError(errorMessage, 'API_ERROR', err)
     } finally {
@@ -159,9 +155,7 @@ export const useCatalogStore = defineStore('catalog', () => {
       // Backend returns: { success, timestamp, data: { departments: [...] } }
       departments.value = response.data.data.departments
     } catch (err: unknown) {
-      if (import.meta.env.DEV) {
-        console.error('Failed to load departments:', err)
-      }
+      logger.error('Failed to load departments', err)
 
       throw new CatalogError(
         'Failed to load departments',
@@ -183,13 +177,9 @@ export const useCatalogStore = defineStore('catalog', () => {
       // We already have all the data we need from loadSearchableItems()
       organizationTree.value = buildTreeFromItems()
 
-      if (import.meta.env.DEV) {
-        console.log('Organization tree built successfully with', organizationTree.value.length, 'root nodes')
-      }
+      logger.debug('Organization tree built successfully with', organizationTree.value.length, 'root nodes')
     } catch (err: unknown) {
-      if (import.meta.env.DEV) {
-        console.error('Failed to build organization tree:', err)
-      }
+      logger.error('Failed to build organization tree', err)
 
       throw new CatalogError(
         'Failed to build organization tree',
@@ -343,9 +333,7 @@ export const useCatalogStore = defineStore('catalog', () => {
       }
       localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to save to cache:', err)
-      }
+      logger.warn('Failed to save to cache', err)
     }
   }
 
@@ -370,9 +358,7 @@ export const useCatalogStore = defineStore('catalog', () => {
 
       return cacheData
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to load from cache:', err)
-      }
+      logger.warn('Failed to load from cache', err)
       return null
     }
   }

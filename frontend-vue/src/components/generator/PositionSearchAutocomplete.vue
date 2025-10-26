@@ -51,6 +51,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
+import { logger } from '@/utils/logger'
 import type { SearchableItem } from '@/stores/catalog'
 import Fuse from 'fuse.js'
 import { useDebounceFn } from '@vueuse/core'
@@ -159,9 +160,7 @@ const handleSearch = useDebounceFn((query: string) => {
         return a.position_name.localeCompare(b.position_name)
       })
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.error('Search error:', error)
-    }
+    logger.error('Search error', error)
     filteredResults.value = []
   } finally {
     isSearching.value = false

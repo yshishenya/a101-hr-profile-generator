@@ -7,10 +7,10 @@ import api from './api'
 import type {
   GenerationRequest,
   GenerationResponse,
-  TaskStatusResponse,
   GenerationResult,
   GenerationTask
 } from '@/types/generation'
+import type { TaskStatusResponse } from '@/types/api'
 
 /**
  * Start new profile generation task

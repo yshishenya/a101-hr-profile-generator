@@ -2,12 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import api from '@/services/api'
+import { logger } from '@/utils/logger'
 import type { SearchableItem } from './catalog'
-import type { GenerationResultResponse, ProfileData } from '@/types/api'
+import type { GenerationResultResponse } from '@/types/api'
 
 // Constants
 const MAX_CONCURRENT_GENERATIONS = 5
-const DEFAULT_TEMPERATURE = 0.7
 
 // Types
 export interface GenerationResult {
@@ -30,7 +30,7 @@ export interface GenerationTask {
   progress?: number
   current_step?: string
   estimated_duration?: number
-  result?: GenerationResult
+  result?: GenerationResultResponse
   error?: string
   created_at: Date
 }
@@ -161,9 +161,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       activeTasks.value.set(task_id, task)
       return task_id
     } catch (error: unknown) {
-      if (import.meta.env.DEV) {
-        console.error('Failed to start generation:', error)
-      }
+      logger.error('Failed to start generation', error)
 
       throw new GenerationError(
         (error as any).response?.data?.detail || 'Failed to start generation',
@@ -212,9 +210,7 @@ export const useGeneratorStore = defineStore('generator', () => {
         await getTaskResult(taskId)
       }
     } catch (error: unknown) {
-      if (import.meta.env.DEV) {
-        console.error(`Failed to poll task ${taskId}:`, error)
-      }
+      logger.error(`Failed to poll task ${taskId}`, error)
 
       const existingTask = activeTasks.value.get(taskId)
       if (existingTask) {
@@ -234,7 +230,7 @@ export const useGeneratorStore = defineStore('generator', () => {
    * @returns The generated profile result
    * @throws GenerationError if result cannot be retrieved
    */
-  async function getTaskResult(taskId: string): Promise<GenerationResult> {
+  async function getTaskResult(taskId: string): Promise<GenerationResultResponse> {
     if (!taskId?.trim()) {
       throw new GenerationError(
         'Task ID is required',
@@ -259,9 +255,7 @@ export const useGeneratorStore = defineStore('generator', () => {
 
       return result
     } catch (error: unknown) {
-      if (import.meta.env.DEV) {
-        console.error(`Failed to get result for task ${taskId}:`, error)
-      }
+      logger.error(`Failed to get result for task ${taskId}`, error)
 
       throw new GenerationError(
         'Failed to retrieve generation result',
@@ -289,9 +283,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       await api.delete(`/api/generation/${taskId}`)
       activeTasks.value.delete(taskId)
     } catch (error: unknown) {
-      if (import.meta.env.DEV) {
-        console.error(`Failed to cancel task ${taskId}:`, error)
-      }
+      logger.error(`Failed to cancel task ${taskId}`, error)
 
       throw new GenerationError(
         'Failed to cancel generation task',
@@ -360,9 +352,7 @@ export const useGeneratorStore = defineStore('generator', () => {
         })
         taskIds.push(taskId)
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error(`Failed to start generation for ${position.position_name}:`, error)
-        }
+        logger.error(`Failed to start generation for ${position.position_name}`, error)
       }
 
       await processNext()

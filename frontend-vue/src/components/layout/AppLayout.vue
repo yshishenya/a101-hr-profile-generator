@@ -23,12 +23,11 @@ const menuItems = [
     icon: 'mdi-account-plus-outline',
     route: '/generator',
   },
-  // Future routes (Week 5+)
-  // {
-  //   title: 'Profiles Library',
-  //   icon: 'mdi-format-list-bulleted',
-  //   route: '/profiles',
-  // },
+  {
+    title: 'Profiles Management',
+    icon: 'mdi-briefcase-outline',
+    route: '/profiles',
+  },
 ]
 </script>
 

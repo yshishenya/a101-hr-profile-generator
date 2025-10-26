@@ -12,6 +12,7 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       # Docker specific overrides
+      - BASE_DATA_PATH=/app
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-docker-dev-secret-key-a101hr-system}
     volumes:
       # Монтируем код для разработки с hot-reload
