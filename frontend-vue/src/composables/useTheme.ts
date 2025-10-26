@@ -12,8 +12,9 @@ export function useTheme() {
   const isDark = computed({
     get: () => theme.global.current.value.dark,
     set: (value: boolean) => {
-      theme.global.name.value = value ? 'dark' : 'light'
-      localStorage.setItem('theme', value ? 'dark' : 'light')
+      const themeName = value ? 'dark' : 'light'
+      theme.change(themeName)
+      localStorage.setItem('theme', themeName)
     }
   })
 
@@ -24,7 +25,7 @@ export function useTheme() {
   const initTheme = () => {
     const savedTheme = localStorage.getItem('theme')
     if (savedTheme) {
-      theme.global.name.value = savedTheme
+      theme.change(savedTheme)
     }
   }
 
