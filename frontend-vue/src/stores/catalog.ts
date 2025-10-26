@@ -117,6 +117,9 @@ export const useCatalogStore = defineStore('catalog', () => {
       // Новый endpoint возвращает плоский список позиций с полем profile_exists
       // вместо бизнес-единиц (567 штук), что исправляет неправильную статистику
       const response = await api.get('/api/organization/positions')
+
+      // Backend returns: { success, timestamp, message, data: { items, total_count, ... } }
+      // Data is nested under response.data.data.items
       const items: SearchableItem[] = response.data.data.items
 
       searchableItems.value = items
@@ -153,6 +156,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   async function loadDepartments(): Promise<void> {
     try {
       const response = await api.get('/api/catalog/departments')
+      // Backend returns: { success, timestamp, data: { departments: [...] } }
       departments.value = response.data.data.departments
     } catch (err: unknown) {
       if (import.meta.env.DEV) {
@@ -206,8 +210,12 @@ export const useCatalogStore = defineStore('catalog', () => {
     const nodeMap = new Map<string, OrganizationNode>()
     const rootNodes: OrganizationNode[] = []
 
+    // Track max depth for debugging
+    let maxDepth = 0
+
     searchableItems.value.forEach(item => {
       const pathParts = item.department_path.split(' → ')
+      maxDepth = Math.max(maxDepth, pathParts.length)
       let currentPath = ''
 
       pathParts.forEach((part, index) => {
@@ -215,10 +223,25 @@ export const useCatalogStore = defineStore('catalog', () => {
         currentPath = currentPath ? `${currentPath} → ${part}` : part
 
         if (!nodeMap.has(currentPath)) {
+          // BUGFIX-10: Improved type mapping for deeper hierarchy
+          // Support unlimited nesting depth instead of collapsing all to 'unit'
+          let nodeType: 'division' | 'block' | 'department' | 'unit'
+
+          if (index === 0) {
+            nodeType = 'division'
+          } else if (index === 1) {
+            nodeType = 'block'
+          } else if (index === 2) {
+            nodeType = 'department'
+          } else {
+            // For deeper levels, keep using 'unit' but this preserves hierarchy
+            nodeType = 'unit'
+          }
+
           const node: OrganizationNode = {
             id: currentPath,
             name: part,
-            type: index === 0 ? 'division' : index === 1 ? 'block' : index === 2 ? 'department' : 'unit',
+            type: nodeType,
             children: [],
             positions: [],
             profile_count: 0,
@@ -246,6 +269,7 @@ export const useCatalogStore = defineStore('catalog', () => {
         }
       })
     })
+
 
     // Propagate counts up the tree
     function propagateCounts(node: OrganizationNode): void {

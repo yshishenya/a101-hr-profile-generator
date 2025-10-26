@@ -9,20 +9,20 @@ import os
 from pathlib import Path
 from typing import Optional
 
-# # Загружаем переменные из .env файла
-# try:
-#     from dotenv import load_dotenv
+# Загружаем переменные из .env файла
+try:
+    from dotenv import load_dotenv
 
-#     # Ищем .env файл в корне проекта
-#     env_path = Path(__file__).parent.parent.parent / ".env"
-#     if env_path.exists():
-#         load_dotenv(env_path)
-#         print(f"✅ Loaded environment from: {env_path}")
-#     else:
-#         print(f"⚠️  .env file not found at: {env_path}")
+    # Ищем .env файл в корне проекта
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✅ Loaded environment from: {env_path}")
+    else:
+        print(f"⚠️  .env file not found at: {env_path}")
 
-# except ImportError:
-#     print("📦 python-dotenv not installed, using system environment variables only")
+except ImportError:
+    print("📦 python-dotenv not installed, using system environment variables only")
 
 
 class Config:
@@ -153,6 +153,34 @@ class Config:
     TRUSTED_HOSTS: list = os.getenv(
         "TRUSTED_HOSTS", "localhost,127.0.0.1,0.0.0.0,49.12.122.181"
     ).split(",")
+
+    # =============================================================================
+    # API Constants
+    # =============================================================================
+
+    # Generation defaults
+    DEFAULT_GENERATION_TIMEOUT_SECONDS: int = 300  # 5 minutes
+    DEFAULT_GENERATION_TEMPERATURE: float = 0.1
+    MAX_CONCURRENT_GENERATIONS: int = 5
+
+    # Pagination defaults
+    DEFAULT_PAGE_SIZE: int = 20
+    MAX_PAGE_SIZE: int = 100
+
+    # Cache TTL (in seconds)
+    CACHE_TTL_DEPARTMENTS: int = 3600  # 1 hour
+    CACHE_TTL_POSITIONS: int = 1800  # 30 minutes
+    CACHE_TTL_ORGANIZATION: int = 7200  # 2 hours
+
+    # Rate limiting (requests per minute)
+    RATE_LIMIT_GENERATION: int = 10
+    RATE_LIMIT_API: int = 60
+
+    # Validation limits
+    MIN_DEPARTMENT_NAME_LENGTH: int = 2
+    MAX_DEPARTMENT_NAME_LENGTH: int = 200
+    MIN_POSITION_NAME_LENGTH: int = 2
+    MAX_POSITION_NAME_LENGTH: int = 200
 
     # =============================================================================
     # Пути к данным

@@ -145,16 +145,6 @@
                 </v-list>
               </div>
 
-              <!-- Generation configuration -->
-              <v-divider class="my-4" />
-
-              <GenerationForm
-                v-model:temperature="temperature"
-                v-model:employee-name="employeeName"
-              />
-
-              <v-divider class="my-4" />
-
               <!-- Actions -->
               <div class="d-flex flex-column gap-2">
                 <v-btn
@@ -266,7 +256,6 @@ import { useTaskStatus } from '@/composables/useTaskStatus'
 import type { SearchableItem } from '@/stores/catalog'
 import BaseCard from '@/components/common/BaseCard.vue'
 import OrganizationTree from './OrganizationTree.vue'
-import GenerationForm from './GenerationForm.vue'
 
 // Constants
 const DEFAULT_TEMPERATURE = 0.7
@@ -282,8 +271,6 @@ const treeRef = ref<InstanceType<typeof OrganizationTree> | null>(null)
 
 // State
 const selectedPositions = ref<SearchableItem[]>([])
-const temperature = ref<number>(DEFAULT_TEMPERATURE)
-const employeeName = ref<string>('')
 const isGenerating = ref(false)
 const showBulkProgress = ref(false)
 

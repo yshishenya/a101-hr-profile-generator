@@ -25,6 +25,10 @@ async def test_api_endpoints():
             return
 
         data = response.json()
+        # Check BaseResponse format
+        assert "success" in data, "Response missing 'success' field"
+        assert "timestamp" in data, "Response missing 'timestamp' field"
+
         if not data.get("success"):
             print(f"❌ Login unsuccessful: {data}")
             return
@@ -49,6 +53,10 @@ async def test_api_endpoints():
 
                 if resp.status_code == 200:
                     result = resp.json()
+                    # Verify BaseResponse format
+                    assert result.get("success") == True, f"{endpoint}: Response missing 'success=True'"
+                    assert "timestamp" in result, f"{endpoint}: Response missing 'timestamp'"
+
                     if endpoint == "/api/organization/search-items":
                         items_count = len(result.get("data", {}).get("items", []))
                         print(f"   Search items: {items_count}")

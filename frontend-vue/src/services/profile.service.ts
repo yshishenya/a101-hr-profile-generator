@@ -35,6 +35,7 @@ export interface ListProfilesParams extends PaginationParams, FilterParams {}
  */
 export async function listProfiles(params?: ListProfilesParams): Promise<ProfilesListResponse> {
   const response = await api.get<ProfilesListResponse>('/api/profiles/', { params })
+  // Backend returns: { success, timestamp, data: { items, pagination } }
   return response.data
 }
 
@@ -52,6 +53,7 @@ export async function listProfiles(params?: ListProfilesParams): Promise<Profile
  */
 export async function getProfile(id: string): Promise<ProfileDetail> {
   const response = await api.get<ProfileDetail>(`/api/profiles/${id}`)
+  // Backend returns: { success, timestamp, data: ProfileDetail }
   return response.data
 }
 
@@ -71,6 +73,7 @@ export async function getProfile(id: string): Promise<ProfileDetail> {
  */
 export async function updateProfile(id: string, data: ProfileUpdateRequest): Promise<Profile> {
   const response = await api.put<Profile>(`/api/profiles/${id}`, data)
+  // Backend returns: { success, timestamp, data: Profile }
   return response.data
 }
 
@@ -102,6 +105,7 @@ export async function archiveProfile(id: string): Promise<void> {
  */
 export async function restoreProfile(id: string): Promise<Profile> {
   const response = await api.post<Profile>(`/api/profiles/${id}/restore`)
+  // Backend returns: { success, timestamp, data: Profile }
   return response.data
 }
 

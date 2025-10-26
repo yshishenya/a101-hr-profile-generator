@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import api from '@/services/api'
 import type { SearchableItem } from './catalog'
+import type { GenerationResultResponse, ProfileData } from '@/types/api'
 
 // Constants
 const MAX_CONCURRENT_GENERATIONS = 5
@@ -42,10 +43,7 @@ export interface GenerationRequest {
   employee_name?: string
 }
 
-export interface GenerationConfig {
-  temperature: number
-  employee_name: string
-}
+// Note: GenerationConfig removed - settings now managed via Langfuse
 
 class GenerationError extends Error {
   constructor(
@@ -62,10 +60,6 @@ export const useGeneratorStore = defineStore('generator', () => {
   // State
   const activeTasks: Ref<Map<string, GenerationTask>> = ref(new Map())
   const selectedPosition: Ref<SearchableItem | null> = ref(null)
-  const generationConfig: Ref<GenerationConfig> = ref({
-    temperature: DEFAULT_TEMPERATURE,
-    employee_name: ''
-  })
 
   // Computed
   const hasPendingTasks = computed(() => {
@@ -144,14 +138,14 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     try {
       const response = await api.post('/api/generation/start', {
-        position_id: request.position_id,
-        position_name: request.position_name,
-        business_unit_name: request.business_unit_name,
-        temperature: request.temperature ?? generationConfig.value.temperature,
-        employee_name: request.employee_name ?? generationConfig.value.employee_name
+        department: request.business_unit_name,
+        position: request.position_name
+        // Note: temperature and employee_name removed - using Langfuse defaults
       })
 
-      const { task_id, estimated_duration } = response.data.data
+      // Backend returns: { success, timestamp, message, task_id, status, estimated_duration }
+      // NOT wrapped in data field for generation endpoints
+      const { task_id, estimated_duration } = response.data
 
       const task: GenerationTask = {
         task_id,
@@ -196,7 +190,9 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     try {
       const response = await api.get(`/api/generation/${taskId}/status`)
-      const statusData = response.data.data
+      // Backend returns: { success, timestamp, task: {...}, result: {...} }
+      // Task status is in response.data.task field
+      const statusData = response.data.task
 
       const existingTask = activeTasks.value.get(taskId)
       if (!existingTask) return
@@ -206,7 +202,7 @@ export const useGeneratorStore = defineStore('generator', () => {
         status: statusData.status,
         progress: statusData.progress,
         current_step: statusData.current_step,
-        error: statusData.error
+        error: statusData.error_message
       }
 
       activeTasks.value.set(taskId, updatedTask)
@@ -247,8 +243,9 @@ export const useGeneratorStore = defineStore('generator', () => {
     }
 
     try {
-      const response = await api.get(`/api/generation/${taskId}/result`)
-      const result: GenerationResult = response.data.data
+      const response = await api.get<GenerationResultResponse>(`/api/generation/${taskId}/result`)
+      // Backend returns BaseResponse with profile data
+      const result = response.data
 
       const existingTask = activeTasks.value.get(taskId)
       if (existingTask) {
@@ -326,18 +323,6 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   /**
-   * Update generation configuration settings
-   *
-   * @param config - Partial configuration to merge with current settings
-   */
-  function updateConfig(config: Partial<GenerationConfig>): void {
-    generationConfig.value = {
-      ...generationConfig.value,
-      ...config
-    }
-  }
-
-  /**
    * Start bulk profile generation for multiple positions
    * Processes positions with controlled concurrency to prevent API overload
    *
@@ -396,7 +381,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     // State
     activeTasks,
     selectedPosition,
-    generationConfig,
 
     // Computed
     hasPendingTasks,
@@ -412,7 +396,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     cancelTask,
     clearCompleted,
     setSelectedPosition,
-    updateConfig,
     startBulkGeneration
   }
 })

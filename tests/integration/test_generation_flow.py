@@ -26,6 +26,10 @@ class GenerationFlowTester:
 
             if response.status_code == 200:
                 data = response.json()
+                # Verify BaseResponse format
+                assert "success" in data, "Login response missing 'success' field"
+                assert "timestamp" in data, "Login response missing 'timestamp' field"
+
                 if data.get("success"):
                     self.token = data.get("access_token")
                     return True
@@ -49,6 +53,10 @@ class GenerationFlowTester:
 
             if response.status_code == 200:
                 data = response.json()
+                # Verify BaseResponse format
+                assert data.get("success") == True, "Search response missing 'success=True'"
+                assert "timestamp" in data, "Search response missing 'timestamp'"
+
                 items = data.get("data", {}).get("items", [])
                 print(f"✅ Found {len(items)} search items")
 
@@ -82,7 +90,11 @@ class GenerationFlowTester:
 
             if response.status_code == 200:
                 data = response.json()
-                if data.get("task_id"):
+                # Verify BaseResponse format
+                assert "success" in data, "Generation start response missing 'success' field"
+                assert "timestamp" in data, "Generation start response missing 'timestamp'"
+
+                if data.get("success") and data.get("task_id"):
                     task_id = data.get("task_id")
                     print(f"✅ Generation started, task ID: {task_id[:8]}...")
                     return task_id
@@ -112,6 +124,9 @@ class GenerationFlowTester:
 
                     if response.status_code == 200:
                         data = response.json()
+                        # Verify BaseResponse format
+                        assert data.get("success") == True, "Status response missing 'success=True'"
+
                         task_data = data.get("task", {})
                         status = task_data.get("status")
                         progress = task_data.get("progress", 0)
@@ -156,6 +171,10 @@ class GenerationFlowTester:
 
             if response.status_code == 200:
                 data = response.json()
+                # Verify BaseResponse format
+                assert "success" in data, "Result response missing 'success' field"
+                assert "timestamp" in data, "Result response missing 'timestamp'"
+
                 if data.get("success") and data.get("profile"):
                     profile = data.get("profile", {})
                     metadata = data.get("metadata", {})
@@ -249,6 +268,10 @@ class GenerationFlowTester:
 
             if response.status_code == 200:
                 data = response.json()
+                # Verify BaseResponse format
+                assert data.get("success") == True, "Profiles list response missing 'success=True'"
+                assert "timestamp" in data, "Profiles list response missing 'timestamp'"
+
                 profiles = data.get("profiles", [])
                 pagination = data.get("pagination", {})
 

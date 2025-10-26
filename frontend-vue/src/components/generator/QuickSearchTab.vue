@@ -41,15 +41,7 @@
               </v-alert>
             </div>
 
-            <!-- Step 2: Configuration -->
-            <div v-if="selectedPosition" class="mb-6">
-              <GenerationForm
-                v-model:temperature="temperature"
-                v-model:employee-name="employeeName"
-              />
-            </div>
-
-            <!-- Step 3: Generate -->
+            <!-- Step 2: Generate -->
             <div v-if="selectedPosition">
               <v-btn
                 :loading="isGenerating"
@@ -91,7 +83,6 @@
                 <li>Use fuzzy search - try abbreviations or partial names</li>
                 <li>Positions without profiles are prioritized in results</li>
                 <li>Generation typically takes 15-30 seconds</li>
-                <li>You can adjust temperature for more creative profiles</li>
               </ul>
             </v-alert>
 
@@ -156,7 +147,6 @@ import { useTaskStatus } from '@/composables/useTaskStatus'
 import type { SearchableItem } from '@/stores/catalog'
 import type { GenerationResult } from '@/stores/generator'
 import PositionSearchAutocomplete from './PositionSearchAutocomplete.vue'
-import GenerationForm from './GenerationForm.vue'
 import GenerationProgressTracker from './GenerationProgressTracker.vue'
 
 // Constants
@@ -168,8 +158,6 @@ const { getTaskStatusColor, getTaskStatusIcon } = useTaskStatus()
 
 // State
 const selectedPosition = ref<SearchableItem | null>(null)
-const temperature = ref<number>(DEFAULT_TEMPERATURE)
-const employeeName = ref<string>('')
 const isGenerating = ref<boolean>(false)
 const currentTaskId = ref<string | null>(null)
 
@@ -200,9 +188,7 @@ async function handleGenerate(): Promise<void> {
     const taskId = await generatorStore.startGeneration({
       position_id: selectedPosition.value.position_id,
       position_name: selectedPosition.value.position_name,
-      business_unit_name: selectedPosition.value.business_unit_name,
-      temperature: temperature.value,
-      employee_name: employeeName.value || undefined
+      business_unit_name: selectedPosition.value.business_unit_name
     })
 
     currentTaskId.value = taskId
@@ -228,7 +214,6 @@ function handleGenerationComplete(result: GenerationResult): void {
 
   // Reset form for next generation
   selectedPosition.value = null
-  employeeName.value = ''
 }
 
 function handleGenerationError(error: string): void {

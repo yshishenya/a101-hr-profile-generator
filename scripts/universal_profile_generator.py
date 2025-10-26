@@ -529,6 +529,11 @@ class UniversalAPIClient:
             async with self.session.post(f"{self.base_url}/api/auth/login", json=auth_data) as resp:
                 if resp.status == 200:
                     result = await resp.json()
+                    # Verify BaseResponse format
+                    if not result.get('success'):
+                        logger.error(f"❌ Аутентификация не удалась: {result.get('message', 'Unknown error')}")
+                        return False
+
                     self.auth_token = result.get('access_token')
                     logger.info("🔑 Получен JWT токен через аутентификацию")
                     return True
@@ -575,9 +580,19 @@ class UniversalAPIClient:
                 ) as resp:
                     if resp.status == 200:
                         result = await resp.json()
+                        # Verify BaseResponse format
+                        if not result.get('success'):
+                            error_msg = result.get('message', 'Unknown error')
+                            logger.error(f"❌ Ошибка запуска генерации {position}: {error_msg}")
+                            return None
+
                         task_id = result.get('task_id')
-                        logger.info(f"🚀 Запущена генерация: {position} в {department_path} (task: {task_id[:8]}...)")
-                        return task_id
+                        if task_id:
+                            logger.info(f"🚀 Запущена генерация: {position} в {department_path} (task: {task_id[:8]}...)")
+                            return task_id
+                        else:
+                            logger.error(f"❌ Нет task_id в ответе для {position}")
+                            return None
                     else:
                         error_text = await resp.text()
                         logger.error(f"❌ Ошибка запуска генерации {position}: HTTP {resp.status} - {error_text}")
@@ -628,7 +643,11 @@ class UniversalAPIClient:
                     headers=headers
                 ) as resp:
                     if resp.status == 200:
-                        return await resp.json()
+                        result = await resp.json()
+                        # Verify BaseResponse format (status endpoint should return success=True)
+                        if not result.get('success'):
+                            return {"status": "error", "error": result.get('message', 'Status check failed')}
+                        return result
                     else:
                         error_text = await resp.text()
                         return {"status": "error", "error": f"HTTP {resp.status}: {error_text}"}

@@ -50,13 +50,18 @@ def test_authentication():
             result = response.json()
             print("✅ Аутентификация успешна!")
 
-            # Проверяем структуру ответа
+            # Проверяем структуру ответа (BaseResponse format)
             if result.get("success") and result.get("access_token"):
+                # Verify BaseResponse fields
+                if "timestamp" not in result:
+                    print("⚠️  Предупреждение: отсутствует поле 'timestamp' в BaseResponse")
+
                 print(f"✅ Получен JWT токен: {result['access_token'][:50]}...")
                 print(f"✅ Пользователь: {result['user_info']['username']}")
                 print(f"✅ Полное имя: {result['user_info']['full_name']}")
                 print(f"✅ Token type: {result['token_type']}")
                 print(f"✅ Expires in: {result['expires_in']} секунд")
+                print(f"✅ Timestamp: {result.get('timestamp', 'N/A')}")
 
                 return True
             else:

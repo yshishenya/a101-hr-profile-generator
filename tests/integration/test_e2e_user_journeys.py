@@ -136,7 +136,12 @@ class TestE2EUserJourneys:
 
                 if response.status_code == 200:
                     data = response.json()
-                    return data["access_token"]
+                    # Verify BaseResponse format
+                    if data.get("success") and data.get("access_token"):
+                        return data["access_token"]
+                    else:
+                        logger.warning(f"Auth response missing expected fields: {data}")
+                        return "test_token_12345"
                 else:
                     # Fallback to test token
                     return "test_token_12345"

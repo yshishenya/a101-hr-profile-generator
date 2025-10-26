@@ -46,6 +46,8 @@ export interface MinimalStats {
  */
 export async function getStats(): Promise<DashboardStats> {
   const response = await api.get<DashboardStats>('/api/dashboard/stats')
+  // Backend returns nested structure: { success, timestamp, summary: {...}, metadata: {...} }
+  // The DashboardView component handles flattening this structure
   return response.data
 }
 
@@ -62,6 +64,7 @@ export async function getStats(): Promise<DashboardStats> {
  */
 export async function getMinimalStats(): Promise<MinimalStats> {
   const response = await api.get<MinimalStats>('/api/dashboard/stats/minimal')
+  // Backend returns: { success, timestamp, active_tasks_count, last_updated }
   return response.data
 }
 
@@ -81,6 +84,7 @@ export async function getMinimalStats(): Promise<MinimalStats> {
  */
 export async function getActivity(): Promise<ActivityStats> {
   const response = await api.get<ActivityStats>('/api/dashboard/stats/activity')
+  // Backend returns: { success, timestamp, data: { recent_tasks, hourly_stats } }
   return response.data
 }
 

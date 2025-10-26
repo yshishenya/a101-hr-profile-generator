@@ -21,6 +21,12 @@ from ..core.config import config
 from ..core.profile_generator import ProfileGenerator
 from .auth import get_current_user
 from ..models.database import get_db_manager
+from ..models.schemas import (
+    GenerationStartResponse,
+    GenerationTaskData,
+    GenerationStatusResponse,
+    GenerationResultResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +226,7 @@ async def save_generation_to_db(
         logger.error(f"❌ Failed to save generation to DB: {e}")
 
 
-@router.post("/start", response_model=GenerationResponse)
+@router.post("/start", response_model=GenerationStartResponse)
 async def start_generation(
     request: GenerationRequest,
     current_user=Depends(get_current_user),
@@ -285,15 +291,16 @@ async def start_generation(
         f"🚀 Started generation task {task_id} for user {current_user['username']}"
     )
 
-    return GenerationResponse(
+    return GenerationStartResponse(
+        success=True,
+        message=f"Генерация профиля '{request.position}' в '{request.department}' запущена",
         task_id=task_id,
         status="queued",
-        message=f"Генерация профиля '{request.position}' в '{request.department}' запущена",
         estimated_duration=estimated_duration,
     )
 
 
-@router.get("/{task_id}/status", response_model=TaskStatusResponse)
+@router.get("/{task_id}/status", response_model=GenerationStatusResponse)
 async def get_task_status(task_id: str, current_user=Depends(get_current_user)):
     """
     Получение статуса задачи генерации
@@ -349,13 +356,18 @@ async def get_task_status(task_id: str, current_user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Нет доступа к этой задаче")
 
     # Формируем ответ
-    task = GenerationTask(**task_data)
-    result = _task_results.get(task_id) if task.status == "completed" else None
+    task = GenerationTaskData(**task_data)
+    result = _task_results.get(task_id) if task_data["status"] == "completed" else None
 
-    return TaskStatusResponse(task=task, result=result)
+    return GenerationStatusResponse(
+        success=True,
+        message=f"Статус задачи: {task_data['status']}",
+        task=task,
+        result=result,
+    )
 
 
-@router.get("/{task_id}/result")
+@router.get("/{task_id}/result", response_model=GenerationResultResponse)
 async def get_task_result(task_id: str, current_user=Depends(get_current_user)):
     """
     Получение результата генерации профиля
@@ -422,7 +434,15 @@ async def get_task_result(task_id: str, current_user=Depends(get_current_user)):
     if task_id not in _task_results:
         raise HTTPException(status_code=404, detail="Результат не найден")
 
-    return _task_results[task_id]
+    result = _task_results[task_id]
+
+    return GenerationResultResponse(
+        success=result.get("success", True),
+        message="Результат генерации получен",
+        profile=result.get("profile", {}),
+        metadata=result.get("metadata", {}),
+        errors=result.get("errors", []),
+    )
 
 
 @router.delete("/{task_id}")

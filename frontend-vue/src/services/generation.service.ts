@@ -31,6 +31,8 @@ import type {
  */
 export async function startGeneration(request: GenerationRequest): Promise<GenerationResponse> {
   const response = await api.post<GenerationResponse>('/api/generation/start', request)
+  // Backend returns: { success, timestamp, message, task_id, status, estimated_duration }
+  // Fields are at root level, not nested in data
   return response.data
 }
 
@@ -50,6 +52,8 @@ export async function startGeneration(request: GenerationRequest): Promise<Gener
  */
 export async function getTaskStatus(taskId: string): Promise<TaskStatusResponse> {
   const response = await api.get<TaskStatusResponse>(`/api/generation/${taskId}/status`)
+  // Backend returns: { success, timestamp, task: {...}, result: {...} }
+  // Task data is nested under 'task' field
   return response.data
 }
 
@@ -68,6 +72,7 @@ export async function getTaskStatus(taskId: string): Promise<TaskStatusResponse>
  */
 export async function getTaskResult(taskId: string): Promise<GenerationResult> {
   const response = await api.get<GenerationResult>(`/api/generation/${taskId}/result`)
+  // Backend returns raw result object directly (not wrapped in BaseResponse)
   return response.data
 }
 
@@ -99,6 +104,7 @@ export async function cancelTask(taskId: string): Promise<void> {
  */
 export async function getActiveTasks(): Promise<GenerationTask[]> {
   const response = await api.get<GenerationTask[]>('/api/generation/tasks/active')
+  // Backend returns array directly (not wrapped in BaseResponse for this endpoint)
   return response.data
 }
 

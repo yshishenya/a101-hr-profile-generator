@@ -13,7 +13,27 @@ from fastapi import APIRouter, Query, Path, HTTPException, Depends, status
 from typing import List, Dict, Any, Optional
 import logging
 
-from ..models.schemas import BaseResponse, ErrorResponse
+from ..models.schemas import (
+    BaseResponse,
+    ErrorResponse,
+    CatalogDepartmentsResponse,
+    CatalogDepartmentsData,
+    CatalogDepartment,
+    CatalogDepartmentDetailsResponse,
+    CatalogDepartmentDetails,
+    CatalogPositionsResponse,
+    CatalogPositionsData,
+    CatalogPosition,
+    CatalogSearchResponse,
+    CatalogSearchData,
+    CatalogSearchBreakdown,
+    CatalogStatsResponse,
+    CatalogStatsData,
+    CatalogDepartmentsStats,
+    CatalogPositionsStats,
+    CatalogCacheStatus,
+    CatalogStatistics,
+)
 from ..api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -30,7 +50,7 @@ def get_catalog_service():
 catalog_router = APIRouter(prefix="/api/catalog", tags=["Catalog"])
 
 
-@catalog_router.get("/departments", response_model=Dict[str, Any])
+@catalog_router.get("/departments", response_model=CatalogDepartmentsResponse)
 async def get_departments(
     force_refresh: bool = Query(False, description="Принудительное обновление кеша"),
     current_user: dict = Depends(get_current_user),
@@ -84,18 +104,21 @@ async def get_departments(
         )
 
         catalog_service = get_catalog_service()
-        departments = catalog_service.get_departments(force_refresh=force_refresh)
+        departments_raw = catalog_service.get_departments(force_refresh=force_refresh)
 
-        response = {
-            "success": True,
-            "message": f"Найдено {len(departments)} департаментов",
-            "data": {
-                "departments": departments,
-                "total_count": len(departments),
-                "cached": not force_refresh,
-                "last_updated": departments[0]["last_updated"] if departments else None,
-            },
-        }
+        # Конвертируем в типизированные модели
+        departments = [CatalogDepartment(**dept) for dept in departments_raw]
+
+        response = CatalogDepartmentsResponse(
+            success=True,
+            message=f"Найдено {len(departments)} департаментов",
+            data=CatalogDepartmentsData(
+                departments=departments,
+                total_count=len(departments),
+                cached=not force_refresh,
+                last_updated=departments[0].last_updated if departments else None,
+            ),
+        )
 
         logger.info(f"Successfully returned {len(departments)} departments")
         return response
@@ -108,7 +131,7 @@ async def get_departments(
         )
 
 
-@catalog_router.get("/departments/{department_name}", response_model=Dict[str, Any])
+@catalog_router.get("/departments/{department_name}", response_model=CatalogDepartmentDetailsResponse)
 async def get_department_details(
     department_name: str = Path(..., description="Название департамента"),
     current_user: dict = Depends(get_current_user),
@@ -176,19 +199,32 @@ async def get_department_details(
         )
 
         catalog_service = get_catalog_service()
-        department_details = catalog_service.get_department_details(department_name)
+        department_details_raw = catalog_service.get_department_details(department_name)
 
-        if not department_details:
+        if not department_details_raw:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Департамент '{department_name}' не найден",
             )
 
-        response = {
-            "success": True,
-            "message": f"Информация о департаменте '{department_name}' получена",
-            "data": department_details,
-        }
+        # Конвертируем в типизированные модели
+        positions_typed = [CatalogPosition(**pos) for pos in department_details_raw["positions"]]
+        statistics_typed = CatalogStatistics(**department_details_raw["statistics"])
+
+        department_details = CatalogDepartmentDetails(
+            name=department_details_raw["name"],
+            display_name=department_details_raw["display_name"],
+            path=department_details_raw["path"],
+            positions_count=department_details_raw["positions_count"],
+            positions=positions_typed,
+            statistics=statistics_typed,
+        )
+
+        response = CatalogDepartmentDetailsResponse(
+            success=True,
+            message=f"Информация о департаменте '{department_name}' получена",
+            data=department_details,
+        )
 
         logger.info(f"Successfully returned details for department '{department_name}'")
         return response
@@ -203,7 +239,7 @@ async def get_department_details(
         )
 
 
-@catalog_router.get("/positions/{department}", response_model=Dict[str, Any])
+@catalog_router.get("/positions/{department}", response_model=CatalogPositionsResponse)
 async def get_positions(
     department: str = Path(..., description="Название департамента"),
     force_refresh: bool = Query(False, description="Принудительное обновление кеша"),
@@ -268,36 +304,41 @@ async def get_positions(
         )
 
         catalog_service = get_catalog_service()
-        positions = catalog_service.get_positions(
+        positions_raw = catalog_service.get_positions(
             department, force_refresh=force_refresh
         )
 
-        if not positions:
+        if not positions_raw:
             logger.warning(f"No positions found for department '{department}'")
+
+        # Конвертируем в типизированные модели
+        positions = [CatalogPosition(**pos) for pos in positions_raw]
 
         # Группировка по уровням для аналитики
         levels_stats = {}
         categories_stats = {}
 
         for position in positions:
-            level = position["level"]
-            category = position["category"]
+            level = position.level
+            category = position.category
 
             levels_stats[level] = levels_stats.get(level, 0) + 1
             categories_stats[category] = categories_stats.get(category, 0) + 1
 
-        response = {
-            "success": True,
-            "message": f"Найдено {len(positions)} должностей для департамента '{department}'",
-            "data": {
-                "department": department,
-                "positions": positions,
-                "total_count": len(positions),
-                "statistics": {"levels": levels_stats, "categories": categories_stats},
-                "cached": not force_refresh,
-                "last_updated": positions[0]["last_updated"] if positions else None,
-            },
-        }
+        statistics = CatalogStatistics(levels=levels_stats, categories=categories_stats)
+
+        response = CatalogPositionsResponse(
+            success=True,
+            message=f"Найдено {len(positions)} должностей для департамента '{department}'",
+            data=CatalogPositionsData(
+                department=department,
+                positions=positions,
+                total_count=len(positions),
+                statistics=statistics,
+                cached=not force_refresh,
+                last_updated=positions[0].last_updated if positions else None,
+            ),
+        )
 
         logger.info(
             f"Successfully returned {len(positions)} positions for department '{department}'"
@@ -312,7 +353,7 @@ async def get_positions(
         )
 
 
-@catalog_router.get("/search", response_model=Dict[str, Any])
+@catalog_router.get("/search", response_model=CatalogSearchResponse)
 async def search_departments(
     q: str = Query(..., min_length=1, description="Поисковой запрос"),
     current_user: dict = Depends(get_current_user),
@@ -358,17 +399,20 @@ async def search_departments(
         )
 
         catalog_service = get_catalog_service()
-        search_results = catalog_service.search_departments(q)
+        search_results_raw = catalog_service.search_departments(q)
 
-        response = {
-            "success": True,
-            "message": f"По запросу '{q}' найдено {len(search_results)} департаментов",
-            "data": {
-                "query": q,
-                "departments": search_results,
-                "total_count": len(search_results),
-            },
-        }
+        # Конвертируем в типизированные модели
+        search_results = [CatalogDepartment(**dept) for dept in search_results_raw]
+
+        response = CatalogSearchResponse(
+            success=True,
+            message=f"По запросу '{q}' найдено {len(search_results)} департаментов",
+            data=CatalogSearchData(
+                query=q,
+                departments=search_results,
+                total_count=len(search_results),
+            ),
+        )
 
         logger.info(f"Search '{q}' returned {len(search_results)} results")
         return response
@@ -381,7 +425,7 @@ async def search_departments(
         )
 
 
-@catalog_router.get("/search/positions", response_model=Dict[str, Any])
+@catalog_router.get("/search/positions", response_model=CatalogSearchResponse)
 async def search_positions(
     q: str = Query(
         ..., min_length=1, description="Поисковой запрос для поиска должностей"
@@ -450,9 +494,12 @@ async def search_positions(
         )
 
         catalog_service = get_catalog_service()
-        search_results = catalog_service.search_positions(
+        search_results_raw = catalog_service.search_positions(
             q, department_filter=department
         )
+
+        # Конвертируем в типизированные модели
+        search_results = [CatalogPosition(**pos) for pos in search_results_raw]
 
         # Группировка результатов по департаментам для удобства
         departments_breakdown = {}
@@ -460,9 +507,9 @@ async def search_positions(
         categories_breakdown = {}
 
         for position in search_results:
-            dept_name = position["department"]
-            level = position["level"]
-            category = position["category"]
+            dept_name = position.department
+            level = position.level
+            category = position.category
 
             departments_breakdown[dept_name] = (
                 departments_breakdown.get(dept_name, 0) + 1
@@ -470,21 +517,23 @@ async def search_positions(
             levels_breakdown[level] = levels_breakdown.get(level, 0) + 1
             categories_breakdown[category] = categories_breakdown.get(category, 0) + 1
 
-        response = {
-            "success": True,
-            "message": f"По запросу '{q}' найдено {len(search_results)} должностей",
-            "data": {
-                "query": q,
-                "department_filter": department,
-                "positions": search_results,
-                "total_count": len(search_results),
-                "breakdown": {
-                    "departments": departments_breakdown,
-                    "levels": levels_breakdown,
-                    "categories": categories_breakdown,
-                },
-            },
-        }
+        breakdown = CatalogSearchBreakdown(
+            departments=departments_breakdown,
+            levels=levels_breakdown,
+            categories=categories_breakdown,
+        )
+
+        response = CatalogSearchResponse(
+            success=True,
+            message=f"По запросу '{q}' найдено {len(search_results)} должностей",
+            data=CatalogSearchData(
+                query=q,
+                department_filter=department,
+                positions=search_results,
+                total_count=len(search_results),
+                breakdown=breakdown,
+            ),
+        )
 
         logger.info(f"Position search '{q}' returned {len(search_results)} results")
         return response
@@ -571,7 +620,7 @@ async def clear_cache(
         )
 
 
-@catalog_router.get("/stats", response_model=Dict[str, Any])
+@catalog_router.get("/stats", response_model=CatalogStatsResponse)
 async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
     """
     Получение статистики каталога.
@@ -649,36 +698,39 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
                 all_levels[level] = all_levels.get(level, 0) + 1
                 all_categories[category] = all_categories.get(category, 0) + 1
 
-        response = {
-            "success": True,
-            "message": "Статистика каталога получена",
-            "data": {
-                "departments": {
-                    "total_count": len(departments),
-                    "with_positions": len(
-                        [d for d in departments if d["positions_count"] > 0]
-                    ),
-                },
-                "positions": {
-                    "total_count": total_positions,
-                    "average_per_department": (
-                        round(total_positions / len(departments), 2)
-                        if departments
-                        else 0
-                    ),
-                    "levels_distribution": all_levels,
-                    "categories_distribution": all_categories,
-                },
-                "cache_status": {
-                    "departments_cached": catalog_service.organization_cache.is_loaded(),
-                    "positions_cached_count": len(
-                        catalog_service.organization_cache.get_all_business_units_with_paths()
-                    ),
-                    "centralized_cache": True,
-                    "cache_type": "organization_cache (path-based)",
-                },
-            },
-        }
+        # Создаем типизированные модели для статистики
+        departments_stats = CatalogDepartmentsStats(
+            total_count=len(departments),
+            with_positions=len([d for d in departments if d["positions_count"] > 0]),
+        )
+
+        positions_stats = CatalogPositionsStats(
+            total_count=total_positions,
+            average_per_department=(
+                round(total_positions / len(departments), 2) if departments else 0
+            ),
+            levels_distribution=all_levels,
+            categories_distribution=all_categories,
+        )
+
+        cache_status = CatalogCacheStatus(
+            departments_cached=catalog_service.organization_cache.is_loaded(),
+            positions_cached_count=len(
+                catalog_service.organization_cache.get_all_business_units_with_paths()
+            ),
+            centralized_cache=True,
+            cache_type="organization_cache (path-based)",
+        )
+
+        response = CatalogStatsResponse(
+            success=True,
+            message="Статистика каталога получена",
+            data=CatalogStatsData(
+                departments=departments_stats,
+                positions=positions_stats,
+                cache_status=cache_status,
+            ),
+        )
 
         logger.info(
             f"Successfully returned catalog stats: {len(departments)} departments, {total_positions} positions"
