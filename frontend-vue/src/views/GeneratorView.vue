@@ -9,7 +9,7 @@
         </div>
 
         <!-- Coverage Stats -->
-        <v-card class="mb-4" elevation="2" rounded="lg">
+        <BaseCard class="mb-4">
           <v-card-text>
             <v-row align="center">
               <v-col cols="12" md="3">
@@ -36,26 +36,26 @@
               </v-col>
             </v-row>
           </v-card-text>
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
 
     <!-- Loading State -->
     <v-row v-if="isLoading">
       <v-col>
-        <v-card elevation="2" rounded="lg">
+        <BaseCard>
           <v-card-text class="text-center py-12">
             <v-progress-circular indeterminate color="primary" size="64" />
             <div class="text-h6 mt-4">Loading catalog data...</div>
           </v-card-text>
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
 
     <!-- Tabs -->
     <v-row v-else>
       <v-col>
-        <v-card elevation="2" rounded="lg">
+        <BaseCard>
           <v-tabs v-model="activeTab" bg-color="surface">
             <v-tab value="search">
               <v-icon start>mdi-magnify</v-icon>
@@ -80,7 +80,7 @@
               </v-window-item>
             </v-window>
           </v-card-text>
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
 
@@ -127,6 +127,7 @@
 import { ref, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useGeneratorStore } from '@/stores/generator'
+import BaseCard from '@/components/common/BaseCard.vue'
 import QuickSearchTab from '@/components/generator/QuickSearchTab.vue'
 import BrowseTreeTab from '@/components/generator/BrowseTreeTab.vue'
 

@@ -197,7 +197,7 @@
 
     <!-- Bulk Progress Tracker -->
     <v-dialog v-model="showBulkProgress" persistent max-width="700">
-      <v-card elevation="2" rounded="lg">
+      <BaseCard>
         <v-card-title class="d-flex align-center">
           <v-icon class="mr-2">mdi-progress-check</v-icon>
           Bulk Generation Progress
@@ -253,7 +253,7 @@
             Done
           </v-btn>
         </v-card-actions>
-      </v-card>
+      </BaseCard>
     </v-dialog>
   </v-container>
 </template>
@@ -264,6 +264,7 @@ import { useCatalogStore } from '@/stores/catalog'
 import { useGeneratorStore } from '@/stores/generator'
 import { useTaskStatus } from '@/composables/useTaskStatus'
 import type { SearchableItem } from '@/stores/catalog'
+import BaseCard from '@/components/common/BaseCard.vue'
 import OrganizationTree from './OrganizationTree.vue'
 import GenerationForm from './GenerationForm.vue'
 

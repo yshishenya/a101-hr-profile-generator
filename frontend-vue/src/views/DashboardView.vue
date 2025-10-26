@@ -29,7 +29,7 @@
     </v-alert>
 
     <!-- Welcome Card -->
-    <v-card elevation="2" rounded="lg" class="mb-6">
+    <BaseCard class="mb-6">
       <v-card-text class="pa-6">
         <div class="d-flex align-center justify-space-between">
           <div class="d-flex align-center">
@@ -55,7 +55,7 @@
           </div>
         </div>
       </v-card-text>
-    </v-card>
+    </BaseCard>
 
     <!-- Loading State -->
     <v-row v-if="loading && !stats">
@@ -77,7 +77,7 @@
     <v-row v-else-if="stats">
       <!-- Total Positions Card -->
       <v-col cols="12" sm="6" md="3">
-        <v-card elevation="2" rounded="lg" class="pa-4">
+        <BaseCard class="pa-4">
           <div class="d-flex align-center mb-3">
             <v-icon size="40" color="primary" class="mr-3">
               mdi-briefcase-outline
@@ -97,12 +97,12 @@
             height="4"
             rounded
           />
-        </v-card>
+        </BaseCard>
       </v-col>
 
       <!-- Profiles Generated Card -->
       <v-col cols="12" sm="6" md="3">
-        <v-card elevation="2" rounded="lg" class="pa-4">
+        <BaseCard class="pa-4">
           <div class="d-flex align-center mb-3">
             <v-icon size="40" color="success" class="mr-3">
               mdi-account-check-outline
@@ -122,12 +122,12 @@
             height="4"
             rounded
           />
-        </v-card>
+        </BaseCard>
       </v-col>
 
       <!-- Completion Card -->
       <v-col cols="12" sm="6" md="3">
-        <v-card elevation="2" rounded="lg" class="pa-4">
+        <BaseCard class="pa-4">
           <div class="d-flex align-center mb-3">
             <v-icon size="40" color="info" class="mr-3">
               mdi-chart-arc
@@ -147,12 +147,12 @@
             height="4"
             rounded
           />
-        </v-card>
+        </BaseCard>
       </v-col>
 
       <!-- Active Tasks Card -->
       <v-col cols="12" sm="6" md="3">
-        <v-card elevation="2" rounded="lg" class="pa-4">
+        <BaseCard class="pa-4">
           <div class="d-flex align-center mb-3">
             <v-icon size="40" color="warning" class="mr-3">
               mdi-clock-outline
@@ -173,14 +173,14 @@
             height="4"
             rounded
           />
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
 
     <!-- Content Row -->
     <v-row v-if="stats" class="mt-6">
       <v-col cols="12" md="8">
-        <v-card elevation="2" rounded="lg">
+        <BaseCard>
           <v-card-title class="pa-4">
             <v-icon class="mr-2">mdi-chart-line</v-icon>
             Recent Activity
@@ -198,11 +198,11 @@
               </p>
             </div>
           </v-card-text>
-        </v-card>
+        </BaseCard>
       </v-col>
 
       <v-col cols="12" md="4">
-        <v-card elevation="2" rounded="lg">
+        <BaseCard>
           <v-card-title class="pa-4">
             <v-icon class="mr-2">mdi-format-list-bulleted</v-icon>
             Quick Actions
@@ -259,7 +259,7 @@
               </v-list-item>
             </v-list>
           </v-card-text>
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
   </v-container>
@@ -268,6 +268,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import BaseCard from '@/components/common/BaseCard.vue'
 import dashboardService from '@/services/dashboard.service'
 import type { DashboardStats } from '@/types/api'
 import { isDashboardStatsResponse } from '@/types/api'
