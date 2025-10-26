@@ -24,7 +24,15 @@
     - Component Library created (prevents duplication)
     - ESLint + Prettier configured
     - All `any` types eliminated (18 → 0)
-  - **Next: Week 6** - Profiles list management UI (CRUD operations, filters, versioning)
+    - Security fixes: XSS protection (DOMPurify), polling storm prevention, memory leaks
+  - 🚧 **Week 6: Profiles List Management** (2025-10-26 - PLANNING)
+    - **Detailed Plan**: `docs/implementation/WEEK_6_PROFILES_PLAN.md` (47 hours, 6-7 days)
+    - **Phase 1**: CRUD Operations (Edit, Create, Delete, Regenerate) - 11h
+    - **Phase 2**: Advanced Filtering (Date range, Multi-select, Presets) - 10h
+    - **Phase 3**: Versioning (History, Comparison, Restoration) - 11h
+    - **Phase 4**: Bulk Operations (ZIP download, Quality check) - 8h
+    - **Phase 5**: Export Enhancements (DOCX, MD, XLSX) - 9h
+    - **Status**: Ready to start Phase 1
   - Week 7: Bulk generation orchestration polish
   - Week 8: Inline editing + XLSX (requires minor backend changes)
   - Week 9: Bulk download + Polish
