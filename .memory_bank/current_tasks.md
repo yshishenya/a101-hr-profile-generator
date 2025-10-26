@@ -57,6 +57,26 @@
   - Fixed logging level (error → warning for fallback)
   - Added 10 comprehensive unit tests for regression prevention
   - Improved code quality with linters (Black, Ruff)
+- [x] [BUG-07] Fix Vuetify theme API deprecation warning (2025-10-26)
+  - Replaced deprecated theme.global.name.value with theme.change() method
+  - Added type safety with ThemeName type and isValidTheme() type guard
+  - Added localStorage validation to prevent corrupted theme data
+  - Implemented error handling for theme switching operations
+  - Extracted THEME_STORAGE_KEY constant (eliminated magic strings)
+  - Added comprehensive JSDoc documentation
+  - Location: frontend-vue/src/composables/useTheme.ts
+- [x] [REFACTOR-01] Fix critical production-readiness issues in authentication (2025-10-26)
+  - Fixed race condition in auth initialize() with Promise-based wait mechanism
+  - Added error recovery in router guard (try-catch around initialize)
+  - Fixed dual token storage issue (auth:unauthorized event system)
+  - Replaced unsafe type casting with proper type guards in DashboardView
+  - Files: frontend-vue/src/stores/auth.ts, router/index.ts, services/api.ts, types/api.ts
+- [x] [BUG-08] Fix Profile Generator page design inconsistency (2025-10-26)
+  - Removed light-colored surface-variant background from statistics card
+  - Applied consistent card styling across all cards (elevation="2" rounded="lg")
+  - Matched design pattern used in Dashboard view
+  - Updated GeneratorView.vue, BrowseTreeTab.vue for visual consistency
+  - Files: frontend-vue/src/views/GeneratorView.vue, frontend-vue/src/components/generator/BrowseTreeTab.vue
 
 ### DevOps (Q1 2025)
 - [x] [DOCKER-01] Docker containerization
@@ -104,5 +124,5 @@ Tasks moved to archive after completion are documented in:
 
 ---
 
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-10-26
 **Current Focus:** Vue.js MVP Migration (simple, modern, reactive)

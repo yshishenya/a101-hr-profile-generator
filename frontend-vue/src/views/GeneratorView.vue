@@ -9,7 +9,7 @@
         </div>
 
         <!-- Coverage Stats -->
-        <v-card class="mb-4" color="surface-variant">
+        <v-card class="mb-4" elevation="2" rounded="lg">
           <v-card-text>
             <v-row align="center">
               <v-col cols="12" md="3">
@@ -43,7 +43,7 @@
     <!-- Loading State -->
     <v-row v-if="isLoading">
       <v-col>
-        <v-card>
+        <v-card elevation="2" rounded="lg">
           <v-card-text class="text-center py-12">
             <v-progress-circular indeterminate color="primary" size="64" />
             <div class="text-h6 mt-4">Loading catalog data...</div>
@@ -55,7 +55,7 @@
     <!-- Tabs -->
     <v-row v-else>
       <v-col>
-        <v-card>
+        <v-card elevation="2" rounded="lg">
           <v-tabs v-model="activeTab" bg-color="surface">
             <v-tab value="search">
               <v-icon start>mdi-magnify</v-icon>

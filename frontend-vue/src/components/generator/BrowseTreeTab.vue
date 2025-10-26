@@ -197,7 +197,7 @@
 
     <!-- Bulk Progress Tracker -->
     <v-dialog v-model="showBulkProgress" persistent max-width="700">
-      <v-card>
+      <v-card elevation="2" rounded="lg">
         <v-card-title class="d-flex align-center">
           <v-icon class="mr-2">mdi-progress-check</v-icon>
           Bulk Generation Progress
