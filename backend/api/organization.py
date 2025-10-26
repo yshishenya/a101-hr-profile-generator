@@ -13,7 +13,23 @@ from typing import Dict, Any, List, Tuple
 import logging
 import sqlite3
 
-from ..models.schemas import BaseResponse, ErrorResponse
+from ..models.schemas import (
+    BaseResponse,
+    ErrorResponse,
+    OrganizationSearchResponse,
+    OrganizationSearchData,
+    OrganizationSearchItem,
+    OrganizationPositionsResponse,
+    OrganizationPositionsData,
+    OrganizationPosition,
+    OrganizationStructureResponse,
+    OrganizationStructureData,
+    OrganizationStructureNode,
+    OrganizationStatsResponse,
+    OrganizationStatsData,
+    BusinessUnitsStats,
+    PositionsStats,
+)
 from ..api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -45,7 +61,7 @@ def get_db_manager():
 organization_router = APIRouter(prefix="/api/organization", tags=["Organization"])
 
 
-@organization_router.get("/search-items", response_model=Dict[str, Any])
+@organization_router.get("/search-items", response_model=OrganizationSearchResponse)
 async def get_search_items(
     current_user: dict = Depends(get_current_user),
 ):
@@ -99,18 +115,21 @@ async def get_search_items(
 
         # Получаем все элементы через новую path-based систему
         catalog_service = get_catalog_service()
-        search_items = catalog_service.get_searchable_items()
+        search_items_raw = catalog_service.get_searchable_items()
 
-        response = {
-            "success": True,
-            "message": f"Получено {len(search_items)} элементов для поиска",
-            "data": {
-                "items": search_items,
-                "total_count": len(search_items),
-                "source": "path_based_indexing",
-                "includes_all_business_units": True,  # Подтверждение что нет потерь данных
-            },
-        }
+        # Конвертируем в типизированные модели
+        search_items = [OrganizationSearchItem(**item) for item in search_items_raw]
+
+        response = OrganizationSearchResponse(
+            success=True,
+            message=f"Получено {len(search_items)} элементов для поиска",
+            data=OrganizationSearchData(
+                items=search_items,
+                total_count=len(search_items),
+                source="path_based_indexing",
+                includes_all_business_units=True,
+            ),
+        )
 
         logger.info(
             f"Successfully returned {len(search_items)} search items (path-based)"
@@ -258,10 +277,10 @@ def _calculate_position_statistics(positions: List[Dict[str, Any]]) -> Dict[str,
     }
 
 
-@organization_router.get("/positions", response_model=Dict[str, Any])
+@organization_router.get("/positions", response_model=OrganizationPositionsResponse)
 async def get_all_positions(
     current_user: dict = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> OrganizationPositionsResponse:
     """
     @doc
     Получение всех позиций в плоском виде для frontend с информацией о профилях.
@@ -329,18 +348,23 @@ async def get_all_positions(
 
         # 3. Используем helper functions для обработки данных
         profile_map = _build_profile_mapping(cursor)
-        all_positions = _flatten_business_units_to_positions(search_items, profile_map)
-        stats = _calculate_position_statistics(all_positions)
+        all_positions_raw = _flatten_business_units_to_positions(search_items, profile_map)
+        stats = _calculate_position_statistics(all_positions_raw)
+
+        # Конвертируем в типизированные модели
+        all_positions = [OrganizationPosition(**pos) for pos in all_positions_raw]
 
         # 4. Формируем ответ
-        response: Dict[str, Any] = {
-            "success": True,
-            "message": f"Получено {stats['total_count']} позиций",
-            "data": {
-                "items": all_positions,
-                **stats  # Распаковываем статистику (total_count, positions_with_profiles, coverage_percentage)
-            },
-        }
+        response = OrganizationPositionsResponse(
+            success=True,
+            message=f"Получено {stats['total_count']} позиций",
+            data=OrganizationPositionsData(
+                items=all_positions,
+                total_count=stats['total_count'],
+                positions_with_profiles=stats['positions_with_profiles'],
+                coverage_percentage=stats['coverage_percentage'],
+            ),
+        )
 
         logger.info(
             f"Successfully returned {stats['total_count']} positions "
@@ -379,7 +403,7 @@ async def get_all_positions(
         )
 
 
-@organization_router.post("/structure", response_model=Dict[str, Any])
+@organization_router.post("/structure", response_model=OrganizationStructureResponse)
 async def get_organization_structure_with_target(
     request_body: Dict[str, str],
     current_user: dict = Depends(get_current_user),
@@ -484,11 +508,42 @@ async def get_organization_structure_with_target(
                 detail=highlighted_structure["error"],
             )
 
-        response = {
-            "success": True,
-            "message": f"Организационная структура с выделенной целью '{target_path}' получена",
-            "data": highlighted_structure,
-        }
+        # Конвертируем структуру в типизированные модели (рекурсивно)
+        def convert_structure(
+            struct_dict: Dict[str, Any]
+        ) -> Dict[str, OrganizationStructureNode]:
+            """
+            Recursively convert raw structure dict to typed OrganizationStructureNode models.
+
+            Args:
+                struct_dict: Raw dictionary structure from organization cache
+
+            Returns:
+                Dictionary with OrganizationStructureNode values
+            """
+            result: Dict[str, OrganizationStructureNode] = {}
+            for key, value in struct_dict.items():
+                if isinstance(value, dict) and 'name' in value:
+                    children = convert_structure(value.get('children', {})) if value.get('children') else None
+                    result[key] = OrganizationStructureNode(
+                        name=value['name'],
+                        positions=value.get('positions', []),
+                        is_target=value.get('is_target', False),
+                        children=children
+                    )
+            return result
+
+        typed_structure = convert_structure(highlighted_structure["structure"])
+
+        response = OrganizationStructureResponse(
+            success=True,
+            message=f"Организационная структура с выделенной целью '{target_path}' получена",
+            data=OrganizationStructureData(
+                target_path=highlighted_structure["target_path"],
+                total_business_units=highlighted_structure["total_business_units"],
+                structure=typed_structure,
+            ),
+        )
 
         logger.info(f"Successfully returned highlighted structure for '{target_path}'")
         return response
@@ -622,7 +677,7 @@ async def get_business_unit_details(
         )
 
 
-@organization_router.get("/stats", response_model=Dict[str, Any])
+@organization_router.get("/stats", response_model=OrganizationStatsResponse)
 async def get_organization_stats(current_user: dict = Depends(get_current_user)):
     """
     @doc
@@ -706,26 +761,26 @@ async def get_organization_stats(current_user: dict = Depends(get_current_user))
             if positions_count > 0:
                 units_with_positions += 1
 
-        response = {
-            "success": True,
-            "message": "Статистика организационной структуры получена",
-            "data": {
-                "business_units": {
-                    "total_count": len(all_units),
-                    "with_positions": units_with_positions,
-                    "by_levels": levels_stats,
-                },
-                "positions": {
-                    "total_count": total_positions,
-                    "average_per_unit": (
+        response = OrganizationStatsResponse(
+            success=True,
+            message="Статистика организационной структуры получена",
+            data=OrganizationStatsData(
+                business_units=BusinessUnitsStats(
+                    total_count=len(all_units),
+                    with_positions=units_with_positions,
+                    by_levels=levels_stats,
+                ),
+                positions=PositionsStats(
+                    total_count=total_positions,
+                    average_per_unit=(
                         round(total_positions / len(all_units), 2) if all_units else 0
                     ),
-                },
-                "indexing_method": "path_based",
-                "data_completeness": "100%",  # Подтверждение отсутствия потерь
-                "source": "organization_cache",
-            },
-        }
+                ),
+                indexing_method="path_based",
+                data_completeness="100%",
+                source="organization_cache",
+            ),
+        )
 
         logger.info(
             f"Successfully returned organization stats: {len(all_units)} units, {total_positions} positions"

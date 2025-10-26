@@ -187,6 +187,64 @@ class ProfileMetadata(BaseModel):
     validation: ProfileValidation
 
 
+# ================================
+# TYPED PROFILE DATA MODELS
+# ================================
+
+
+class BasicInfo(BaseModel):
+    """Базовая информация о профиле должности"""
+
+    position_title: str
+    department: str
+    business_unit: Optional[str] = None
+    level: Optional[int] = None
+    category: Optional[str] = None
+
+
+class Responsibility(BaseModel):
+    """Отдельная обязанность в профиле должности"""
+
+    title: str
+    description: str
+    importance: Optional[str] = None  # high, medium, low
+
+
+class ProfessionalSkill(BaseModel):
+    """Профессиональный навык"""
+
+    name: str
+    level: Optional[str] = None  # expert, advanced, intermediate, basic
+    description: Optional[str] = None
+
+
+class ProfessionalSkillsByCategory(BaseModel):
+    """Профессиональные навыки, сгруппированные по категориям"""
+
+    technical: List[ProfessionalSkill] = []
+    management: List[ProfessionalSkill] = []
+    analytical: List[ProfessionalSkill] = []
+    communication: List[ProfessionalSkill] = []
+    other: List[ProfessionalSkill] = []
+
+
+class EducationExperience(BaseModel):
+    """Требования к образованию и опыту"""
+
+    required_education: Optional[str] = None
+    preferred_education: Optional[str] = None
+    required_experience_years: Optional[int] = None
+    preferred_experience: Optional[str] = None
+
+
+class CareerPaths(BaseModel):
+    """Карьерные пути для должности"""
+
+    vertical: List[str] = []  # Вертикальный рост
+    horizontal: List[str] = []  # Горизонтальное развитие
+    alternative: List[str] = []  # Альтернативные пути
+
+
 class ProfileData(BaseModel):
     """Основные данные профиля должности"""
 
@@ -195,14 +253,14 @@ class ProfileData(BaseModel):
     department: str
     employee_name: Optional[str] = None
 
-    # Структурированные данные профиля (соответствуют JSON Schema)
-    basic_info: Dict[str, Any]
-    responsibilities: List[Dict[str, Any]]
-    professional_skills: Dict[str, List[Dict[str, Any]]]
+    # Структурированные данные профиля (типизированные модели)
+    basic_info: BasicInfo
+    responsibilities: List[Responsibility]
+    professional_skills: ProfessionalSkillsByCategory
     corporate_competencies: List[str]
     personal_qualities: List[str]
-    education_experience: Dict[str, Any]
-    career_paths: Dict[str, List[str]]
+    education_experience: EducationExperience
+    career_paths: CareerPaths
 
 
 class ProfileResponse(BaseResponse):
@@ -377,19 +435,44 @@ class ProfileSearchRequest(BaseModel):
     sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
 
+class PaginationInfo(BaseModel):
+    """Информация о пагинации"""
+
+    page: int
+    limit: int
+    total: int
+    pages: int
+    has_next: bool
+    has_prev: bool
+
+
+class FiltersApplied(BaseModel):
+    """Примененные фильтры для поиска"""
+
+    query: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    status: Optional[str] = None
+    created_by: Optional[str] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+    min_validation_score: Optional[float] = None
+    min_completeness_score: Optional[float] = None
+
+
 class ProfileSearchResponse(PaginatedResponse):
     """Ответ поиска профилей"""
 
     profiles: List[ProfileSummary]
-    filters_applied: Dict[str, Any]
+    filters_applied: FiltersApplied
 
 
 class ProfileListResponse(BaseModel):
     """Ответ списка профилей с пагинацией"""
 
     profiles: List[ProfileSummary]
-    pagination: Dict[str, Any]
-    filters_applied: Dict[str, Any]
+    pagination: PaginationInfo
+    filters_applied: FiltersApplied
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -427,6 +510,563 @@ class WebhookEvent(BaseModel):
 
 # Обновляем forward references
 LoginResponse.model_rebuild()
+
+
+# ================================
+# GENERATION API RESPONSES
+# ================================
+
+
+class GenerationStartResponse(BaseResponse):
+    """Ответ на запуск генерации"""
+
+    task_id: str
+    status: str
+    estimated_duration: int
+
+
+class GenerationTaskData(BaseModel):
+    """Данные задачи генерации"""
+
+    task_id: str
+    status: str
+    progress: Optional[int] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    estimated_duration: Optional[int] = None
+    current_step: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class GenerationMetadata(BaseModel):
+    """Метаданные результата генерации"""
+
+    generation_time_seconds: float
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    model_name: str = "gemini-2.5-flash"
+    temperature: float = 0.1
+
+
+class GenerationStatusResponse(BaseResponse):
+    """Ответ статуса задачи"""
+
+    task: GenerationTaskData
+    result: Optional[ProfileData] = None
+
+
+class GenerationResultResponse(BaseResponse):
+    """Ответ с результатом генерации"""
+
+    success: bool
+    profile: ProfileData
+    metadata: GenerationMetadata
+    errors: List[str] = []
+
+
+# ================================
+# ORGANIZATION API TYPED MODELS
+# ================================
+
+
+class OrganizationSearchItem(BaseModel):
+    """Элемент поиска в организационной структуре"""
+
+    display_name: str
+    full_path: str
+    positions_count: int
+    hierarchy: List[str]
+    name: Optional[str] = None
+    positions: Optional[List[str]] = None
+
+
+class OrganizationPosition(BaseModel):
+    """Позиция в организации"""
+
+    position_id: str
+    position_name: str
+    business_unit_id: str
+    business_unit_name: str
+    department_id: Optional[str] = None
+    department_name: str
+    department_path: str
+    profile_exists: bool
+    profile_id: Optional[int] = None
+
+
+# ================================
+# ORGANIZATION API RESPONSES
+# ================================
+
+
+class OrganizationSearchData(BaseModel):
+    """
+    Данные поиска в организационной структуре.
+
+    Attributes:
+        items: Список элементов организационной структуры для поиска
+        total_count: Общее количество элементов
+        source: Метод индексации (path_based_indexing для избежания потерь)
+        includes_all_business_units: Флаг полноты данных (все 567 единиц)
+
+    Examples:
+        >>> data = OrganizationSearchData(items=[...], total_count=567)
+        >>> print(data.source)  # "path_based_indexing"
+    """
+
+    items: List[OrganizationSearchItem]
+    total_count: int
+    source: str = "path_based_indexing"
+    includes_all_business_units: bool = True
+
+
+class OrganizationSearchResponse(BaseResponse):
+    """Ответ поиска в организационной структуре"""
+
+    data: OrganizationSearchData
+
+
+class OrganizationPositionsData(BaseModel):
+    """
+    Данные списка позиций в организации.
+
+    Attributes:
+        items: Список всех позиций с метаданными о профилях
+        total_count: Общее количество позиций
+        positions_with_profiles: Количество позиций с созданными профилями
+        coverage_percentage: Процент покрытия позиций профилями (0-100)
+
+    Examples:
+        >>> data = OrganizationPositionsData(
+        ...     items=[...],
+        ...     total_count=1487,
+        ...     positions_with_profiles=125,
+        ...     coverage_percentage=8.4
+        ... )
+    """
+
+    items: List[OrganizationPosition]
+    total_count: int
+    positions_with_profiles: int
+    coverage_percentage: float
+
+
+class OrganizationPositionsResponse(BaseResponse):
+    """Ответ списка позиций"""
+
+    data: OrganizationPositionsData
+
+
+class OrganizationStructureNode(BaseModel):
+    """Узел в организационной структуре"""
+
+    name: str
+    positions: List[str] = []
+    is_target: bool = False
+    children: Optional[Dict[str, "OrganizationStructureNode"]] = None
+
+
+class OrganizationStructureData(BaseModel):
+    """
+    Данные организационной структуры с выделенной целью.
+
+    Attributes:
+        target_path: Полный путь к целевой бизнес-единице
+        total_business_units: Общее количество бизнес-единиц в структуре
+        structure: Иерархическое дерево организации с выделенной целью
+
+    Examples:
+        >>> data = OrganizationStructureData(
+        ...     target_path="Блок ОД/ДИТ",
+        ...     total_business_units=567,
+        ...     structure={"Блок ОД": OrganizationStructureNode(...)}
+        ... )
+    """
+
+    target_path: str
+    total_business_units: int
+    structure: Dict[str, OrganizationStructureNode]
+
+
+class OrganizationStructureResponse(BaseResponse):
+    """Ответ структуры организации"""
+
+    data: OrganizationStructureData
+
+
+class BusinessUnitsStats(BaseModel):
+    """Статистика по бизнес-единицам"""
+
+    total_count: int
+    with_positions: int
+    by_levels: Dict[int, int]
+
+
+class PositionsStats(BaseModel):
+    """Статистика по позициям"""
+
+    total_count: int
+    average_per_unit: float
+
+
+class OrganizationStatsData(BaseModel):
+    """Данные статистики организации"""
+
+    business_units: BusinessUnitsStats
+    positions: PositionsStats
+    indexing_method: str = "path_based"
+    data_completeness: str = "100%"
+    source: str = "organization_cache"
+
+
+class OrganizationStatsResponse(BaseResponse):
+    """Ответ статистики организации"""
+
+    data: OrganizationStatsData
+
+
+# ================================
+# DASHBOARD API TYPED MODELS
+# ================================
+
+
+class DashboardSummary(BaseModel):
+    """Основные метрики dashboard"""
+
+    departments_count: int
+    positions_count: int
+    profiles_count: int
+    completion_percentage: float
+    active_tasks_count: int
+
+
+class DashboardDepartments(BaseModel):
+    """Статистика департаментов для dashboard"""
+
+    total: int
+    with_positions: int
+    average_positions: float
+
+
+class DashboardPositions(BaseModel):
+    """Статистика позиций для dashboard"""
+
+    total: int
+    with_profiles: int
+    without_profiles: int
+    coverage_percent: float
+
+
+class DashboardProfiles(BaseModel):
+    """Статистика профилей для dashboard"""
+
+    total: int
+    percentage_complete: float
+
+
+class DashboardActiveTask(BaseModel):
+    """Активная задача генерации"""
+
+    task_id: str
+    position: str
+    department: str
+    status: str
+    progress: int
+    created_at: str
+
+
+class DataSources(BaseModel):
+    """Источники данных для dashboard"""
+
+    catalog: str = "cached"
+    profiles: str = "database"
+    tasks: str = "memory"
+
+
+class DashboardMetadata(BaseModel):
+    """Метаданные dashboard"""
+
+    last_updated: str
+    data_sources: DataSources
+
+
+class RecentProfile(BaseModel):
+    """Недавно созданный профиль"""
+
+    department: str
+    position: str
+    employee_name: Optional[str]
+    created_at: str
+    status: str
+    created_by: str
+
+
+# ================================
+# DASHBOARD API RESPONSES
+# ================================
+
+
+class DashboardStatsData(BaseModel):
+    """
+    Полная статистика dashboard для главной страницы.
+
+    Attributes:
+        summary: Основные метрики для карточек (КПЭ)
+        departments: Детальная статистика департаментов
+        positions: Статистика покрытия должностей профилями
+        profiles: Информация о созданных профилях
+        active_tasks: Список текущих задач генерации
+        metadata: Метаданные о времени обновления и источниках
+
+    Examples:
+        >>> data = DashboardStatsData(
+        ...     summary=DashboardSummary(departments_count=510, ...),
+        ...     departments=DashboardDepartments(total=510, ...),
+        ...     ...
+        ... )
+    """
+
+    summary: DashboardSummary
+    departments: DashboardDepartments
+    positions: DashboardPositions
+    profiles: DashboardProfiles
+    active_tasks: List[DashboardActiveTask]
+    metadata: DashboardMetadata
+
+
+class DashboardStatsResponse(BaseResponse):
+    """Ответ статистики дашборда"""
+
+    data: DashboardStatsData
+
+
+class DashboardMinimalStatsData(BaseModel):
+    """Минимальная статистика"""
+
+    positions_count: int
+    profiles_count: int
+    completion_percentage: float
+    active_tasks_count: int
+    last_updated: str
+
+
+class DashboardMinimalStatsResponse(BaseResponse):
+    """Минимальная статистика"""
+
+    data: DashboardMinimalStatsData
+
+
+class DashboardActivitySummary(BaseModel):
+    """Сводка активности"""
+
+    active_tasks_count: int
+    recent_profiles_count: int
+    has_activity: bool
+
+
+class DashboardActivityData(BaseModel):
+    """Данные активности системы"""
+
+    active_tasks: List[DashboardActiveTask]
+    recent_profiles: List[RecentProfile]
+    summary: DashboardActivitySummary
+    last_updated: str
+
+
+class DashboardActivityResponse(BaseResponse):
+    """Активность системы"""
+
+    data: DashboardActivityData
+
+
+# ================================
+# CATALOG API TYPED MODELS
+# ================================
+
+
+class CatalogDepartment(BaseModel):
+    """Информация о департаменте в каталоге"""
+
+    name: str
+    display_name: str
+    path: str
+    positions_count: int
+    last_updated: str
+
+
+class CatalogDepartmentDetails(BaseModel):
+    """Детальная информация о департаменте"""
+
+    name: str
+    display_name: str
+    path: str
+    positions_count: int
+    positions: List["CatalogPosition"]
+    statistics: "CatalogStatistics"
+
+
+class CatalogPosition(BaseModel):
+    """Информация о позиции в каталоге"""
+
+    name: str
+    level: int
+    category: str
+    department: str
+    last_updated: str
+
+
+class CatalogStatistics(BaseModel):
+    """Статистика по уровням и категориям"""
+
+    levels: Dict[int, int]
+    categories: Dict[str, int]
+
+
+# ================================
+# CATALOG API RESPONSES
+# ================================
+
+
+class CatalogDepartmentsData(BaseModel):
+    """
+    Данные каталога департаментов.
+
+    Attributes:
+        departments: Список всех департаментов с базовой информацией
+        total_count: Общее количество департаментов
+        cached: Флаг использования кэша (True если данные из кэша)
+        last_updated: Время последнего обновления кэша
+
+    Examples:
+        >>> data = CatalogDepartmentsData(
+        ...     departments=[CatalogDepartment(name="ДИТ", ...)],
+        ...     total_count=510,
+        ...     cached=True
+        ... )
+    """
+
+    departments: List[CatalogDepartment]
+    total_count: int
+    cached: bool
+    last_updated: Optional[str] = None
+
+
+class CatalogDepartmentsResponse(BaseResponse):
+    """Список департаментов"""
+
+    data: CatalogDepartmentsData
+
+
+class CatalogDepartmentDetailsResponse(BaseResponse):
+    """Детали департамента"""
+
+    data: CatalogDepartmentDetails
+
+
+class CatalogPositionsData(BaseModel):
+    """
+    Данные каталога позиций для конкретного департамента.
+
+    Attributes:
+        department: Название департамента
+        positions: Список позиций с уровнями и категориями
+        total_count: Количество позиций в департаменте
+        statistics: Статистика по уровням и категориям
+        cached: Флаг использования кэша
+        last_updated: Время последнего обновления
+
+    Examples:
+        >>> data = CatalogPositionsData(
+        ...     department="ДИТ",
+        ...     positions=[CatalogPosition(name="Архитектор", ...)],
+        ...     total_count=25,
+        ...     statistics=CatalogStatistics(...)
+        ... )
+    """
+
+    department: str
+    positions: List[CatalogPosition]
+    total_count: int
+    statistics: CatalogStatistics
+    cached: bool
+    last_updated: Optional[str] = None
+
+
+class CatalogPositionsResponse(BaseResponse):
+    """Список позиций департамента"""
+
+    data: CatalogPositionsData
+
+
+class CatalogSearchBreakdown(BaseModel):
+    """Детализация результатов поиска"""
+
+    departments: Dict[str, int]
+    levels: Dict[int, int]
+    categories: Dict[str, int]
+
+
+class CatalogSearchData(BaseModel):
+    """Данные результатов поиска"""
+
+    query: str
+    departments: Optional[List[CatalogDepartment]] = None
+    positions: Optional[List[CatalogPosition]] = None
+    total_count: int
+    breakdown: Optional[CatalogSearchBreakdown] = None
+    department_filter: Optional[str] = None
+
+
+class CatalogSearchResponse(BaseResponse):
+    """Результаты поиска"""
+
+    data: CatalogSearchData
+
+
+class CatalogDepartmentsStats(BaseModel):
+    """Статистика департаментов каталога"""
+
+    total_count: int
+    with_positions: int
+
+
+class CatalogPositionsStats(BaseModel):
+    """Статистика позиций каталога"""
+
+    total_count: int
+    average_per_department: float
+    levels_distribution: Dict[int, int]
+    categories_distribution: Dict[str, int]
+
+
+class CatalogCacheStatus(BaseModel):
+    """Статус кэша каталога"""
+
+    departments_cached: bool
+    positions_cached_count: int
+    centralized_cache: bool
+    cache_type: str
+
+
+class CatalogStatsData(BaseModel):
+    """Статистика каталога"""
+
+    departments: CatalogDepartmentsStats
+    positions: CatalogPositionsStats
+    cache_status: CatalogCacheStatus
+
+
+class CatalogStatsResponse(BaseResponse):
+    """Статистика каталога"""
+
+    data: CatalogStatsData
+
+
+# Обновляем forward references для всех моделей
+OrganizationStructureNode.model_rebuild()
+CatalogDepartmentDetails.model_rebuild()
 
 
 if __name__ == "__main__":

@@ -18,6 +18,23 @@ from datetime import datetime
 from ..models.database import get_db_manager
 from ..core.config import config
 from ..api.auth import get_current_user
+from ..models.schemas import (
+    DashboardStatsResponse,
+    DashboardStatsData,
+    DashboardSummary,
+    DashboardDepartments,
+    DashboardPositions,
+    DashboardProfiles,
+    DashboardActiveTask,
+    DashboardMetadata,
+    DataSources,
+    DashboardMinimalStatsResponse,
+    DashboardMinimalStatsData,
+    DashboardActivityResponse,
+    DashboardActivityData,
+    DashboardActivitySummary,
+    RecentProfile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +50,7 @@ def get_catalog_service():
 dashboard_router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
-@dashboard_router.get("/stats", response_model=Dict[str, Any])
+@dashboard_router.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     """
     @doc
@@ -146,52 +163,48 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             set([dept["name"] for dept in departments if dept["positions_count"] > 0])
         )
 
-        # 5. Формируем ответ
-        response = {
-            "success": True,
-            "message": "Dashboard статистика получена",
-            "data": {
-                # Основные метрики
-                "summary": {
-                    "departments_count": len(departments),
-                    "positions_count": total_positions,
-                    "profiles_count": profiles_count,
-                    "completion_percentage": round(completion_percentage, 1),
-                    "active_tasks_count": len(active_tasks),
-                },
-                # Детальная статистика
-                "departments": {
-                    "total": len(departments),
-                    "with_positions": departments_with_profiles,
-                    "average_positions": (
+        # 5. Формируем ответ с типизированными моделями
+        response = DashboardStatsResponse(
+            success=True,
+            message="Dashboard статистика получена",
+            data=DashboardStatsData(
+                summary=DashboardSummary(
+                    departments_count=len(departments),
+                    positions_count=total_positions,
+                    profiles_count=profiles_count,
+                    completion_percentage=round(completion_percentage, 1),
+                    active_tasks_count=len(active_tasks),
+                ),
+                departments=DashboardDepartments(
+                    total=len(departments),
+                    with_positions=departments_with_profiles,
+                    average_positions=(
                         round(total_positions / len(departments), 1)
                         if departments
                         else 0
                     ),
-                },
-                "positions": {
-                    "total": total_positions,
-                    "with_profiles": profiles_count,
-                    "without_profiles": total_positions - profiles_count,
-                    "coverage_percent": round(completion_percentage, 1),
-                },
-                "profiles": {
-                    "total": profiles_count,
-                    "percentage_complete": round(completion_percentage, 1),
-                },
-                # Активные задачи (последние 5)
-                "active_tasks": active_tasks,
-                # Метаданные
-                "metadata": {
-                    "last_updated": datetime.now().isoformat(),
-                    "data_sources": {
-                        "catalog": "cached",
-                        "profiles": "database",
-                        "tasks": "memory",
-                    },
-                },
-            },
-        }
+                ),
+                positions=DashboardPositions(
+                    total=total_positions,
+                    with_profiles=profiles_count,
+                    without_profiles=total_positions - profiles_count,
+                    coverage_percent=round(completion_percentage, 1),
+                ),
+                profiles=DashboardProfiles(
+                    total=profiles_count,
+                    percentage_complete=round(completion_percentage, 1),
+                ),
+                active_tasks=active_tasks,
+                metadata=DashboardMetadata(
+                    last_updated=datetime.now().isoformat(),
+                    data_sources=DataSources(
+                        catalog="cached",
+                        profiles="database",
+                        tasks="memory",
+                    ),
+                ),
+            ),
+        )
 
         logger.info(
             f"Dashboard stats: {len(departments)} depts, {total_positions} positions, {profiles_count} profiles, {len(active_tasks)} active tasks"
@@ -206,7 +219,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         )
 
 
-@dashboard_router.get("/stats/minimal", response_model=Dict[str, Any])
+@dashboard_router.get("/stats/minimal", response_model=DashboardMinimalStatsResponse)
 async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
     """
     @doc
@@ -286,16 +299,17 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
             (profiles_count / total_positions * 100) if total_positions > 0 else 0
         )
 
-        response = {
-            "success": True,
-            "data": {
-                "positions_count": total_positions,
-                "profiles_count": profiles_count,
-                "completion_percentage": round(completion_percentage, 1),
-                "active_tasks_count": active_tasks_count,
-                "last_updated": datetime.now().isoformat(),
-            },
-        }
+        response = DashboardMinimalStatsResponse(
+            success=True,
+            message="Минимальная статистика получена",
+            data=DashboardMinimalStatsData(
+                positions_count=total_positions,
+                profiles_count=profiles_count,
+                completion_percentage=round(completion_percentage, 1),
+                active_tasks_count=active_tasks_count,
+                last_updated=datetime.now().isoformat(),
+            ),
+        )
 
         logger.info(
             f"Minimal stats: {total_positions} positions, {profiles_count} profiles, {completion_percentage:.1f}% complete"
@@ -310,7 +324,7 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
         )
 
 
-@dashboard_router.get("/stats/activity", response_model=Dict[str, Any])
+@dashboard_router.get("/stats/activity", response_model=DashboardActivityResponse)
 async def get_activity_stats(current_user: dict = Depends(get_current_user)):
     """
     @doc
@@ -407,32 +421,33 @@ async def get_activity_stats(current_user: dict = Depends(get_current_user)):
         """
         )
 
-        recent_profiles = []
-        for row in cursor.fetchall():
-            recent_profiles.append(
-                {
-                    "department": row["department"],
-                    "position": row["position"],
-                    "employee_name": row["employee_name"],
-                    "created_at": row["created_at"],
-                    "status": row["status"],
-                    "created_by": row["created_by"],
-                }
+        # Конвертируем в типизированные модели
+        recent_profiles = [
+            RecentProfile(
+                department=row["department"],
+                position=row["position"],
+                employee_name=row["employee_name"],
+                created_at=row["created_at"],
+                status=row["status"],
+                created_by=row["created_by"],
             )
+            for row in cursor.fetchall()
+        ]
 
-        response = {
-            "success": True,
-            "data": {
-                "active_tasks": active_tasks,
-                "recent_profiles": recent_profiles,
-                "summary": {
-                    "active_tasks_count": len(active_tasks),
-                    "recent_profiles_count": len(recent_profiles),
-                    "has_activity": len(active_tasks) > 0 or len(recent_profiles) > 0,
-                },
-                "last_updated": datetime.now().isoformat(),
-            },
-        }
+        response = DashboardActivityResponse(
+            success=True,
+            message="Статистика активности получена",
+            data=DashboardActivityData(
+                active_tasks=active_tasks,
+                recent_profiles=recent_profiles,
+                summary=DashboardActivitySummary(
+                    active_tasks_count=len(active_tasks),
+                    recent_profiles_count=len(recent_profiles),
+                    has_activity=len(active_tasks) > 0 or len(recent_profiles) > 0,
+                ),
+                last_updated=datetime.now().isoformat(),
+            ),
+        )
 
         logger.info(
             f"Activity stats: {len(active_tasks)} active tasks, {len(recent_profiles)} recent profiles"
