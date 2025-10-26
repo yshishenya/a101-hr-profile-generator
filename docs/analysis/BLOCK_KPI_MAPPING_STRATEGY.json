@@ -1,0 +1,37 @@
+{
+  "proposed_mapping": {
+    "Блок безопасности": "KPI_ББ.md",
+    "Блок бизнес-директора": "KPI_ДРР.md",
+    "Блок исполнительного директора": "KPI_ДПУ.md",
+    "Блок директора по развитию": "KPI_ДРР.md",
+    "Блок директора по правовому обеспечению и управлению рисками": "KPI_УВАиК.md",
+    "Блок операционного директора": "KPI_ДИТ.md",
+    "Unknown": "KPI_UNK.md",
+    "Дирекция \"Социальные объекты\"": "KPI_ДПУ.md",
+    "Управление внутреннего аудита и контроля": "KPI_ДИТ.md"
+  },
+  "new_kpi_needed": [
+    {
+      "block": "Блок безопасности",
+      "kpi_file": "KPI_ББ.md",
+      "departments": 4
+    },
+    {
+      "block": "Unknown",
+      "kpi_file": "KPI_UNK.md",
+      "departments": 1
+    }
+  ],
+  "coverage_stats": {
+    "existing_kpi": 505,
+    "new_kpi": 5,
+    "total": 510
+  },
+  "implementation_steps": [
+    "1. Create new KPI files for blocks without existing KPI",
+    "2. Implement block-level KPI inheritance in KPIMapper",
+    "3. Update find_kpi_file() to use block-level fallback before generic fallback",
+    "4. Test with all 510 departments",
+    "5. Validate 100% coverage"
+  ]
+}

@@ -52,6 +52,11 @@
 - [x] [BUG-03] Fix backend Docker container startup - missing List import (2025-10-25)
 - [x] [BUG-04] Fix parallel generation network errors - improved aiohttp connector and retry logic (2025-10-25)
 - [x] [BUG-05] Fix Vue.js frontend CORS and Docker networking (2025-10-25)
+- [x] [BUG-06] Fix KPI None handling crash - prevent crashes for 363 departments (71.2%) (2025-10-25)
+  - Fixed exception handling in data_mapper.py (use specific exceptions)
+  - Fixed logging level (error → warning for fallback)
+  - Added 10 comprehensive unit tests for regression prevention
+  - Improved code quality with linters (Black, Ruff)
 
 ### DevOps (Q1 2025)
 - [x] [DOCKER-01] Docker containerization

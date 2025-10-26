@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class PositionType(Enum):
     """Position type for IT systems relevance categorization."""
+
     IT_TECHNICAL = "it_technical"  # Full 15K tokens - technical roles
     IT_MANAGEMENT = "it_management"  # 3K tokens - IT leadership
     BUSINESS_TECHNICAL = "business_technical"  # 5K tokens - product/project roles
@@ -31,36 +32,61 @@ class PositionType(Enum):
 # Position keywords mapping for categorization
 POSITION_KEYWORDS = {
     PositionType.IT_TECHNICAL: [
-        r"программист", r"разработчик", r"developer",
-        r"архитектор", r"engineer", r"инженер",
-        r"devops", r"администратор", r"тестировщик",
-        r"qa", r"аналитик.*данных", r"data",
-        r"backend", r"frontend", r"fullstack",
-        r"системн.*инженер", r"сетев.*инженер"
+        r"программист",
+        r"разработчик",
+        r"developer",
+        r"архитектор",
+        r"engineer",
+        r"инженер",
+        r"devops",
+        r"администратор",
+        r"тестировщик",
+        r"qa",
+        r"аналитик.*данных",
+        r"data",
+        r"backend",
+        r"frontend",
+        r"fullstack",
+        r"системн.*инженер",
+        r"сетев.*инженер",
     ],
-
     PositionType.IT_MANAGEMENT: [
-        r"руководитель.*ит", r"директор.*технолог", r"директор.*ит",
-        r"cto", r"cio", r"начальник.*разработки",
-        r"руководитель.*информац", r"руководитель.*цифров",
-        r"начальник.*информац"
+        r"руководитель.*ит",
+        r"директор.*технолог",
+        r"директор.*ит",
+        r"cto",
+        r"cio",
+        r"начальник.*разработки",
+        r"руководитель.*информац",
+        r"руководитель.*цифров",
+        r"начальник.*информац",
     ],
-
     PositionType.BUSINESS_TECHNICAL: [
-        r"продукт", r"product", r"owner",
-        r"менеджер.*проект", r"project.*manager",
-        r"scrum.*master", r"agile", r"бизнес.*аналитик"
+        r"продукт",
+        r"product",
+        r"owner",
+        r"менеджер.*проект",
+        r"project.*manager",
+        r"scrum.*master",
+        r"agile",
+        r"бизнес.*аналитик",
     ],
-
     PositionType.BUSINESS_GENERAL: [
-        r"менеджер", r"специалист", r"координатор",
-        r"директор", r"руководитель", r"начальник"
+        r"менеджер",
+        r"специалист",
+        r"координатор",
+        r"директор",
+        r"руководитель",
+        r"начальник",
     ],
-
     PositionType.SUPPORT: [
-        r"ассистент", r"секретарь", r"помощник",
-        r"стажер", r"junior", r"делопроизводител"
-    ]
+        r"ассистент",
+        r"секретарь",
+        r"помощник",
+        r"стажер",
+        r"junior",
+        r"делопроизводител",
+    ],
 }
 
 
@@ -89,7 +115,7 @@ def detect_position_type(position: str, department: str) -> PositionType:
         PositionType.IT_MANAGEMENT,
         PositionType.BUSINESS_TECHNICAL,
         PositionType.SUPPORT,
-        PositionType.BUSINESS_GENERAL
+        PositionType.BUSINESS_GENERAL,
     ]:
         keywords = POSITION_KEYWORDS[pos_type]
         if any(re.search(keyword, pos_lower) for keyword in keywords):
@@ -151,7 +177,9 @@ class DataLoader:
             if "/" in department:
                 department_parts = [p.strip() for p in department.split("/") if p.strip()]
                 department_short_name = department_parts[-1]  # Последний элемент
-                logger.info(f"Extracted short department name '{department_short_name}' from path '{department}'")
+                logger.info(
+                    f"Extracted short department name '{department_short_name}' from path '{department}'"
+                )
             else:
                 department_short_name = department
 
@@ -170,7 +198,9 @@ class DataLoader:
 
             # 🎯 ИЗВЛЕЧЕНИЕ ДАННЫХ О ЧИСЛЕННОСТИ (использует короткое имя)
             headcount_info = self.org_mapper.get_headcount_info(department_short_name)
-            subordinates_count = self.org_mapper.calculate_subordinates_count(department_short_name, position)
+            subordinates_count = self.org_mapper.calculate_subordinates_count(
+                department_short_name, position
+            )
 
             # Подготовка всех переменных
             variables = {
@@ -184,9 +214,7 @@ class DataLoader:
                 "department_path": department_path,
                 # ПОЛНАЯ ОРГАНИЗАЦИОННАЯ СТРУКТУРА с выделением цели
                 "OrgStructure": json.dumps(
-                    self._get_organization_structure_with_target(
-                        f"{department}/{position}"
-                    ),
+                    self._get_organization_structure_with_target(f"{department}/{position}"),
                     ensure_ascii=False,
                     indent=2,
                 ),  # ~229K символов - полная структура с выделением
@@ -199,27 +227,47 @@ class DataLoader:
                 "kpi_data": kpi_content,  # 0-15K токенов
                 "kpi_source": kpi_metadata["source"],  # NEW: "specific" or "template"
                 "kpi_type": kpi_metadata["dept_type"],  # NEW: "IT", "SALES", "GENERIC" etc
-                "it_systems": self._load_it_systems_conditional(position, department_short_name),  # 1K-15K токенов (conditional)
-                "it_systems_detail_level": detect_position_type(position, department_short_name).value,  # metadata
+                "it_systems": self._load_it_systems_conditional(
+                    position, department_short_name
+                ),  # 1K-15K токенов (conditional)
+                "it_systems_detail_level": detect_position_type(
+                    position, department_short_name
+                ).value,  # metadata
                 # ДАННЫЕ О ЧИСЛЕННОСТИ И ПОДЧИНЕННЫХ
                 "headcount_info": headcount_info,  # Полная информация о численности департамента
                 "subordinates_calculation": subordinates_count,  # Расчет подчиненных на основе реальных данных
-                "department_headcount": headcount_info.get("headcount"),  # Прямое значение для удобства
-                "headcount_source": headcount_info.get("headcount_source"),  # Источник данных о численности
+                "department_headcount": headcount_info.get(
+                    "headcount"
+                ),  # Прямое значение для удобства
+                "headcount_source": headcount_info.get(
+                    "headcount_source"
+                ),  # Источник данных о численности
                 # ПЛОСКИЕ ПЕРЕМЕННЫЕ ДЛЯ ПОДЧИНЕННОСТИ (без точек для Langfuse)
                 "subordinates_departments": subordinates_count.get("departments", 0),
                 "subordinates_direct_reports": subordinates_count.get("direct_reports", 0),
                 # НОВЫЕ ПЕРЕМЕННЫЕ ИЕРАРХИИ (Блок-Департамент-Управление-Отдел-ПодОтдел-Группа)
                 "business_block": hierarchy_info.get("business_block", ""),  # Уровень 1: Блок
-                "department_unit": hierarchy_info.get("department_unit", ""),  # Уровень 2: Департамент
-                "section_unit": hierarchy_info.get("section_unit", ""),  # Уровень 3: Управление/Отдел
+                "department_unit": hierarchy_info.get(
+                    "department_unit", ""
+                ),  # Уровень 2: Департамент
+                "section_unit": hierarchy_info.get(
+                    "section_unit", ""
+                ),  # Уровень 3: Управление/Отдел
                 "group_unit": hierarchy_info.get("group_unit", ""),  # Уровень 4: Отдел
-                "sub_section_unit": hierarchy_info.get("sub_section_unit", ""),  # Уровень 5: Под-отдел
+                "sub_section_unit": hierarchy_info.get(
+                    "sub_section_unit", ""
+                ),  # Уровень 5: Под-отдел
                 "final_group_unit": hierarchy_info.get("final_group_unit", ""),  # Уровень 6: Группа
-                "hierarchy_level": hierarchy_info.get("hierarchy_level", 1),  # Номер уровня в иерархии
-                "full_hierarchy_path": hierarchy_info.get("full_hierarchy_path", department),  # Полный путь с разделителями
+                "hierarchy_level": hierarchy_info.get(
+                    "hierarchy_level", 1
+                ),  # Номер уровня в иерархии
+                "full_hierarchy_path": hierarchy_info.get(
+                    "full_hierarchy_path", department
+                ),  # Полный путь с разделителями
                 # РАЗЛОЖЕНИЕ ИЕРАРХИИ (плоские переменные для Langfuse)
-                "hierarchy_levels_list": ", ".join(hierarchy_info.get("full_path_parts", [department])),
+                "hierarchy_levels_list": ", ".join(
+                    hierarchy_info.get("full_path_parts", [department])
+                ),
                 "hierarchy_current_level": hierarchy_info.get("hierarchy_level", 1),
                 "hierarchy_final_unit": hierarchy_info.get("final_unit", department),
                 "position_location": f"{hierarchy_info.get('final_unit', department)}/{position}",
@@ -232,9 +280,7 @@ class DataLoader:
             estimated_tokens = self._estimate_tokens(variables)
             variables["estimated_input_tokens"] = estimated_tokens
 
-            logger.info(
-                f"Variables prepared successfully. Estimated tokens: {estimated_tokens}"
-            )
+            logger.info(f"Variables prepared successfully. Estimated tokens: {estimated_tokens}")
             return variables
 
         except Exception as e:
@@ -253,30 +299,34 @@ class DataLoader:
         """
         # Check if specific KPI file exists
         kpi_filename = self.kpi_mapper.find_kpi_file(department)
+
+        # Handle None case (no KPI file found - 71.2% of departments)
+        if kpi_filename is None:
+            # Using template if available
+            if self.kpi_mapper.templates_available:
+                dept_type = self.kpi_mapper.detect_department_type(department)
+                return {"source": "template", "dept_type": dept_type, "kpi_file": None}
+
+            # No KPI and no template
+            return {"source": "none", "dept_type": "N/A", "kpi_file": None}
+
+        # KPI filename found, check if file exists
         kpi_path = self.kpi_mapper.kpi_dir / kpi_filename
 
         if kpi_path.exists():
             return {
                 "source": "specific",
                 "dept_type": "N/A",  # Specific file, no template type
-                "kpi_file": kpi_filename
+                "kpi_file": kpi_filename,
             }
 
-        # Using template
+        # KPI filename exists but file not found - fallback to template
         if self.kpi_mapper.templates_available:
             dept_type = self.kpi_mapper.detect_department_type(department)
-            return {
-                "source": "template",
-                "dept_type": dept_type,
-                "kpi_file": "N/A"
-            }
+            return {"source": "template", "dept_type": dept_type, "kpi_file": None}
 
-        # Fallback (shouldn't happen)
-        return {
-            "source": "fallback",
-            "dept_type": "GENERIC",
-            "kpi_file": "N/A"
-        }
+        # Last resort fallback
+        return {"source": "fallback", "dept_type": "GENERIC", "kpi_file": None}
 
     def _load_company_map_cached(self) -> str:
         """Загрузка карты компании А101 с кешированием"""
@@ -292,27 +342,25 @@ class DataLoader:
 
             except Exception as e:
                 logger.error(f"Error loading company map: {e}")
-                self._cache[cache_key] = (
-                    "# Карта компании недоступна\n\nОшибка загрузки данных."
-                )
+                self._cache[cache_key] = "# Карта компании недоступна\n\nОшибка загрузки данных."
 
         return self._cache[cache_key]
-    
+
     def _get_organization_structure_with_target(self, target_path: str) -> Dict[str, Any]:
         """
         Получение полной организационной структуры с выделенной целевой позицией.
-        
+
         Интегрированная версия логики из CatalogService для устранения зависимости.
         Напрямую использует organization_cache.
-        
+
         Args:
             target_path: Полный путь к целевой бизнес-единице (department/position)
-        
+
         Returns:
             Dict[str, Any]: Полная структура с выделенной целью
         """
         try:
-            # Проверяем существование целевого пути  
+            # Проверяем существование целевого пути
             target_unit = organization_cache.find_unit_by_path(target_path)
             if not target_unit:
                 logger.warning(f"Target path not found: {target_path}")
@@ -320,7 +368,9 @@ class DataLoader:
                     "error": f"Business unit at path '{target_path}' not found",
                     "available_paths": list(
                         organization_cache.get_all_business_units_with_paths().keys()
-                    )[:10],  # Первые 10 для примера
+                    )[
+                        :10
+                    ],  # Первые 10 для примера
                 }
 
             # Получаем структуру с подсвеченной целью
@@ -402,11 +452,7 @@ class DataLoader:
 
         return self._cache[cache_key]
 
-    def _load_it_systems_conditional(
-        self,
-        position: str,
-        department: str
-    ) -> str:
+    def _load_it_systems_conditional(self, position: str, department: str) -> str:
         """
         Load IT systems with conditional complexity based on position type.
 
@@ -516,7 +562,9 @@ class DataLoader:
                     compressed.append(line)
                     items_in_category += 1
                 elif items_in_category == max_items_per_category:
-                    compressed.append(f"- *...и другие системы категории {current_category.replace('###', '').strip()}*")
+                    compressed.append(
+                        f"- *...и другие системы категории {current_category.replace('###', '').strip()}*"
+                    )
                     items_in_category += 1  # Increment to prevent repeated ellipsis
             elif not line.strip():
                 compressed.append(line)
@@ -525,7 +573,9 @@ class DataLoader:
 
         # Ensure target size (~10K chars)
         if len(result) > 10000:
-            result = result[:10000] + "\n\n*[...сокращено для релевантности руководящей позиции...]*"
+            result = (
+                result[:10000] + "\n\n*[...сокращено для релевантности руководящей позиции...]*"
+            )
 
         return result
 
@@ -559,7 +609,7 @@ class DataLoader:
             "Бюджетирование и финансы",
             "Передача и эксплуатация",
             "Закупки и снабжение",
-            "Планирование и отчетность"
+            "Планирование и отчетность",
         ]
 
         lines = full_content.split("\n")
@@ -570,7 +620,9 @@ class DataLoader:
         for line in lines:
             # Check if we're entering a business category
             if line.startswith("###"):
-                section_name = line.replace("###", "").strip().split(".")[1].strip() if "." in line else ""
+                section_name = (
+                    line.replace("###", "").strip().split(".")[1].strip() if "." in line else ""
+                )
                 if any(cat in section_name for cat in business_categories):
                     in_business_section = True
                     current_section = section_name
@@ -637,34 +689,6 @@ class DataLoader:
 **Для работы предоставляется доступ к релевантным системам согласно должностным обязанностям.**
 """
 
-    def _detect_kpi_source(self, department: str) -> Dict[str, Any]:
-        """
-        Detect whether KPI comes from specific file or template.
-
-        Args:
-            department: Department name
-
-        Returns:
-            Dict with KPI source metadata
-        """
-        try:
-            # Check if department has specific KPI file
-            kpi_file_path = Path("data/KPI") / f"KPI_{department}.md"
-            has_specific_file = kpi_file_path.exists()
-
-            return {
-                "has_specific_kpi_file": has_specific_file,
-                "kpi_source": "specific" if has_specific_file else "template",
-                "kpi_file": str(kpi_file_path) if has_specific_file else "template"
-            }
-        except Exception as e:
-            logger.error(f"Error detecting KPI source for {department}: {e}")
-            return {
-                "has_specific_kpi_file": False,
-                "kpi_source": "unknown",
-                "kpi_file": "error"
-            }
-
     def _load_architect_examples_cached(self) -> str:
         """Загрузка примеров профилей архитекторов с кешированием"""
         cache_key = "architect_examples"
@@ -688,9 +712,7 @@ class DataLoader:
 - Реалистичные карьерные пути
 - Специфичные технические требования
 """
-            logger.warning(
-                "Architect examples placeholder loaded (Excel parsing not implemented)"
-            )
+            logger.warning("Architect examples placeholder loaded (Excel parsing not implemented)")
 
         return self._cache[cache_key]
 
@@ -704,9 +726,7 @@ class DataLoader:
                     schema_data = json.load(f)
 
                 # Возвращаем читабельную JSON строку
-                self._cache[cache_key] = json.dumps(
-                    schema_data, ensure_ascii=False, indent=2
-                )
+                self._cache[cache_key] = json.dumps(schema_data, ensure_ascii=False, indent=2)
                 logger.info("Profile JSON schema loaded")
 
             except Exception as e:
@@ -737,11 +757,7 @@ class DataLoader:
                     dept_lower,
                     dept_lower.replace(" ", "_"),
                     dept_lower.replace("департамент", "dept"),
-                    (
-                        "общий"
-                        if "финанс" in dept_lower or "коммерч" in dept_lower
-                        else ""
-                    ),
+                    ("общий" if "финанс" in dept_lower or "коммерч" in dept_lower else ""),
                 ]
             ):
                 relevant_files.append(file_path)
@@ -775,9 +791,7 @@ class DataLoader:
 
         # Ограничиваем длину (максимум 20K токенов ≈ 60K символов)
         if len(result) > 60000:
-            result = (
-                result[:60000] + "\n\n[...контент обрезан для оптимизации токенов...]"
-            )
+            result = result[:60000] + "\n\n[...контент обрезан для оптимизации токенов...]"
             logger.warning("IT systems content truncated due to length")
 
         logger.info(
@@ -924,14 +938,11 @@ class DataLoader:
             if department in full_structure["departments"]:
                 # Возвращаем имена позиций из кешированной структуры
                 positions = [
-                    pos["name"]
-                    for pos in full_structure["departments"][department]["positions"]
+                    pos["name"] for pos in full_structure["departments"][department]["positions"]
                 ]
                 return positions
             else:
-                logger.warning(
-                    f"Department '{department}' not found in organization structure"
-                )
+                logger.warning(f"Department '{department}' not found in organization structure")
                 return []
 
         except Exception as e:
@@ -955,7 +966,9 @@ class DataLoader:
             if "/" in department:
                 department_parts = [p.strip() for p in department.split("/") if p.strip()]
                 department_name = department_parts[-1]  # Последний элемент = имя департамента
-                logger.info(f"Extracted department name '{department_name}' from full path '{department}'")
+                logger.info(
+                    f"Extracted department name '{department_name}' from full path '{department}'"
+                )
             else:
                 department_name = department
 
@@ -979,13 +992,17 @@ class DataLoader:
                 final_unit = department
             else:
                 # Ищем позицию в дочерних подразделениях
-                position_unit, position_path = self._find_position_in_children(dept_node, position, dept_path)
+                position_unit, position_path = self._find_position_in_children(
+                    dept_node, position, dept_path
+                )
                 if position_unit:
                     full_path_parts = [p.strip() for p in position_path.split("/") if p.strip()]
                     final_unit = position_unit
                 else:
                     # Позиция не найдена, используем департамент
-                    logger.warning(f"Position '{position}' not found in structure, using department level")
+                    logger.warning(
+                        f"Position '{position}' not found in structure, using department level"
+                    )
                     full_path_parts = path_parts
                     final_unit = department
 
@@ -995,7 +1012,9 @@ class DataLoader:
             logger.error(f"Error extracting full position path: {e}")
             return self._create_fallback_hierarchy_info(department, position)
 
-    def _find_position_in_children(self, node: dict, target_position: str, current_path: str) -> tuple:
+    def _find_position_in_children(
+        self, node: dict, target_position: str, current_path: str
+    ) -> tuple:
         """
         Рекурсивный поиск позиции в дочерних подразделениях.
 
@@ -1012,19 +1031,25 @@ class DataLoader:
                 return child_name, child_path
 
             # Рекурсивно ищем в детях
-            found_unit, found_path = self._find_position_in_children(child_data, target_position, child_path)
+            found_unit, found_path = self._find_position_in_children(
+                child_data, target_position, child_path
+            )
             if found_unit:
                 return found_unit, found_path
 
         return None, None
 
-    def _build_hierarchy_info(self, path_parts: List[str], final_unit: str, position: str) -> Dict[str, Any]:
+    def _build_hierarchy_info(
+        self, path_parts: List[str], final_unit: str, position: str
+    ) -> Dict[str, Any]:
         """Создание структурированной информации об иерархии (поддержка до 6 уровней)"""
         return {
             "full_path_parts": path_parts,
             "hierarchy_level": len(path_parts),
             "business_block": path_parts[0] if len(path_parts) > 0 else "",
-            "department_unit": path_parts[1] if len(path_parts) > 1 else path_parts[0] if path_parts else "",
+            "department_unit": (
+                path_parts[1] if len(path_parts) > 1 else path_parts[0] if path_parts else ""
+            ),
             "section_unit": path_parts[2] if len(path_parts) > 2 else "",
             "group_unit": path_parts[3] if len(path_parts) > 3 else "",
             "sub_section_unit": path_parts[4] if len(path_parts) > 4 else "",  # Уровень 5
@@ -1105,7 +1130,7 @@ if __name__ == "__main__":
             employee_name="Иванов Иван Иванович",
         )
 
-        print(f"Переменные подготовлены:")
+        print("Переменные подготовлены:")
         print(f"  - Департамент: {variables['department']}")
         print(f"  - Путь в структуре: {variables['department_path']}")
         print(f"  - Должность: {variables['position']}")

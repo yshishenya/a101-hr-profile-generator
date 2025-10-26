@@ -122,15 +122,29 @@ export const useAuthStore = defineStore('auth', () => {
    * Safe to call multiple times - will only run once
    */
   async function initialize(): Promise<void> {
-    // Skip if already initialized or no token
-    if (initialized.value || !token.value) {
+    // Skip if no token
+    if (!token.value) {
+      initialized.value = true
       return
     }
 
-    // Mark as initialized to prevent duplicate calls
-    initialized.value = true
+    // Skip if user already loaded (successful initialization)
+    if (user.value) {
+      initialized.value = true
+      return
+    }
+
+    // Skip if currently loading
+    if (loading.value) {
+      return
+    }
 
     await loadUser()
+
+    // Mark as initialized only if user successfully loaded
+    if (user.value) {
+      initialized.value = true
+    }
   }
 
   /**

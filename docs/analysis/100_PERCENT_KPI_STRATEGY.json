@@ -1,0 +1,199 @@
+{
+  "hierarchy": {
+    "max_depth": 6,
+    "total_departments": 510,
+    "levels_distribution": {
+      "1": 8,
+      "2": 27,
+      "3": 87,
+      "4": 167,
+      "5": 158,
+      "6": 62,
+      "0": 1
+    }
+  },
+  "blocks": {
+    "Блок безопасности": {
+      "total_count": 4,
+      "levels_distribution": {
+        "1": 1,
+        "2": 1,
+        "3": 2
+      }
+    },
+    "Блок бизнес-директора": {
+      "total_count": 99,
+      "levels_distribution": {
+        "1": 1,
+        "2": 2,
+        "3": 10,
+        "4": 32,
+        "5": 46,
+        "6": 8
+      }
+    },
+    "Блок исполнительного директора": {
+      "total_count": 229,
+      "levels_distribution": {
+        "4": 60,
+        "1": 1,
+        "2": 6,
+        "3": 34,
+        "5": 74,
+        "6": 54
+      }
+    },
+    "Блок директора по развитию": {
+      "total_count": 29,
+      "levels_distribution": {
+        "5": 3,
+        "1": 1,
+        "2": 1,
+        "3": 5,
+        "4": 19
+      }
+    },
+    "Блок директора по правовому обеспечению и управлению рисками": {
+      "total_count": 34,
+      "levels_distribution": {
+        "1": 1,
+        "2": 3,
+        "3": 8,
+        "4": 19,
+        "5": 3
+      }
+    },
+    "Блок операционного директора": {
+      "total_count": 99,
+      "levels_distribution": {
+        "3": 23,
+        "1": 1,
+        "2": 6,
+        "4": 37,
+        "5": 32
+      }
+    },
+    "Дирекция \"Социальные объекты\"": {
+      "total_count": 12,
+      "levels_distribution": {
+        "1": 1,
+        "2": 6,
+        "3": 5
+      }
+    },
+    "Управление внутреннего аудита и контроля": {
+      "total_count": 3,
+      "levels_distribution": {
+        "1": 1,
+        "2": 2
+      }
+    }
+  },
+  "kpi_files": [
+    "KPI_УВАиК.md",
+    "KPI_ДПУ.md",
+    "KPI_ДИТ.md",
+    "KPI_ДРР.md",
+    "KPI_DIT.md",
+    "KPI_Закупки.md",
+    "KPI_ПРП.md",
+    "KPI_АС.md",
+    "KPI_Цифра.md"
+  ],
+  "coverage": {
+    "covered_departments": 3,
+    "uncovered_blocks": [
+      {
+        "name": "Блок безопасности",
+        "departments_count": 4
+      },
+      {
+        "name": "Блок бизнес-директора",
+        "departments_count": 99
+      },
+      {
+        "name": "Блок исполнительного директора",
+        "departments_count": 229
+      },
+      {
+        "name": "Блок директора по развитию",
+        "departments_count": 29
+      },
+      {
+        "name": "Блок директора по правовому обеспечению и управлению рисками",
+        "departments_count": 34
+      },
+      {
+        "name": "Блок операционного директора",
+        "departments_count": 99
+      },
+      {
+        "name": "Дирекция \"Социальные объекты\"",
+        "departments_count": 12
+      }
+    ],
+    "coverage_percentage": 0.5882352941176471
+  },
+  "strategy": {
+    "recommended_strategy": {
+      "name": "Create new KPI files for uncovered blocks",
+      "description": "Создать 7 новых KPI файлов для непокрытых блоков",
+      "new_files": [
+        {
+          "block": "Блок безопасности",
+          "suggested_filename": "KPI_ББ.md",
+          "departments_count": 4,
+          "priority": "medium"
+        },
+        {
+          "block": "Блок бизнес-директора",
+          "suggested_filename": "KPI_ББ.md",
+          "departments_count": 99,
+          "priority": "high"
+        },
+        {
+          "block": "Блок исполнительного директора",
+          "suggested_filename": "KPI_БИД.md",
+          "departments_count": 229,
+          "priority": "high"
+        },
+        {
+          "block": "Блок директора по развитию",
+          "suggested_filename": "KPI_БДР.md",
+          "departments_count": 29,
+          "priority": "high"
+        },
+        {
+          "block": "Блок директора по правовому обеспечению и управлению рисками",
+          "suggested_filename": "KPI_БДПОУР.md",
+          "departments_count": 34,
+          "priority": "high"
+        },
+        {
+          "block": "Блок операционного директора",
+          "suggested_filename": "KPI_БОД.md",
+          "departments_count": 99,
+          "priority": "high"
+        },
+        {
+          "block": "Дирекция \"Социальные объекты\"",
+          "suggested_filename": "KPI_Д\"О.md",
+          "departments_count": 12,
+          "priority": "medium"
+        }
+      ],
+      "coverage_impact": "100%"
+    },
+    "alternative_strategies": [
+      {
+        "name": "Universal block-level fallback",
+        "description": "Создать универсальный KPI_UNIVERSAL.md для всех непокрытых блоков",
+        "new_files": [
+          "KPI_UNIVERSAL.md"
+        ],
+        "coverage_impact": "100%"
+      }
+    ],
+    "total_new_files_needed": 7
+  }
+}

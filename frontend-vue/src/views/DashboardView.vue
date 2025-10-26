@@ -295,7 +295,7 @@ async function fetchStats() {
     error.value = null
     const response = await dashboardService.getStats()
     // Handle both wrapped and unwrapped responses
-    stats.value = response.data || response as any
+    stats.value = (response as any).data || response
   } catch (err: any) {
     console.error('Failed to fetch dashboard stats:', err)
     error.value = err.response?.data?.error?.message || err.message || 'Failed to load dashboard statistics'
