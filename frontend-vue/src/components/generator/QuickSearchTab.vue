@@ -190,10 +190,11 @@ async function handleGenerate(): Promise<void> {
     })
 
     currentTaskId.value = taskId
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Failed to start generation', error)
     // Show error notification (TODO: add notification system)
-    alert(`Failed to start generation: ${error.message}`)
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    alert(`Failed to start generation: ${message}`)
   } finally {
     isGenerating.value = false
   }

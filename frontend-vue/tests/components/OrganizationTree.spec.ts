@@ -3,7 +3,7 @@
  * Tests tree selection functionality with type safety
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { SearchableItem } from '@/stores/catalog'
 
 // Mock TreeItem type (matches the internal interface)

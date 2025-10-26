@@ -178,10 +178,11 @@ export interface DashboardStatsResponse {
  */
 export function isDashboardStatsResponse(data: unknown): data is DashboardStatsResponse {
   return (
-    data &&
     typeof data === 'object' &&
+    data !== null &&
     'summary' in data &&
     typeof data.summary === 'object' &&
+    data.summary !== null &&
     'positions_count' in data.summary
   )
 }

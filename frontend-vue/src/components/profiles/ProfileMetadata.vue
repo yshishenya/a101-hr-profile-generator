@@ -171,12 +171,13 @@
 
 <script setup lang="ts">
 import type { UnifiedPosition } from '@/types/unified'
+import type { GenerationMetadata } from '@/types/profile'
 import { formatDate, formatDuration, formatNumber } from '@/utils/formatters'
 
 // Props
 interface Props {
   profile: UnifiedPosition
-  metadata?: any
+  metadata?: GenerationMetadata
 }
 
 defineProps<Props>()

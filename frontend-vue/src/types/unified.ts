@@ -111,14 +111,19 @@ export interface VersionComparison {
 }
 
 /**
+ * JSON-like value type for profile changes
+ */
+export type ProfileValue = string | number | boolean | null | ProfileValue[] | { [key: string]: ProfileValue }
+
+/**
  * Change description for version comparison
  */
 export interface ChangeDescription {
   type: 'added' | 'removed' | 'modified'
   field: string
   description: string
-  old_value?: any
-  new_value?: any
+  old_value?: ProfileValue
+  new_value?: ProfileValue
 }
 
 /**

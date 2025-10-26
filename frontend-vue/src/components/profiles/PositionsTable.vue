@@ -1,5 +1,6 @@
+<!-- eslint-disable vue/valid-v-slot -->
 <template>
-  <v-card elevation="2">
+  <BaseCard>
     <v-data-table
       v-model="selected"
       :headers="headers"
@@ -186,13 +187,14 @@
         </div>
       </template>
     </v-data-table>
-  </v-card>
+  </BaseCard>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { logger } from '@/utils/logger'
+import BaseCard from '@/components/common/BaseCard.vue'
 import StatusBadge from './StatusBadge.vue'
 import type { UnifiedPosition } from '@/types/unified'
 
@@ -276,8 +278,8 @@ async function onGenerateProfile(position: UnifiedPosition) {
       business_unit_name: position.business_unit_name
     })
     emit('generateProfile', position)
-  } catch (error) {
-    logger.error('Failed to start generation', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to start generation for position ${position.position_id} (${position.position_name})`, error)
   }
 }
 
@@ -290,8 +292,8 @@ async function onCancelGeneration(position: UnifiedPosition) {
     try {
       await generatorStore.cancelTask(position.task_id)
       emit('cancelGeneration', position)
-    } catch (error) {
-      logger.error('Failed to cancel generation', error)
+    } catch (error: unknown) {
+      logger.error(`Failed to cancel generation task ${position.task_id} for position ${position.position_id}`, error)
     }
   }
 }

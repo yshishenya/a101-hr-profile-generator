@@ -3,6 +3,8 @@
  * Backend: POST /api/generation/start, GET /api/generation/{task_id}/status
  */
 
+import type { ProfileData } from './profile'
+
 export interface GenerationRequest {
   department: string
   position: string
@@ -34,7 +36,7 @@ export interface GenerationResponse {
 
 export interface GenerationResult {
   success: boolean
-  profile: any // Full profile content (flexible structure)
+  profile: ProfileData // Full profile content with explicit structure
   metadata: {
     generation: {
       timestamp: string

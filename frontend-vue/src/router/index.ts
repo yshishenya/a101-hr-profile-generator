@@ -89,10 +89,10 @@ router.beforeEach(async (
     // Ensure auth is initialized (handles page refresh case)
     // Safe to call multiple times - concurrent calls will wait for the same initialization
     await authStore.initialize()
-  } catch (error) {
+  } catch (error: unknown) {
     // If initialization fails, treat as unauthenticated
     // This prevents infinite loading and allows user to retry login
-    logger.error('Auth initialization failed', error)
+    logger.error('Auth initialization failed in navigation guard', error)
 
     // Clear any stale state
     authStore.clearError()

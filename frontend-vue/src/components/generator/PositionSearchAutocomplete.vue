@@ -32,7 +32,7 @@
           </v-avatar>
         </template>
 
-        <template #append v-if="item.raw.profile_exists">
+        <template v-if="item.raw.profile_exists" #append>
           <v-chip size="x-small" color="success" variant="flat">
             Profile exists
           </v-chip>
@@ -78,12 +78,12 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   maxResults: DEFAULT_MAX_RESULTS
 })
-
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: SearchableItem | null]
   'select': [value: SearchableItem]
 }>()
+
 
 // Store
 const catalogStore = useCatalogStore()
@@ -159,8 +159,8 @@ const handleSearch = useDebounceFn((query: string) => {
         // Then alphabetically by position name
         return a.position_name.localeCompare(b.position_name)
       })
-  } catch (error) {
-    logger.error('Search error', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to perform fuzzy search for query: "${query}"`, error)
     filteredResults.value = []
   } finally {
     isSearching.value = false

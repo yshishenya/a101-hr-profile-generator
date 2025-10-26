@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import api from '@/services/api'
 import { logger } from '@/utils/logger'
+import { getErrorMessage } from '@/utils/errors'
 import type { SearchableItem } from './catalog'
 import type { GenerationResultResponse } from '@/types/api'
 
@@ -164,7 +165,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       logger.error('Failed to start generation', error)
 
       throw new GenerationError(
-        (error as any).response?.data?.detail || 'Failed to start generation',
+        getErrorMessage(error, 'Failed to start generation'),
         'API_ERROR',
         error
       )
@@ -217,7 +218,7 @@ export const useGeneratorStore = defineStore('generator', () => {
         activeTasks.value.set(taskId, {
           ...existingTask,
           status: 'failed',
-          error: (error as any).response?.data?.detail || 'Failed to check status'
+          error: getErrorMessage(error, 'Failed to check status')
         })
       }
     }
@@ -351,8 +352,8 @@ export const useGeneratorStore = defineStore('generator', () => {
           business_unit_name: position.business_unit_name
         })
         taskIds.push(taskId)
-      } catch (error) {
-        logger.error(`Failed to start generation for ${position.position_name}`, error)
+      } catch (error: unknown) {
+        logger.error(`Failed to start generation for position ${position.position_id} (${position.position_name})`, error)
       }
 
       await processNext()

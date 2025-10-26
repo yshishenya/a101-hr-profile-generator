@@ -9,6 +9,7 @@ import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 import api from '@/services/api'
 import { logger } from '@/utils/logger'
+import { getErrorMessage } from '@/utils/errors'
 
 // Constants
 const CACHE_KEY = 'org_positions_cache' // Changed from org_catalog_cache to invalidate old business unit cache (BUG-09)
@@ -133,8 +134,7 @@ export const useCatalogStore = defineStore('catalog', () => {
       const withProfiles = items.filter(item => item.profile_exists).length
       logger.debug(`   ${withProfiles} positions have profiles (${Math.round(withProfiles/items.length*100)}% coverage)`)
     } catch (err: unknown) {
-      const errorMessage = (err as any).response?.data?.detail ||
-                          'Failed to load organization data'
+      const errorMessage = getErrorMessage(err, 'Failed to load organization data')
       error.value = errorMessage
       logger.error('Failed to load searchable items', err)
 
@@ -190,10 +190,42 @@ export const useCatalogStore = defineStore('catalog', () => {
   }
 
   /**
-   * Build organization tree from department paths
-   * Constructs the tree hierarchy from searchable items using department paths
+   * Build organization tree from department paths in searchable items
+   * Constructs a hierarchical tree structure by parsing department_path strings
+   * and creating nested OrganizationNode objects with aggregated statistics.
    *
-   * @returns Organization tree built from searchable items
+   * This function transforms flat catalog data into a navigable tree structure:
+   * - Parses department paths (e.g., "Division → Block → Department → Unit")
+   * - Creates nodes for each level with proper type classification
+   * - Aggregates position counts and profile coverage up the tree
+   * - Supports unlimited nesting depth (typically 3-6 levels)
+   *
+   * @returns Array of root-level organization nodes with nested children
+   *
+   * @example
+   * ```typescript
+   * // Input: searchableItems with department_path like:
+   * // "Блок 1 → Отдел разработки → IT Development Management"
+   *
+   * const tree = buildTreeFromItems()
+   * // Output: [
+   * //   {
+   * //     id: "Блок 1",
+   * //     name: "Блок 1",
+   * //     type: "division",
+   * //     children: [
+   * //       {
+   * //         id: "Блок 1 → Отдел разработки",
+   * //         name: "Отдел разработки",
+   * //         type: "block",
+   * //         positions: [...],
+   * //         profile_count: 5,
+   * //         total_positions: 10
+   * //       }
+   * //     ]
+   * //   }
+   * // ]
+   * ```
    */
   function buildTreeFromItems(): OrganizationNode[] {
     // Build tree from department paths

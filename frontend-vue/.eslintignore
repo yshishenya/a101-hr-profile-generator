@@ -1,0 +1,17 @@
+# Build outputs
+dist/
+*.log
+
+# Dependencies
+node_modules/
+
+# Generated files
+*.tsbuildinfo
+.tmp/
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/

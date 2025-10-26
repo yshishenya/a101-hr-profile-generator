@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid>
+  <v-container fluid class="pa-6">
     <!-- Page Header -->
     <v-row>
       <v-col>
@@ -9,34 +9,45 @@
         </div>
 
         <!-- Coverage Stats -->
-        <BaseCard class="mb-4">
-          <v-card-text>
-            <v-row align="center">
-              <v-col cols="12" md="3">
-                <div class="text-caption text-medium-emphasis">Total Positions</div>
-                <div class="text-h6">{{ catalogStore.totalPositions }}</div>
-              </v-col>
-              <v-col cols="12" md="3">
-                <div class="text-caption text-medium-emphasis">Profiles Created</div>
-                <div class="text-h6 text-success">
-                  {{ catalogStore.positionsWithProfiles }}
-                </div>
-              </v-col>
-              <v-col cols="12" md="3">
-                <div class="text-caption text-medium-emphasis">Coverage</div>
-                <div class="text-h6">{{ catalogStore.coveragePercentage }}%</div>
-              </v-col>
-              <v-col cols="12" md="3">
-                <v-progress-linear
-                  :model-value="catalogStore.coveragePercentage"
-                  height="8"
-                  color="primary"
-                  rounded
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </BaseCard>
+        <v-row class="mb-4">
+          <v-col cols="12" sm="6" md="3">
+            <StatsCard
+              icon="mdi-briefcase-outline"
+              icon-color="primary"
+              label="Всего позиций"
+              :value="dashboardStore.stats?.positions_count || 0"
+            />
+          </v-col>
+
+          <v-col cols="12" sm="6" md="3">
+            <StatsCard
+              icon="mdi-account-check-outline"
+              icon-color="success"
+              label="Сгенерировано"
+              :value="dashboardStore.stats?.profiles_count || 0"
+              :progress-value="((dashboardStore.stats?.profiles_count || 0) / (dashboardStore.stats?.positions_count || 1)) * 100"
+            />
+          </v-col>
+
+          <v-col cols="12" sm="6" md="3">
+            <StatsCard
+              icon="mdi-chart-arc"
+              icon-color="info"
+              label="Покрытие"
+              :value="`${(dashboardStore.stats?.completion_percentage || 0).toFixed(1)}%`"
+              :progress-value="dashboardStore.stats?.completion_percentage || 0"
+            />
+          </v-col>
+
+          <v-col cols="12" sm="6" md="3">
+            <StatsCard
+              icon="mdi-clock-outline"
+              icon-color="warning"
+              label="В процессе"
+              :value="dashboardStore.stats?.active_tasks_count || 0"
+            />
+          </v-col>
+        </v-row>
       </v-col>
     </v-row>
 
@@ -87,7 +98,7 @@
     <!-- Active Tasks Summary -->
     <v-row v-if="generatorStore.hasPendingTasks">
       <v-col>
-        <v-card color="info">
+        <BaseCard color="info">
           <v-card-text>
             <div class="d-flex align-center justify-space-between">
               <div>
@@ -117,7 +128,7 @@
               class="mt-2"
             />
           </v-card-text>
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
   </v-container>
@@ -127,14 +138,17 @@
 import { ref, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useGeneratorStore } from '@/stores/generator'
+import { useDashboardStore } from '@/stores/dashboard'
 import { logger } from '@/utils/logger'
 import BaseCard from '@/components/common/BaseCard.vue'
+import StatsCard from '@/components/common/StatsCard.vue'
 import QuickSearchTab from '@/components/generator/QuickSearchTab.vue'
 import BrowseTreeTab from '@/components/generator/BrowseTreeTab.vue'
 
 // Stores
 const catalogStore = useCatalogStore()
 const generatorStore = useGeneratorStore()
+const dashboardStore = useDashboardStore()
 
 // State
 const activeTab = ref('search')
@@ -142,11 +156,14 @@ const isLoading = ref(true)
 
 // Lifecycle
 onMounted(async () => {
-  // Load catalog data on mount
+  // Load catalog data and stats on mount
   try {
-    await catalogStore.loadSearchableItems()
-  } catch (error) {
-    logger.error('Failed to load catalog data', error)
+    await Promise.all([
+      catalogStore.loadSearchableItems(),
+      dashboardStore.fetchStats()
+    ])
+  } catch (error: unknown) {
+    logger.error('Failed to load catalog data on mount', error)
   } finally {
     isLoading.value = false
   }

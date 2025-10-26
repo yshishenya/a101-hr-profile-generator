@@ -33,8 +33,8 @@
               <v-btn
                 size="small"
                 variant="text"
-                @click="loadTree"
                 :loading="catalogStore.isLoading"
+                @click="loadTree"
               >
                 <v-icon start size="small">mdi-refresh</v-icon>
                 Refresh
@@ -55,8 +55,8 @@
             <OrganizationTree
               v-else-if="catalogStore.organizationTree.length > 0"
               ref="treeRef"
-              :items="catalogStore.organizationTree"
               v-model="selectedPositions"
+              :items="catalogStore.organizationTree"
               @select="handleSelectionChange"
             />
 
@@ -293,8 +293,8 @@ onMounted(async () => {
 async function loadTree(): Promise<void> {
   try {
     await catalogStore.loadOrganizationTree()
-  } catch (error) {
-    logger.error('Failed to load organization tree', error)
+  } catch (error: unknown) {
+    logger.error('Failed to load organization tree for browse view', error)
   }
 }
 
@@ -336,10 +336,11 @@ async function handleBulkGenerate(): Promise<void> {
         isGenerating.value = false
       }
     }, POLL_INTERVAL_MS)
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Failed to start bulk generation', error)
     // TODO(developer): Replace alert() with toast notification system (Week 8)
-    alert(`Failed to start bulk generation: ${error.message}`)
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    alert(`Failed to start bulk generation: ${message}`)
     isGenerating.value = false
     showBulkProgress.value = false
   }

@@ -1,5 +1,5 @@
 <template>
-  <v-card class="filter-bar" elevation="1">
+  <BaseCard class="filter-bar">
     <v-card-text>
       <v-row dense align="center">
         <!-- Search Input -->
@@ -126,12 +126,13 @@
         </v-col>
       </v-row>
     </v-card-text>
-  </v-card>
+  </BaseCard>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useProfilesStore } from '@/stores/profiles'
+import BaseCard from '@/components/common/BaseCard.vue'
 import type { ProfileFilters, StatusFilter, ViewMode } from '@/types/unified'
 
 // Store
@@ -242,10 +243,6 @@ function getStatusLabel(status: StatusFilter): string {
 </script>
 
 <style scoped>
-.filter-bar {
-  background: rgb(var(--v-theme-surface));
-}
-
 .gap-2 {
   gap: 8px;
 }

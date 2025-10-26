@@ -3,34 +3,6 @@
   Authenticated layout with navigation drawer, app bar, and content area
 -->
 
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useDisplay } from 'vuetify'
-import AppHeader from './AppHeader.vue'
-
-const display = useDisplay()
-const drawer = ref(true)
-
-// Navigation menu items
-const menuItems = [
-  {
-    title: 'Dashboard',
-    icon: 'mdi-view-dashboard',
-    route: '/',
-  },
-  {
-    title: 'Profile Generator',
-    icon: 'mdi-account-plus-outline',
-    route: '/generator',
-  },
-  {
-    title: 'Profiles Management',
-    icon: 'mdi-briefcase-outline',
-    route: '/profiles',
-  },
-]
-</script>
-
 <template>
   <v-app>
     <!-- Left navigation drawer -->
@@ -68,7 +40,7 @@ const menuItems = [
     </v-navigation-drawer>
 
     <!-- App bar with header component -->
-    <app-header />
+    <AppHeader />
 
     <!-- Main content area -->
     <v-main>
@@ -78,3 +50,31 @@ const menuItems = [
     </v-main>
   </v-app>
 </template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useDisplay } from 'vuetify'
+import AppHeader from './AppHeader.vue'
+
+const display = useDisplay()
+const drawer = ref(true)
+
+// Navigation menu items
+const menuItems = [
+  {
+    title: 'Dashboard',
+    icon: 'mdi-view-dashboard',
+    route: '/',
+  },
+  {
+    title: 'Profile Generator',
+    icon: 'mdi-account-plus-outline',
+    route: '/generator',
+  },
+  {
+    title: 'Profiles Management',
+    icon: 'mdi-briefcase-outline',
+    route: '/profiles',
+  },
+]
+</script>

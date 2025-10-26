@@ -3,6 +3,12 @@
   Entry point for the Vue application
 -->
 
+<template>
+  <v-app>
+    <router-view />
+  </v-app>
+</template>
+
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
@@ -21,9 +27,3 @@ onMounted(async () => {
   await auth.initialize()
 })
 </script>
-
-<template>
-  <v-app>
-    <router-view />
-  </v-app>
-</template>

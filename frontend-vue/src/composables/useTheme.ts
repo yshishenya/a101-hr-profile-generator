@@ -45,8 +45,8 @@ export function useTheme(): {
       try {
         theme.change(themeName)
         localStorage.setItem(THEME_STORAGE_KEY, themeName)
-      } catch (error) {
-        logger.error('Failed to change theme', error)
+      } catch (error: unknown) {
+        logger.error(`Failed to change theme to ${themeName}`, error)
       }
     }
   })
@@ -70,8 +70,8 @@ export function useTheme(): {
     if (isValidTheme(savedTheme)) {
       try {
         theme.change(savedTheme)
-      } catch (error) {
-        logger.error('Failed to initialize theme', error)
+      } catch (error: unknown) {
+        logger.error(`Failed to initialize theme from localStorage (saved: ${savedTheme})`, error)
       }
     }
   }

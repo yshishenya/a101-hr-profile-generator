@@ -133,22 +133,18 @@ import { logger } from '@/utils/logger'
 import type { GenerationTask } from '@/stores/generator'
 import type { GenerationResultResponse } from '@/types/api'
 
-// Constants
+const props = defineProps<Props>() ;// Emits
+const emit = defineEmits<{
+  'complete': [result: GenerationResultResponse]
+  'error': [error: string]
+  'cancel': []
+}>() ;// Constants
 const POLL_INTERVAL_MS = 2000 // Poll every 2 seconds
 
 // Props
 interface Props {
   taskId: string
 }
-
-const props = defineProps<Props>()
-
-// Emits
-const emit = defineEmits<{
-  'complete': [result: GenerationResultResponse]
-  'error': [error: string]
-  'cancel': []
-}>()
 
 // Store
 const generatorStore = useGeneratorStore()
@@ -312,8 +308,8 @@ async function handleCancel(): Promise<void> {
     await generatorStore.cancelTask(props.taskId)
     emit('cancel')
     dialog.value = false
-  } catch (error) {
-    logger.error('Failed to cancel task', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to cancel generation task ${props.taskId}`, error)
   }
 }
 

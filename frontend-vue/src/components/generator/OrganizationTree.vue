@@ -96,17 +96,6 @@ import type { OrganizationNode, SearchableItem } from '@/stores/catalog'
 import type { Breakpoint } from '@/constants/treeSelection'
 import TreeSelectionButton from './TreeSelectionButton.vue'
 
-// Constants
-const breakpoints: Breakpoint[] = ['desktop', 'tablet', 'mobile']
-
-// Props
-interface Props {
-  items: OrganizationNode[]
-  modelValue?: SearchableItem[]
-  selectable?: boolean
-  activatable?: boolean
-}
-
 const props = withDefaults(defineProps<Props>(), {
   modelValue: () => [],
   selectable: true,
@@ -120,6 +109,17 @@ const emit = defineEmits<{
   'activate': [item: OrganizationNode]
   'generate-node': [node: OrganizationNode]
 }>()
+
+// Constants
+const breakpoints: Breakpoint[] = ['desktop', 'tablet', 'mobile']
+
+// Props
+interface Props {
+  items: OrganizationNode[]
+  modelValue?: SearchableItem[]
+  selectable?: boolean
+  activatable?: boolean
+}
 
 // State
 const activated = ref<string[]>([])
@@ -162,7 +162,7 @@ watch(selected, (newValue, oldValue) => {
 
 // Watch for activation changes
 watch(activated, (newValue) => {
-  if (newValue.length > 0) {
+  if (newValue.length > 0 && newValue[0]) {
     const node = findNodeById(newValue[0], props.items)
     if (node) {
       emit('activate', node)

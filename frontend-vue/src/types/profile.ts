@@ -3,6 +3,51 @@
  * Backend: GET /api/profiles, GET /api/profiles/{id}
  */
 
+import type { ProfileData as APIProfileData } from './api'
+
+/**
+ * Extended ProfileData that supports both API structure and legacy UI structure
+ * This allows gradual migration from old to new profile structure
+ */
+export type ProfileData = APIProfileData & {
+  // Legacy fields used by ProfileContent.vue
+  competencies?: string[]
+  requirements?: string[]
+  skills?: {
+    technical?: string[]
+    soft?: string[]
+    management?: string[]
+  }
+  education?: {
+    required?: string
+    preferred?: string
+  }
+  experience?: {
+    years?: number
+    description?: string
+  }
+}
+
+/**
+ * Generation metadata from backend
+ * Matches the structure used in ProfileMetadata.vue component
+ */
+export interface GenerationMetadata {
+  generation: {
+    timestamp: string
+    duration: number
+    temperature: number
+  }
+  llm: {
+    model: string
+    tokens: {
+      input: number
+      output: number
+      total: number
+    }
+  }
+}
+
 export interface Position {
   id: string
   name: string
@@ -31,8 +76,8 @@ export interface Profile {
 
 export interface ProfileDetail {
   profile_id: string
-  profile: any // Full profile content (flexible structure)
-  metadata: any // Generation metadata
+  profile: ProfileData // Full profile content with explicit structure
+  metadata: GenerationMetadata // Generation metadata with explicit structure
   created_at: string
   created_by_username: string
   actions: {
@@ -63,5 +108,5 @@ export interface ProfilesListResponse {
 export interface ProfileUpdateRequest {
   employee_name?: string
   status?: ProfileStatus
-  profile_content?: any // For inline editing (Week 7)
+  profile_content?: Partial<ProfileData> // For inline editing (Week 7)
 }
