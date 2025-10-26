@@ -27,7 +27,7 @@ class Logger {
    * @param message - Message to log
    * @param data - Optional data to log
    */
-  debug(message: string, ...data: any[]): void {
+  debug(message: string, ...data: unknown[]): void {
     if (isDevelopment) {
       console.log(`[DEBUG] ${message}`, ...data)
     }
@@ -38,7 +38,7 @@ class Logger {
    * @param message - Message to log
    * @param data - Optional data to log
    */
-  info(message: string, ...data: any[]): void {
+  info(message: string, ...data: unknown[]): void {
     if (isDevelopment) {
       console.info(`[INFO] ${message}`, ...data)
     }
@@ -49,7 +49,7 @@ class Logger {
    * @param message - Message to log
    * @param data - Optional data to log
    */
-  warn(message: string, ...data: any[]): void {
+  warn(message: string, ...data: unknown[]): void {
     console.warn(`[WARN] ${message}`, ...data)
   }
 
@@ -59,7 +59,7 @@ class Logger {
    * @param error - Optional error object
    * @param data - Optional additional data
    */
-  error(message: string, error?: Error | unknown, ...data: any[]): void {
+  error(message: string, error?: Error | unknown, ...data: unknown[]): void {
     console.error(`[ERROR] ${message}`, error, ...data)
   }
 
@@ -69,7 +69,7 @@ class Logger {
    * @param message - Message to log
    * @param data - Optional data to log
    */
-  log(level: LogLevel, message: string, ...data: any[]): void {
+  log(level: LogLevel, message: string, ...data: unknown[]): void {
     switch (level) {
       case LogLevel.DEBUG:
         this.debug(message, ...data)
@@ -103,7 +103,7 @@ export const logger = new Logger()
  * Legacy function for simple conditional logging
  * @deprecated Use logger.debug() instead
  */
-export function logDev(message: string, ...data: any[]): void {
+export function logDev(message: string, ...data: unknown[]): void {
   if (isDevelopment) {
     console.log(message, ...data)
   }
