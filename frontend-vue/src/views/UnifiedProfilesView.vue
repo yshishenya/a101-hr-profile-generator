@@ -81,6 +81,9 @@
           :positions="profilesStore.filteredPositions"
           :loading="profilesStore.loading"
           @view-profile="handleViewProfile"
+          @edit-profile="handleEditProfile"
+          @delete-profile="handleDeleteProfile"
+          @restore-profile="handleRestoreProfile"
           @generate-profile="handleGenerateProfile"
           @regenerate-profile="handleRegenerateProfile"
           @cancel-generation="handleCancelGeneration"
@@ -107,6 +110,21 @@
       :profile="selectedPosition"
       @download="handleDownloadFromViewer"
       @view-versions="handleViewVersions(selectedPosition!)"
+    />
+
+    <!-- Profile Edit Modal -->
+    <ProfileEditModal
+      v-model="showProfileEdit"
+      :profile="selectedPosition"
+      @save="handleSaveProfile"
+    />
+
+    <!-- Confirm Delete Dialog -->
+    <ConfirmDeleteDialog
+      v-model="showConfirmDelete"
+      :items="itemsToDelete"
+      :require-confirmation="!!(itemsToDelete && itemsToDelete.length > 1)"
+      @delete="handleConfirmDelete"
     />
 
     <!-- Version History Modal (Week 5 Day 6) -->
@@ -176,7 +194,9 @@ import FilterBar from '@/components/profiles/FilterBar.vue'
 import PositionsTable from '@/components/profiles/PositionsTable.vue'
 import BulkActionsBar from '@/components/profiles/BulkActionsBar.vue'
 import ProfileViewerModal from '@/components/profiles/ProfileViewerModal.vue'
-import type { UnifiedPosition } from '@/types/unified'
+import ProfileEditModal from '@/components/profiles/ProfileEditModal.vue'
+import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
+import type { UnifiedPosition, PositionStatus } from '@/types/unified'
 
 // Stores
 const profilesStore = useProfilesStore()
@@ -185,8 +205,11 @@ const dashboardStore = useDashboardStore()
 
 // Local state
 const showProfileViewer = ref(false)
+const showProfileEdit = ref(false)
+const showConfirmDelete = ref(false)
 const showVersionHistory = ref(false)
 const selectedPosition = ref<UnifiedPosition | null>(null)
+const itemsToDelete = ref<UnifiedPosition[] | null>(null)
 const selectedPositionIds = ref<string[]>([])
 const snackbar = ref({
   show: false,
@@ -342,6 +365,115 @@ function stopPolling() {
 function handleViewProfile(position: UnifiedPosition) {
   selectedPosition.value = position
   showProfileViewer.value = true
+}
+
+function handleEditProfile(position: UnifiedPosition) {
+  selectedPosition.value = position
+  showProfileEdit.value = true
+}
+
+async function handleSaveProfile(data: { employee_name?: string; status?: PositionStatus }) {
+  if (!selectedPosition.value?.profile_id) {
+    showNotification('Профиль не найден', 'error')
+    return
+  }
+
+  try {
+    // Map PositionStatus to ProfileStatus for backend API
+    const backendStatus = mapPositionStatusToProfileStatus(data.status)
+    const payload = {
+      employee_name: data.employee_name,
+      ...(backendStatus && { status: backendStatus })
+    }
+
+    await profilesStore.updateProfile(String(selectedPosition.value.profile_id), payload)
+    showNotification('Профиль успешно обновлен', 'success')
+    showProfileEdit.value = false
+
+    // Refresh data to show updated values
+    await loadData()
+  } catch (error: unknown) {
+    logger.error('Failed to update profile', error)
+    showNotification('Не удалось обновить профиль', 'error')
+  }
+}
+
+// Map PositionStatus (frontend) to ProfileStatus (backend)
+function mapPositionStatusToProfileStatus(status?: PositionStatus): 'completed' | 'archived' | 'in_progress' | undefined {
+  if (!status) return undefined
+
+  switch (status) {
+    case 'generated':
+      return 'completed'
+    case 'generating':
+      return 'in_progress'
+    case 'archived':
+      return 'archived'
+    case 'not_generated':
+      // Should not happen in edit context
+      return undefined
+    default:
+      return undefined
+  }
+}
+
+function handleDeleteProfile(position: UnifiedPosition) {
+  itemsToDelete.value = [position]
+  showConfirmDelete.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!itemsToDelete.value || itemsToDelete.value.length === 0) {
+    showNotification('Нет профилей для удаления', 'error')
+    return
+  }
+
+  const count = itemsToDelete.value.length
+
+  try {
+    // Delete profiles sequentially
+    for (const item of itemsToDelete.value) {
+      if (item.profile_id) {
+        await profilesStore.deleteProfile(String(item.profile_id))
+      }
+    }
+
+    showNotification(
+      `${count === 1 ? 'Профиль удален' : `${count} профилей удалены`}`,
+      'success'
+    )
+    showConfirmDelete.value = false
+    itemsToDelete.value = null
+
+    // Refresh data
+    await loadData()
+  } catch (error: unknown) {
+    logger.error('Failed to delete profiles', error)
+    showNotification('Не удалось удалить профили', 'error')
+  }
+}
+
+async function handleRestoreProfile(position: UnifiedPosition) {
+  if (!position.profile_id) {
+    showNotification('Профиль не найден', 'error')
+    return
+  }
+
+  try {
+    // Backend doesn't have restoreProfile in service
+    // Using updateProfile with status change as workaround
+    await profilesStore.updateProfile(String(position.profile_id), {
+      status: 'completed' // Backend ProfileStatus
+    })
+
+    showNotification(`Профиль "${position.position_name}" восстановлен`, 'success')
+
+    // Refresh data
+    await loadData()
+  } catch (error: unknown) {
+    logger.error('Failed to restore profile', error)
+    showNotification('Не удалось восстановить профиль', 'error')
+  }
 }
 
 function handleGenerateProfile(position: UnifiedPosition) {

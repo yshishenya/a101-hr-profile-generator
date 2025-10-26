@@ -150,9 +150,25 @@
               <v-list-item
                 v-if="item.actions.canEdit"
                 prepend-icon="mdi-pencil"
-                disabled
+                @click="onEditProfile(item)"
               >
-                <v-list-item-title>Редактировать (Week 7)</v-list-item-title>
+                <v-list-item-title>Редактировать</v-list-item-title>
+              </v-list-item>
+
+              <v-list-item
+                v-if="item.actions.canDelete"
+                prepend-icon="mdi-delete"
+                @click="onDeleteProfile(item)"
+              >
+                <v-list-item-title>Удалить</v-list-item-title>
+              </v-list-item>
+
+              <v-list-item
+                v-if="item.status === 'archived'"
+                prepend-icon="mdi-restore"
+                @click="onRestoreProfile(item)"
+              >
+                <v-list-item-title>Восстановить</v-list-item-title>
               </v-list-item>
 
               <v-divider />
@@ -211,6 +227,9 @@ withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   viewProfile: [position: UnifiedPosition]
+  editProfile: [position: UnifiedPosition]
+  deleteProfile: [position: UnifiedPosition]
+  restoreProfile: [position: UnifiedPosition]
   generateProfile: [position: UnifiedPosition]
   regenerateProfile: [position: UnifiedPosition]
   cancelGeneration: [position: UnifiedPosition]
@@ -268,6 +287,18 @@ const headers = computed(() => [
 // Action handlers
 function onViewProfile(position: UnifiedPosition) {
   emit('viewProfile', position)
+}
+
+function onEditProfile(position: UnifiedPosition) {
+  emit('editProfile', position)
+}
+
+function onDeleteProfile(position: UnifiedPosition) {
+  emit('deleteProfile', position)
+}
+
+function onRestoreProfile(position: UnifiedPosition) {
+  emit('restoreProfile', position)
 }
 
 async function onGenerateProfile(position: UnifiedPosition) {

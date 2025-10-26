@@ -12,7 +12,8 @@
 
 1. [Common Components](#1-common-components-базовые) - Базовые UI компоненты
    - 1.1 BaseCard - Универсальная карточка
-   - 1.2 **StatsCard** - Карточка статистики (NEW!)
+   - 1.2 StatsCard - Карточка статистики
+   - 1.3 **ConfirmDeleteDialog** - Диалог подтверждения удаления (NEW!)
 2. [Generator Components](#2-generator-components-генератор) - Компоненты генератора
 3. [Profiles Components](#3-profiles-components-профили) - Компоненты управления профилями
 4. [Layout Components](#4-layout-components-layout) - Layout компоненты
@@ -209,6 +210,94 @@ interface Props {
 **См. также**:
 - [STATS_UNIFICATION_SUMMARY.md](../../docs/implementation/STATS_UNIFICATION_SUMMARY.md) - Детальная документация
 - [STATS_QUICK_REFERENCE.md](../../frontend-vue/STATS_QUICK_REFERENCE.md) - Быстрый справочник
+
+---
+
+### 1.3 ConfirmDeleteDialog
+
+**Файл**: [src/components/common/ConfirmDeleteDialog.vue](../../frontend-vue/src/components/common/ConfirmDeleteDialog.vue)
+
+**Назначение**: Универсальный диалог подтверждения удаления с поддержкой одиночного и массового удаления.
+
+**⚠️ Week 6 Phase 1**: Создан для CRUD операций с профилями
+
+**Props**:
+```typescript
+interface Props {
+  modelValue: boolean                // v-model для открытия/закрытия
+  items: UnifiedPosition[] | null    // Элементы для удаления
+  requireConfirmation?: boolean      // Требовать checkbox подтверждения (default: false)
+  maxDisplayItems?: number           // Макс. элементов в списке (default: 5)
+}
+```
+
+**Events**:
+```typescript
+{
+  'update:modelValue': [value: boolean]
+  'delete': []  // Parent обрабатывает фактическое удаление
+}
+```
+
+**Примеры использования**:
+
+```vue
+<!-- Одиночное удаление -->
+<ConfirmDeleteDialog
+  v-model="showDialog"
+  :items="[selectedProfile]"
+  @delete="handleDelete"
+/>
+
+<!-- Массовое удаление с обязательным подтверждением -->
+<ConfirmDeleteDialog
+  v-model="showDialog"
+  :items="selectedProfiles"
+  :require-confirmation="selectedProfiles.length > 1"
+  @delete="handleBulkDelete"
+/>
+
+<!-- С ограничением отображаемых элементов -->
+<ConfirmDeleteDialog
+  v-model="showDialog"
+  :items="manyItems"
+  :max-display-items="3"
+  @delete="handleDelete"
+/>
+```
+
+**Особенности**:
+- ✅ Поддержка одиночного и массового удаления
+- ✅ Отображение деталей удаляемых элементов (название, департамент, сотрудник)
+- ✅ Опциональный checkbox подтверждения для массовых операций
+- ✅ Информация о soft delete (архивирование)
+- ✅ Превью списка с ограничением количества
+- ✅ Disabled кнопок во время удаления
+- ✅ Адаптивный текст (1 профиль / N профилей)
+
+**Когда использовать**:
+- ✅ **ВСЕГДА** для подтверждения деструктивных действий
+- ✅ Удаление профилей, позиций, записей
+- ✅ Bulk операции с подтверждением
+- ✅ Архивирование данных
+
+**Когда НЕ использовать**:
+- ❌ Для simple confirmations (используйте `v-dialog` с кнопками)
+- ❌ Для non-destructive действий
+- ❌ Когда нужна custom структура dialog
+
+**UI/UX Guidelines**:
+- Красный header с иконкой предупреждения
+- Warning icon (64px) в центре
+- Информация об архивировании (может быть восстановлено)
+- Checkbox подтверждения для массовых операций (>1 элемент)
+- Показывать максимум 5 элементов, остальные "и еще N..."
+
+**Технические детали**:
+- Блокировка закрытия во время удаления (`persistent + disabled`)
+- Auto-reset состояния при закрытии (confirmed, deleting)
+- Parent отвечает за фактическое удаление через event
+- Null-safe отображение данных (`items[0]?.position_name`)
 
 ---
 
@@ -629,7 +718,103 @@ interface Props {
 
 ---
 
-### 3.4 FilterBar
+### 3.4 ProfileEditModal
+
+**Файл**: [src/components/profiles/ProfileEditModal.vue](../../frontend-vue/src/components/profiles/ProfileEditModal.vue)
+
+**Назначение**: Модальное окно для редактирования метаданных профиля (employee_name, status).
+
+**⚠️ Week 6 Phase 1**: Создан для CRUD операций
+
+**Props**:
+```typescript
+interface Props {
+  modelValue: boolean               // v-model для открытия/закрытия
+  profile: UnifiedPosition | null   // Профиль для редактирования
+}
+```
+
+**Events**:
+```typescript
+{
+  'update:modelValue': [value: boolean]
+  save: [data: { employee_name?: string; status?: PositionStatus }]
+}
+```
+
+**Примеры использования**:
+
+```vue
+<!-- Редактирование профиля -->
+<ProfileEditModal
+  v-model="showEditDialog"
+  :profile="selectedPosition"
+  @save="handleSaveProfile"
+/>
+
+<!-- С автоматическим закрытием после сохранения -->
+<template>
+  <ProfileEditModal
+    v-model="editDialog"
+    :profile="currentProfile"
+    @save="async (data) => {
+      await updateProfile(data)
+      editDialog = false
+    }"
+  />
+</template>
+```
+
+**Особенности**:
+- ✅ Редактируемые поля: employee_name (текст), status (select)
+- ✅ Read-only отображение: position_name, department_name
+- ✅ Валидация employee_name (кириллица, пробелы, дефисы, макс 200 символов)
+- ✅ Disabled кнопка Сохранить при отсутствии изменений
+- ✅ Loading state во время сохранения
+- ✅ Блокировка закрытия во время сохранения (`persistent`)
+- ✅ Auto-reset формы при открытии/закрытии
+- ✅ Информационное сообщение о Week 8 inline editing
+
+**Доступные статусы**:
+```typescript
+[
+  { label: 'Сгенерирован', value: 'generated', icon: 'mdi-check-circle', color: 'success' },
+  { label: 'Генерация', value: 'generating', icon: 'mdi-progress-clock', color: 'warning' },
+  { label: 'Архивирован', value: 'archived', icon: 'mdi-archive', color: 'grey' }
+]
+```
+
+**Validation Rules**:
+```typescript
+// Employee Name
+- Optional field (можно оставить пустым)
+- Только кириллица, пробелы и дефисы: /^[А-Яа-яЁё\s-]+$/
+- Максимум 200 символов
+
+// Status
+- Required field
+- Один из: generated, generating, archived
+```
+
+**Когда использовать**:
+- ✅ Редактирование метаданных профиля
+- ✅ Изменение имени сотрудника
+- ✅ Смена статуса профиля (архивация, восстановление)
+
+**Когда НЕ использовать**:
+- ❌ Для редактирования содержимого профиля (используйте inline editing в Week 8)
+- ❌ Для массового редактирования (добавить в Week 6 Phase 4)
+- ❌ Для создания нового профиля (другой компонент)
+
+**Технические детали**:
+- Использует `v-form` с валидацией
+- Отправляет только измененные поля (partial update)
+- Parent обрабатывает сохранение и маппинг статусов (PositionStatus → ProfileStatus)
+- Watch на `modelValue` и `profile` для синхронизации
+
+---
+
+### 3.5 FilterBar
 
 **Файл**: [src/components/profiles/FilterBar.vue](../../frontend-vue/src/components/profiles/FilterBar.vue)
 
@@ -923,5 +1108,10 @@ function handleChange(): void {
 ---
 
 **Последнее обновление**: 2025-10-26
-**Версия**: 1.0
-**Компонентов**: 12 переиспользуемых + 1 composable
+**Версия**: 1.1
+**Компонентов**: 14 переиспользуемых + 1 composable
+
+**Изменения Week 6 Phase 1**:
+- ✅ Добавлен `ConfirmDeleteDialog` (common)
+- ✅ Добавлен `ProfileEditModal` (profiles)
+- ✅ Обновлен `PositionsTable` (добавлены edit/delete/restore actions)

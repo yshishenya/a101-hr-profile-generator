@@ -144,6 +144,7 @@ export function computeActions(status: 'generated' | 'not_generated' | 'generati
     canGenerate: status === 'not_generated',
     canDownload: status === 'generated',
     canEdit: status === 'generated',
+    canDelete: status === 'generated',
     canCancel: status === 'generating',
     canRegenerate: status === 'generated'
   }

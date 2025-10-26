@@ -22,6 +22,7 @@ export interface UnifiedPosition {
 
   // Profile data (if generated)
   profile_id?: number
+  employee_name?: string | null
   current_version?: number
   version_count?: number
   quality_score?: number
@@ -41,8 +42,9 @@ export interface UnifiedPosition {
 
 /**
  * Position status enum
+ * Note: 'archived' is a profile status but can appear in unified view
  */
-export type PositionStatus = 'generated' | 'not_generated' | 'generating'
+export type PositionStatus = 'generated' | 'not_generated' | 'generating' | 'archived'
 
 /**
  * Available actions for a position
@@ -52,7 +54,8 @@ export interface PositionActions {
   canView: boolean       // Can open profile viewer
   canGenerate: boolean   // Can start generation
   canDownload: boolean   // Can download profile
-  canEdit: boolean       // Can edit profile (Week 7)
+  canEdit: boolean       // Can edit profile metadata
+  canDelete: boolean     // Can delete (archive) profile
   canCancel: boolean     // Can cancel generation
   canRegenerate: boolean // Can regenerate profile
 }
