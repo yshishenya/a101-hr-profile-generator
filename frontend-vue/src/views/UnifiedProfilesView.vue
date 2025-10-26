@@ -26,9 +26,43 @@
     </v-row>
 
     <!-- Statistics Overview -->
-    <v-row>
-      <v-col cols="12">
-        <StatsOverview />
+    <v-row class="mb-4">
+      <v-col cols="12" sm="6" md="3">
+        <StatsCard
+          icon="mdi-briefcase-outline"
+          icon-color="primary"
+          label="Всего позиций"
+          :value="dashboardStore.stats?.positions_count || 0"
+        />
+      </v-col>
+
+      <v-col cols="12" sm="6" md="3">
+        <StatsCard
+          icon="mdi-account-check-outline"
+          icon-color="success"
+          label="Сгенерировано"
+          :value="dashboardStore.stats?.profiles_count || 0"
+          :progress-value="dashboardStore.coverageProgress"
+        />
+      </v-col>
+
+      <v-col cols="12" sm="6" md="3">
+        <StatsCard
+          icon="mdi-chart-arc"
+          icon-color="info"
+          label="Покрытие"
+          :value="`${(dashboardStore.stats?.completion_percentage || 0).toFixed(1)}%`"
+          :progress-value="dashboardStore.stats?.completion_percentage || 0"
+        />
+      </v-col>
+
+      <v-col cols="12" sm="6" md="3">
+        <StatsCard
+          icon="mdi-clock-outline"
+          icon-color="warning"
+          label="В процессе"
+          :value="dashboardStore.stats?.active_tasks_count || 0"
+        />
       </v-col>
     </v-row>
 
@@ -57,13 +91,13 @@
         />
 
         <!-- Tree View (Week 5 Day 7) -->
-        <v-card v-else elevation="2" class="pa-8 text-center">
+        <BaseCard v-else class="pa-8 text-center">
           <v-icon size="64" color="grey-lighten-2">mdi-file-tree</v-icon>
           <div class="text-h6 mt-4">Дерево организации</div>
           <div class="text-body-2 text-medium-emphasis mt-2">
             Представление в виде дерева будет реализовано на Day 7
           </div>
-        </v-card>
+        </BaseCard>
       </v-col>
     </v-row>
 
@@ -134,8 +168,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useProfilesStore } from '@/stores/profiles'
 import { useGeneratorStore } from '@/stores/generator'
+import { useDashboardStore } from '@/stores/dashboard'
 import { logger } from '@/utils/logger'
-import StatsOverview from '@/components/profiles/StatsOverview.vue'
+import BaseCard from '@/components/common/BaseCard.vue'
+import StatsCard from '@/components/common/StatsCard.vue'
 import FilterBar from '@/components/profiles/FilterBar.vue'
 import PositionsTable from '@/components/profiles/PositionsTable.vue'
 import BulkActionsBar from '@/components/profiles/BulkActionsBar.vue'
@@ -145,6 +181,7 @@ import type { UnifiedPosition } from '@/types/unified'
 // Stores
 const profilesStore = useProfilesStore()
 const generatorStore = useGeneratorStore()
+const dashboardStore = useDashboardStore()
 
 // Local state
 const showProfileViewer = ref(false)
@@ -168,6 +205,11 @@ const selectedPositions = computed(() => {
 
 // Polling interval for generation tasks
 let pollingInterval: number | null = null
+let isPolling = false // Prevent overlapping polls
+let lastPollTime = 0 // Track last successful poll
+let pollErrorCount = 0 // Track consecutive errors for exponential backoff
+const MIN_POLL_INTERVAL = 2000 // Minimum 2s between polls
+const MAX_POLL_INTERVAL = 30000 // Maximum 30s between polls
 
 // Lifecycle
 onMounted(async () => {
@@ -180,12 +222,35 @@ onUnmounted(() => {
 })
 
 // Methods
-async function loadData() {
+async function loadData(): Promise<void> {
   try {
-    await profilesStore.loadUnifiedData()
-  } catch (error) {
-    showNotification('Ошибка загрузки данных', 'error')
+    // Load unified data and dashboard statistics in parallel
+    // Use Promise.allSettled to prevent failure cascade
+    const results = await Promise.allSettled([
+      profilesStore.loadUnifiedData(),
+      dashboardStore.fetchStats()
+    ])
+
+    // Check for failures and log them
+    let hasErrors = false
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const source = index === 0 ? 'profiles' : 'stats'
+        logger.error(`Failed to load ${source}`, result.reason)
+        hasErrors = true
+      }
+    })
+
+    // Show error notification only if both operations failed
+    if (results.every(r => r.status === 'rejected')) {
+      showNotification('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error')
+    } else if (hasErrors) {
+      // Partial failure - show warning
+      showNotification('Некоторые данные не удалось загрузить', 'warning')
+    }
+  } catch (error: unknown) {
     logger.error('Failed to load unified data', error)
+    showNotification('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error')
   }
 }
 
@@ -197,21 +262,67 @@ async function refreshData() {
 function startPolling() {
   // Poll every 2 seconds if there are active generation tasks
   pollingInterval = window.setInterval(async () => {
+    // Skip if already polling or too soon since last poll (rate limiting)
+    const now = Date.now()
+    const timeSinceLastPoll = now - lastPollTime
+    const backoffInterval = Math.min(
+      MIN_POLL_INTERVAL * Math.pow(2, pollErrorCount),
+      MAX_POLL_INTERVAL
+    )
+
+    if (isPolling || timeSinceLastPoll < backoffInterval) {
+      logger.debug('Skipping poll - rate limited', {
+        isPolling,
+        timeSinceLastPoll,
+        backoffInterval
+      })
+      return
+    }
+
     if (generatorStore.hasPendingTasks) {
-      // Poll each active task
-      const activeTasks = Array.from(generatorStore.activeTasks.entries())
-      for (const [taskId, task] of activeTasks) {
-        if (task.status === 'queued' || task.status === 'processing') {
-          try {
-            await generatorStore.pollTaskStatus(taskId)
-          } catch (error) {
-            logger.error(`Failed to poll task ${taskId}`, error)
+      isPolling = true
+      try {
+        // Poll each active task
+        const activeTasks = Array.from(generatorStore.activeTasks.entries())
+        for (const [taskId, task] of activeTasks) {
+          if (task.status === 'queued' || task.status === 'processing') {
+            try {
+              await generatorStore.pollTaskStatus(taskId)
+            } catch (error: unknown) {
+              logger.error(`Failed to poll task ${taskId}`, error)
+              pollErrorCount++
+            }
           }
         }
-      }
 
-      // Reload unified data to update table
-      await profilesStore.loadUnifiedData()
+        // Reload unified data and statistics to update table and stats
+        // Use Promise.allSettled instead of Promise.all to prevent failure cascade
+        const results = await Promise.allSettled([
+          profilesStore.loadUnifiedData(),
+          dashboardStore.fetchStats()
+        ])
+
+        // Check for failures and log them
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const source = index === 0 ? 'loadUnifiedData' : 'fetchStats'
+            logger.error(`Failed to ${source} during polling`, result.reason)
+            pollErrorCount++
+          }
+        })
+
+        // Reset error count on successful poll
+        if (results.every(r => r.status === 'fulfilled')) {
+          pollErrorCount = 0
+        }
+
+        lastPollTime = now
+      } catch (error: unknown) {
+        logger.error('Polling iteration failed', error)
+        pollErrorCount++
+      } finally {
+        isPolling = false
+      }
     }
   }, 2000)
 }
@@ -221,6 +332,10 @@ function stopPolling() {
     clearInterval(pollingInterval)
     pollingInterval = null
   }
+  // Reset polling state to prevent stale values on remount
+  isPolling = false
+  lastPollTime = 0
+  pollErrorCount = 0
 }
 
 // Event handlers
@@ -247,9 +362,12 @@ async function handleRegenerateProfile(position: UnifiedPosition) {
       `Перегенерация профиля для "${position.position_name}" запущена`,
       'info'
     )
-  } catch (error) {
-    showNotification('Ошибка запуска генерации', 'error')
-    logger.error('Failed to regenerate', error)
+  } catch (error: unknown) {
+    logger.error('Failed to start profile regeneration', error)
+    showNotification(
+      `Не удалось запустить перегенерацию профиля "${position.position_name}". Попробуйте еще раз.`,
+      'error'
+    )
   }
 }
 
@@ -272,9 +390,12 @@ async function handleDownloadProfile(position: UnifiedPosition) {
       `Профиль "${position.position_name}" скачан`,
       'success'
     )
-  } catch (error) {
-    showNotification('Ошибка скачивания профиля', 'error')
-    logger.error('Failed to download profile', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to download profile for position ${position.position_id}`, error)
+    showNotification(
+      `Не удалось скачать профиль "${position.position_name}". Проверьте подключение к серверу.`,
+      'error'
+    )
   }
 }
 
@@ -290,9 +411,12 @@ async function handleDownloadFromViewer(format: 'json' | 'md' | 'docx') {
       `Профиль скачан в формате ${format.toUpperCase()}`,
       'success'
     )
-  } catch (error) {
-    showNotification('Ошибка скачивания профиля', 'error')
-    logger.error('Failed to download profile', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to download profile ${selectedPosition.value.profile_id} in format ${format}`, error)
+    showNotification(
+      `Не удалось скачать профиль в формате ${format.toUpperCase()}. Попробуйте другой формат.`,
+      'error'
+    )
   }
 }
 
@@ -336,9 +460,12 @@ async function handleBulkGenerate() {
       'success'
     )
     // Keep selection to allow cancellation
-  } catch (error) {
-    showNotification('Ошибка запуска массовой генерации', 'error')
-    logger.error('Failed to start bulk generation', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to start bulk generation for ${selectedPositionIds.value.length} positions`, error)
+    showNotification(
+      `Не удалось запустить массовую генерацию для ${selectedPositionIds.value.length} позиций. Проверьте подключение к серверу.`,
+      'error'
+    )
   }
 }
 
@@ -357,9 +484,12 @@ async function handleBulkCancel() {
       'info'
     )
     handleClearSelection()
-  } catch (error) {
-    showNotification('Ошибка отмены задач', 'error')
-    logger.error('Failed to cancel bulk tasks', error)
+  } catch (error: unknown) {
+    logger.error(`Failed to cancel bulk tasks for ${selectedPositionIds.value.length} positions`, error)
+    showNotification(
+      `Не удалось отменить задачи. Некоторые из ${count} задач могут продолжить выполнение.`,
+      'error'
+    )
   }
 }
 
@@ -375,7 +505,7 @@ function showNotification(message: string, color: 'success' | 'error' | 'warning
 <style scoped>
 .unified-profiles-view {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  background: rgb(var(--v-theme-background));
 }
 
 .gap-2 {

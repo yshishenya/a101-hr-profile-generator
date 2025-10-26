@@ -60,8 +60,8 @@
                   <v-expansion-panel-text>
                     <div v-if="subsection.content" class="text-body-2" v-html="formatText(subsection.content)" />
                     <v-chip
-                      v-else-if="subsection.items"
                       v-for="(item, itemIdx) in subsection.items"
+                      v-else-if="subsection.items"
                       :key="itemIdx"
                       class="ma-1"
                       size="small"
@@ -91,10 +91,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import DOMPurify from 'dompurify'
+import type { ProfileData } from '@/types/profile'
 
 // Props
 interface Props {
-  profile: any
+  profile: ProfileData
   loading?: boolean
 }
 
@@ -126,7 +128,7 @@ const profileSections = computed<ProfileSection[]>(() => {
       title: 'Компетенции',
       icon: 'mdi-brain',
       type: 'nested',
-      subsections: Object.entries(props.profile.competencies || {}).map(([key, value]: [string, any]) => ({
+      subsections: Object.entries(props.profile.competencies || {}).map(([key, value]: [string, unknown]) => ({
         title: key,
         items: Array.isArray(value) ? value : [String(value)]
       }))
@@ -139,7 +141,9 @@ const profileSections = computed<ProfileSection[]>(() => {
       icon: 'mdi-clipboard-list',
       type: 'list',
       items: Array.isArray(props.profile.responsibilities)
-        ? props.profile.responsibilities
+        ? props.profile.responsibilities.map(r =>
+            typeof r === 'string' ? r : `${r.title}: ${r.description}`
+          )
         : [String(props.profile.responsibilities)]
     })
   }
@@ -149,7 +153,7 @@ const profileSections = computed<ProfileSection[]>(() => {
       title: 'Требования',
       icon: 'mdi-check-circle',
       type: 'nested',
-      subsections: Object.entries(props.profile.requirements || {}).map(([key, value]: [string, any]) => ({
+      subsections: Object.entries(props.profile.requirements || {}).map(([key, value]: [string, unknown]) => ({
         title: key,
         items: Array.isArray(value) ? value : [String(value)]
       }))
@@ -202,8 +206,15 @@ const profileSections = computed<ProfileSection[]>(() => {
 
 // Methods
 function formatText(text: string): string {
-  // Convert line breaks to <br>
-  return text.replace(/\n/g, '<br>')
+  // Convert line breaks to <br> and sanitize HTML to prevent XSS attacks
+  const formatted = text.replace(/\n/g, '<br>')
+
+  // Sanitize HTML with DOMPurify - allows only safe tags
+  return DOMPurify.sanitize(formatted, {
+    ALLOWED_TAGS: ['br', 'p', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li'],
+    ALLOWED_ATTR: [],
+    ALLOW_DATA_ATTR: false
+  })
 }
 </script>
 

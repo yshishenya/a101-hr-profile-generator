@@ -75,105 +75,42 @@
 
     <!-- Stats Cards Row -->
     <v-row v-else-if="stats">
-      <!-- Total Positions Card -->
       <v-col cols="12" sm="6" md="3">
-        <BaseCard class="pa-4">
-          <div class="d-flex align-center mb-3">
-            <v-icon size="40" color="primary" class="mr-3">
-              mdi-briefcase-outline
-            </v-icon>
-            <div>
-              <div class="text-h4 font-weight-bold">
-                {{ (stats.positions_count || 0).toLocaleString() }}
-              </div>
-              <div class="text-subtitle-2 text-medium-emphasis">
-                Total Positions
-              </div>
-            </div>
-          </div>
-          <v-progress-linear
-            color="primary"
-            :model-value="100"
-            height="4"
-            rounded
-          />
-        </BaseCard>
+        <StatsCard
+          icon="mdi-briefcase-outline"
+          icon-color="primary"
+          label="Всего позиций"
+          :value="stats.positions_count || 0"
+        />
       </v-col>
 
-      <!-- Profiles Generated Card -->
       <v-col cols="12" sm="6" md="3">
-        <BaseCard class="pa-4">
-          <div class="d-flex align-center mb-3">
-            <v-icon size="40" color="success" class="mr-3">
-              mdi-account-check-outline
-            </v-icon>
-            <div>
-              <div class="text-h4 font-weight-bold">
-                {{ (stats.profiles_count || 0).toLocaleString() }}
-              </div>
-              <div class="text-subtitle-2 text-medium-emphasis">
-                Profiles Generated
-              </div>
-            </div>
-          </div>
-          <v-progress-linear
-            color="success"
-            :model-value="((stats.profiles_count || 0) / (stats.positions_count || 1)) * 100"
-            height="4"
-            rounded
-          />
-        </BaseCard>
+        <StatsCard
+          icon="mdi-account-check-outline"
+          icon-color="success"
+          label="Сгенерировано"
+          :value="stats.profiles_count || 0"
+          :progress-value="dashboardStore.coverageProgress"
+        />
       </v-col>
 
-      <!-- Completion Card -->
       <v-col cols="12" sm="6" md="3">
-        <BaseCard class="pa-4">
-          <div class="d-flex align-center mb-3">
-            <v-icon size="40" color="info" class="mr-3">
-              mdi-chart-arc
-            </v-icon>
-            <div>
-              <div class="text-h4 font-weight-bold">
-                {{ (stats.completion_percentage ?? 0).toFixed(1) }}%
-              </div>
-              <div class="text-subtitle-2 text-medium-emphasis">
-                Completion
-              </div>
-            </div>
-          </div>
-          <v-progress-linear
-            color="info"
-            :model-value="stats.completion_percentage ?? 0"
-            height="4"
-            rounded
-          />
-        </BaseCard>
+        <StatsCard
+          icon="mdi-chart-arc"
+          icon-color="info"
+          label="Покрытие"
+          :value="`${(stats.completion_percentage ?? 0).toFixed(1)}%`"
+          :progress-value="stats.completion_percentage ?? 0"
+        />
       </v-col>
 
-      <!-- Active Tasks Card -->
       <v-col cols="12" sm="6" md="3">
-        <BaseCard class="pa-4">
-          <div class="d-flex align-center mb-3">
-            <v-icon size="40" color="warning" class="mr-3">
-              mdi-clock-outline
-            </v-icon>
-            <div>
-              <div class="text-h4 font-weight-bold">
-                {{ stats.active_tasks_count ?? 0 }}
-              </div>
-              <div class="text-subtitle-2 text-medium-emphasis">
-                Active Tasks
-              </div>
-            </div>
-          </div>
-          <v-progress-linear
-            color="warning"
-            :model-value="(stats.active_tasks_count ?? 0) > 0 ? 100 : 0"
-            :indeterminate="(stats.active_tasks_count ?? 0) > 0"
-            height="4"
-            rounded
-          />
-        </BaseCard>
+        <StatsCard
+          icon="mdi-clock-outline"
+          icon-color="warning"
+          label="В процессе"
+          :value="stats.active_tasks_count ?? 0"
+        />
       </v-col>
     </v-row>
 
@@ -266,86 +203,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { logger } from '@/utils/logger'
+import { useDashboardStore } from '@/stores/dashboard'
 import BaseCard from '@/components/common/BaseCard.vue'
-import dashboardService from '@/services/dashboard.service'
-import type { DashboardStats } from '@/types/api'
-import { isDashboardStatsResponse } from '@/types/api'
+import StatsCard from '@/components/common/StatsCard.vue'
 
-// Access auth store for user info
+// Stores
 const authStore = useAuthStore()
+const dashboardStore = useDashboardStore()
 
-// Dashboard state
-const stats = ref<DashboardStats | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+// Local state for polling interval
 const refreshInterval = ref<number | null>(null)
+let isPolling = false // Prevent overlapping polls
 
-// Computed properties
-const formattedLastUpdated = computed(() => {
-  if (!stats.value?.last_updated) return 'Never'
-  const date = new Date(stats.value.last_updated)
-  return date.toLocaleTimeString()
-})
-
-/**
- * Fetch dashboard statistics
- */
-async function fetchStats() {
-  try {
-    error.value = null
-    const response = await dashboardService.getStats()
-
-    // Handle both possible response structures safely
-    // Backend may wrap response in { data: ... } or return directly
-    const rawData = 'data' in response ? response.data : response
-
-    // Use type guard to check for nested structure
-    if (isDashboardStatsResponse(rawData)) {
-      // Backend returns nested structure with summary and metadata
-      stats.value = {
-        positions_count: rawData.summary.positions_count ?? 0,
-        profiles_count: rawData.summary.profiles_count ?? 0,
-        completion_percentage: rawData.summary.completion_percentage ?? 0,
-        active_tasks_count: rawData.summary.active_tasks_count ?? 0,
-        last_updated: rawData.metadata?.last_updated
-      }
-    } else {
-      // Fallback: assume data is already in flat DashboardStats format
-      stats.value = rawData as DashboardStats
-    }
-  } catch (err: unknown) {
-    logger.error('Failed to fetch dashboard stats', err)
-
-    // Safe error message extraction
-    const errorMessage = err instanceof Error
-      ? err.message
-      : 'Failed to load dashboard statistics'
-
-    error.value = errorMessage
-  } finally {
-    loading.value = false
-  }
-}
+// Computed properties from store
+const stats = dashboardStore.stats
+const loading = dashboardStore.loading
+const error = dashboardStore.error
+const formattedLastUpdated = dashboardStore.formattedLastUpdated
 
 /**
  * Refresh stats manually
  */
 async function refresh() {
-  loading.value = true
-  await fetchStats()
+  await dashboardStore.refresh()
 }
 
 // Lifecycle hooks
 onMounted(() => {
-  fetchStats()
+  // Initial fetch
+  dashboardStore.fetchStats()
 
   // Auto-refresh every 30 seconds if there are active tasks
-  refreshInterval.value = window.setInterval(() => {
-    if (stats.value && (stats.value.active_tasks_count ?? 0) > 0) {
-      fetchStats()
+  refreshInterval.value = window.setInterval(async () => {
+    if (dashboardStore.hasActiveGenerations && !isPolling) {
+      isPolling = true
+      try {
+        await dashboardStore.fetchStats()
+      } catch (error: unknown) {
+        // Error is already logged and stored in dashboardStore.error
+        // No need to show additional notification
+      } finally {
+        isPolling = false
+      }
     }
   }, 30000)
 })
@@ -353,6 +254,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (refreshInterval.value) {
     clearInterval(refreshInterval.value)
+    refreshInterval.value = null
   }
+  // Reset polling flag to prevent stale state on remount
+  isPolling = false
 })
 </script>
