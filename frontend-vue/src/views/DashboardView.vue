@@ -84,7 +84,7 @@
             </v-icon>
             <div>
               <div class="text-h4 font-weight-bold">
-                {{ stats.positions_count.toLocaleString() }}
+                {{ (stats.positions_count || 0).toLocaleString() }}
               </div>
               <div class="text-subtitle-2 text-medium-emphasis">
                 Total Positions
@@ -109,7 +109,7 @@
             </v-icon>
             <div>
               <div class="text-h4 font-weight-bold">
-                {{ stats.profiles_count.toLocaleString() }}
+                {{ (stats.profiles_count || 0).toLocaleString() }}
               </div>
               <div class="text-subtitle-2 text-medium-emphasis">
                 Profiles Generated
