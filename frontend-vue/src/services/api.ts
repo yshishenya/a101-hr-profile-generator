@@ -58,8 +58,10 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear it
-      localStorage.removeItem('auth_token')
+      // Token expired or invalid
+      // Emit custom event for auth store to handle
+      // This maintains separation of concerns - api.ts handles HTTP, store handles state
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
 
       // Don't redirect here - let router guard handle it
       // This prevents page reload and maintains SPA navigation

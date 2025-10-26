@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
   const initialized = ref<boolean>(false)
+  let initializePromise: Promise<void> | null = null
 
   // Computed
   const isAuthenticated = computed(() => !!token.value && !!user.value)
@@ -119,9 +120,14 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Initialize auth state on app start
    * Loads user if token exists in localStorage
-   * Safe to call multiple times - will only run once
+   * Safe to call multiple times - concurrent calls will wait for the same initialization
    */
   async function initialize(): Promise<void> {
+    // If initialization is already in progress, wait for it
+    if (initializePromise) {
+      return initializePromise
+    }
+
     // Skip if no token
     if (!token.value) {
       initialized.value = true
@@ -134,17 +140,22 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
-    // Skip if currently loading
-    if (loading.value) {
-      return
-    }
+    // Start initialization and store the promise
+    initializePromise = (async () => {
+      try {
+        await loadUser()
 
-    await loadUser()
+        // Mark as initialized only if user successfully loaded
+        if (user.value) {
+          initialized.value = true
+        }
+      } finally {
+        // Clear the promise so future calls can re-initialize if needed
+        initializePromise = null
+      }
+    })()
 
-    // Mark as initialized only if user successfully loaded
-    if (user.value) {
-      initialized.value = true
-    }
+    return initializePromise
   }
 
   /**
@@ -153,6 +164,28 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function clearError(): void {
     error.value = null
+  }
+
+  /**
+   * Handle unauthorized events from axios interceptor
+   * Clears auth state when token is invalid/expired
+   */
+  function handleUnauthorized(): void {
+    // Clear state (but don't call API since we know it will fail)
+    token.value = null
+    user.value = null
+    initialized.value = false
+    localStorage.removeItem(TOKEN_KEY)
+
+    if (import.meta.env.DEV) {
+      console.log('Auth state cleared due to 401 response')
+    }
+  }
+
+  // Listen for unauthorized events from axios interceptor
+  // This maintains single source of truth - store manages state, api emits events
+  if (typeof window !== 'undefined') {
+    window.addEventListener('auth:unauthorized', handleUnauthorized)
   }
 
   return {

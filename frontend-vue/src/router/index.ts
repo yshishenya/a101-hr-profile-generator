@@ -76,9 +76,20 @@ router.beforeEach(async (
 ) => {
   const authStore = useAuthStore()
 
-  // Ensure auth is initialized (handles page refresh case)
-  // Safe to call multiple times - will only run once
-  await authStore.initialize()
+  try {
+    // Ensure auth is initialized (handles page refresh case)
+    // Safe to call multiple times - concurrent calls will wait for the same initialization
+    await authStore.initialize()
+  } catch (error) {
+    // If initialization fails, treat as unauthenticated
+    // This prevents infinite loading and allows user to retry login
+    if (import.meta.env.DEV) {
+      console.error('Auth initialization failed:', error)
+    }
+
+    // Clear any stale state
+    authStore.clearError()
+  }
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false)
   const isAuthenticated = authStore.isAuthenticated

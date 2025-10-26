@@ -35,6 +35,35 @@ export interface DashboardStats {
   last_updated?: string
 }
 
+/**
+ * Backend response structure for dashboard stats
+ * Contains nested summary and metadata
+ */
+export interface DashboardStatsResponse {
+  summary: {
+    positions_count: number
+    profiles_count: number
+    completion_percentage: number
+    active_tasks_count: number
+  }
+  metadata: {
+    last_updated: string
+  }
+}
+
+/**
+ * Type guard to check if response has nested structure
+ */
+export function isDashboardStatsResponse(data: any): data is DashboardStatsResponse {
+  return (
+    data &&
+    typeof data === 'object' &&
+    'summary' in data &&
+    typeof data.summary === 'object' &&
+    'positions_count' in data.summary
+  )
+}
+
 export interface HealthCheckResponse {
   status: string
   timestamp: string

@@ -118,7 +118,7 @@
           </div>
           <v-progress-linear
             color="success"
-            :model-value="(stats.profiles_count / stats.positions_count) * 100"
+            :model-value="((stats.profiles_count || 0) / (stats.positions_count || 1)) * 100"
             height="4"
             rounded
           />
@@ -134,7 +134,7 @@
             </v-icon>
             <div>
               <div class="text-h4 font-weight-bold">
-                {{ stats.completion_percentage.toFixed(1) }}%
+                {{ (stats.completion_percentage ?? 0).toFixed(1) }}%
               </div>
               <div class="text-subtitle-2 text-medium-emphasis">
                 Completion
@@ -143,7 +143,7 @@
           </div>
           <v-progress-linear
             color="info"
-            :model-value="stats.completion_percentage"
+            :model-value="stats.completion_percentage ?? 0"
             height="4"
             rounded
           />
@@ -159,7 +159,7 @@
             </v-icon>
             <div>
               <div class="text-h4 font-weight-bold">
-                {{ stats.active_tasks_count }}
+                {{ stats.active_tasks_count ?? 0 }}
               </div>
               <div class="text-subtitle-2 text-medium-emphasis">
                 Active Tasks
@@ -168,8 +168,8 @@
           </div>
           <v-progress-linear
             color="warning"
-            :model-value="stats.active_tasks_count > 0 ? 100 : 0"
-            :indeterminate="stats.active_tasks_count > 0"
+            :model-value="(stats.active_tasks_count ?? 0) > 0 ? 100 : 0"
+            :indeterminate="(stats.active_tasks_count ?? 0) > 0"
             height="4"
             rounded
           />
@@ -270,6 +270,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import dashboardService from '@/services/dashboard.service'
 import type { DashboardStats } from '@/types/api'
+import { isDashboardStatsResponse } from '@/types/api'
 
 // Access auth store for user info
 const authStore = useAuthStore()
@@ -294,11 +295,34 @@ async function fetchStats() {
   try {
     error.value = null
     const response = await dashboardService.getStats()
-    // Handle both wrapped and unwrapped responses
-    stats.value = (response as any).data || response
-  } catch (err: any) {
+
+    // Handle both possible response structures safely
+    // Backend may wrap response in { data: ... } or return directly
+    const rawData = 'data' in response ? response.data : response
+
+    // Use type guard to check for nested structure
+    if (isDashboardStatsResponse(rawData)) {
+      // Backend returns nested structure with summary and metadata
+      stats.value = {
+        positions_count: rawData.summary.positions_count ?? 0,
+        profiles_count: rawData.summary.profiles_count ?? 0,
+        completion_percentage: rawData.summary.completion_percentage ?? 0,
+        active_tasks_count: rawData.summary.active_tasks_count ?? 0,
+        last_updated: rawData.metadata?.last_updated
+      }
+    } else {
+      // Fallback: assume data is already in flat DashboardStats format
+      stats.value = rawData as DashboardStats
+    }
+  } catch (err: unknown) {
     console.error('Failed to fetch dashboard stats:', err)
-    error.value = err.response?.data?.error?.message || err.message || 'Failed to load dashboard statistics'
+
+    // Safe error message extraction
+    const errorMessage = err instanceof Error
+      ? err.message
+      : 'Failed to load dashboard statistics'
+
+    error.value = errorMessage
   } finally {
     loading.value = false
   }
@@ -318,7 +342,7 @@ onMounted(() => {
 
   // Auto-refresh every 30 seconds if there are active tasks
   refreshInterval.value = window.setInterval(() => {
-    if (stats.value && stats.value.active_tasks_count > 0) {
+    if (stats.value && (stats.value.active_tasks_count ?? 0) > 0) {
       fetchStats()
     }
   }, 30000)
