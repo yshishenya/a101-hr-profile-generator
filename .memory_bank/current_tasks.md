@@ -86,6 +86,17 @@
   - Zero visual changes, zero performance impact
   - Files: BaseCard.vue (new), DashboardView.vue, GeneratorView.vue, BrowseTreeTab.vue
   - Docs: frontend-vue/src/components/common/README.md, docs/implementation/BASECARD_REFACTORING.md
+- [x] [BUG-09] Fix incorrect statistics on Profile Generator page (2025-10-26)
+  - **Problem**: Statistics showed 567 (business units count) instead of actual positions count (~1487+)
+  - **Root cause**: Frontend expected flat position list with profile_exists field, but backend returned nested business units
+  - **Solution**: Created new `/api/organization/positions` endpoint that:
+    - Flattens business units into position list (each business unit has positions array)
+    - Joins with profiles table to provide profile_exists and profile_id fields
+    - Returns accurate statistics (total_count, positions_with_profiles, coverage_percentage)
+  - **Frontend changes**: Updated catalog store to call new endpoint instead of /search-items
+  - **Impact**: Fixes broken statistics display and search functionality (PositionSearchAutocomplete)
+  - **Backwards compatibility**: Old /search-items endpoint preserved unchanged
+  - Files: backend/api/organization.py (new endpoint lines 119-257), frontend-vue/src/stores/catalog.ts (line 119)
 
 ### DevOps (Q1 2025)
 - [x] [DOCKER-01] Docker containerization

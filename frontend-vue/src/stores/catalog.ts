@@ -10,7 +10,7 @@ import type { Ref } from 'vue'
 import api from '@/services/api'
 
 // Constants
-const CACHE_KEY = 'org_catalog_cache'
+const CACHE_KEY = 'org_positions_cache' // Changed from org_catalog_cache to invalidate old business unit cache (BUG-09)
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 // Types
@@ -113,7 +113,10 @@ export const useCatalogStore = defineStore('catalog', () => {
     error.value = null
 
     try {
-      const response = await api.get('/api/organization/search-items')
+      // ИСПРАВЛЕНИЕ BUG-09: Используем новый endpoint /positions вместо /search-items
+      // Новый endpoint возвращает плоский список позиций с полем profile_exists
+      // вместо бизнес-единиц (567 штук), что исправляет неправильную статистику
+      const response = await api.get('/api/organization/positions')
       const items: SearchableItem[] = response.data.data.items
 
       searchableItems.value = items
@@ -121,6 +124,12 @@ export const useCatalogStore = defineStore('catalog', () => {
 
       // Cache the results
       saveToCache(items)
+
+      if (import.meta.env.DEV) {
+        console.log(`✅ Loaded ${items.length} positions from /api/organization/positions`)
+        const withProfiles = items.filter(item => item.profile_exists).length
+        console.log(`   ${withProfiles} positions have profiles (${Math.round(withProfiles/items.length*100)}% coverage)`)
+      }
     } catch (err: unknown) {
       const errorMessage = (err as any).response?.data?.detail ||
                           'Failed to load organization data'

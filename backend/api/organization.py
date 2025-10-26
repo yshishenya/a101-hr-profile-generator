@@ -9,8 +9,9 @@ API endpoints для организационной структуры и пои
 """
 
 from fastapi import APIRouter, Path, HTTPException, Depends, status
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import logging
+import sqlite3
 
 from ..models.schemas import BaseResponse, ErrorResponse
 from ..api.auth import get_current_user
@@ -24,6 +25,21 @@ def get_catalog_service():
     if catalog_service is None:
         raise RuntimeError("CatalogService not initialized. Check main.py lifespan initialization.")
     return catalog_service
+
+
+def get_db_manager():
+    """Получение DB manager для работы с базой данных
+
+    Returns:
+        DatabaseManager: Инициализированный менеджер базы данных
+
+    Raises:
+        RuntimeError: Если DB manager не инициализирован
+    """
+    from ..models.database import get_db_manager as _get_db_manager, DatabaseManager
+    db_manager: DatabaseManager = _get_db_manager()
+    return db_manager
+
 
 # Создаем роутер для organization endpoints
 organization_router = APIRouter(prefix="/api/organization", tags=["Organization"])
@@ -106,6 +122,260 @@ async def get_search_items(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка получения элементов для поиска: {str(e)}",
+        )
+
+
+# Helper functions for /positions endpoint
+def _build_profile_mapping(cursor: sqlite3.Cursor) -> Dict[Tuple[str, str], int]:
+    """
+    Создание mapping профилей для быстрого поиска.
+
+    Создает словарь для O(1) lookup профилей по комбинации (department, position).
+    Используется для определения наличия профиля у каждой позиции.
+
+    Args:
+        cursor: SQLite cursor для выполнения запросов
+
+    Returns:
+        Dict[Tuple[str, str], int]: Mapping (department, position) -> profile_id
+
+    Examples:
+        >>> cursor = conn.cursor()
+        >>> mapping = _build_profile_mapping(cursor)
+        >>> profile_id = mapping.get(("ДИТ", "Программист"))
+        >>> # Returns profile_id or None
+    """
+    cursor.execute("""
+        SELECT id, position, department
+        FROM profiles
+        WHERE status = 'completed'
+    """)
+
+    profile_map: Dict[Tuple[str, str], int] = {}
+    for row in cursor.fetchall():
+        key = (row['department'], row['position'])
+        profile_map[key] = row['id']
+
+    return profile_map
+
+
+def _flatten_business_units_to_positions(
+    search_items: List[Dict[str, Any]],
+    profile_map: Dict[Tuple[str, str], int]
+) -> List[Dict[str, Any]]:
+    """
+    Преобразование бизнес-единиц в плоский список позиций.
+
+    Разворачивает иерархическую структуру бизнес-единиц в плоский список
+    позиций с информацией о наличии профилей. Каждая позиция получает
+    уникальный ID и метаданные о бизнес-единице.
+
+    Args:
+        search_items: Список бизнес-единиц с вложенными позициями
+        profile_map: Mapping для определения наличия профилей
+
+    Returns:
+        List[Dict[str, Any]]: Плоский список позиций с метаданными
+
+    Examples:
+        >>> business_units = [{"name": "ДИТ", "positions": ["Программист", "Аналитик"]}]
+        >>> profile_map = {("ДИТ", "Программист"): 42}
+        >>> positions = _flatten_business_units_to_positions(business_units, profile_map)
+        >>> len(positions)  # Returns 2
+    """
+    all_positions: List[Dict[str, Any]] = []
+
+    for business_unit in search_items:
+        unit_name = business_unit.get('name', '')
+        unit_path = business_unit.get('hierarchy', '')
+        unit_full_path = business_unit.get('full_path', '')
+        positions_list = business_unit.get('positions', [])
+
+        # positions_list содержит строки (названия позиций), не словари
+        for position_name in positions_list:
+            # Генерируем уникальный ID для позиции из пути + названия
+            position_id = f"{unit_full_path}_{position_name}".replace(' ', '_').replace('/', '_')
+
+            # Проверяем есть ли профиль для этой позиции
+            profile_key = (unit_name, position_name)
+            profile_id = profile_map.get(profile_key)
+            profile_exists = profile_id is not None
+
+            all_positions.append({
+                'position_id': position_id,
+                'position_name': position_name,
+                'business_unit_id': unit_full_path,
+                'business_unit_name': unit_name,
+                'department_id': None,  # Не доступно в текущей структуре
+                'department_name': unit_name,
+                'department_path': unit_path,
+                'profile_exists': profile_exists,
+                'profile_id': profile_id
+            })
+
+    return all_positions
+
+
+def _calculate_position_statistics(positions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Вычисление статистики по позициям.
+
+    Подсчитывает общее количество позиций, количество позиций с профилями
+    и процент покрытия. Используется для метаданных в ответе API.
+
+    Args:
+        positions: Список позиций с полем profile_exists
+
+    Returns:
+        Dict[str, Any]: Словарь со статистикой:
+            - total_count: общее количество позиций
+            - positions_with_profiles: количество позиций с профилями
+            - coverage_percentage: процент покрытия (0-100)
+
+    Examples:
+        >>> positions = [
+        ...     {"profile_exists": True},
+        ...     {"profile_exists": False},
+        ...     {"profile_exists": True}
+        ... ]
+        >>> stats = _calculate_position_statistics(positions)
+        >>> stats["total_count"]  # Returns 3
+        >>> stats["coverage_percentage"]  # Returns 66.7
+    """
+    total_count = len(positions)
+    positions_with_profiles = sum(1 for p in positions if p['profile_exists'])
+
+    # Избегаем деления на ноль
+    coverage_percentage = (
+        round((positions_with_profiles / total_count) * 100, 1)
+        if total_count > 0 else 0
+    )
+
+    return {
+        "total_count": total_count,
+        "positions_with_profiles": positions_with_profiles,
+        "coverage_percentage": coverage_percentage
+    }
+
+
+@organization_router.get("/positions", response_model=Dict[str, Any])
+async def get_all_positions(
+    current_user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    @doc
+    Получение всех позиций в плоском виде для frontend с информацией о профилях.
+
+    Возвращает все позиции (не бизнес-единицы!) с метаданными:
+    - position_id, position_name - идентификатор и название позиции
+    - business_unit_id, business_unit_name - бизнес-единица
+    - department_path - полный путь в иерархии
+    - profile_exists - есть ли созданный профиль (из БД)
+    - profile_id - ID профиля если существует
+
+    Этот endpoint решает проблему с неправильной статистикой на странице Generator,
+    где показывалось 567 бизнес-единиц вместо реального количества позиций.
+
+    ### Пример запроса:
+    ```bash
+    curl -X GET "http://localhost:8001/api/organization/positions" \\
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+
+    ### Пример успешного ответа:
+    ```json
+    {
+      "success": true,
+      "message": "Получено 1487 позиций",
+      "data": {
+        "items": [
+          {
+            "position_id": "BU001_POS123",
+            "position_name": "Программист 1С",
+            "business_unit_id": "BU001",
+            "business_unit_name": "Департамент информационных технологий",
+            "department_path": "Блок ОД → ДИТ",
+            "profile_exists": true,
+            "profile_id": 42
+          }
+        ],
+        "total_count": 1487,
+        "positions_with_profiles": 125,
+        "coverage_percentage": 8.4
+      }
+    }
+    ```
+
+    Returns:
+        Dict[str, Any]: Response с массивом всех позиций и статистикой
+
+    Raises:
+        HTTPException: 500 если произошла ошибка при получении данных
+
+    Examples:
+        python> response = await get_all_positions()
+        python> # {'success': True, 'data': {'items': [...], 'total_count': 1487}}
+    """
+    try:
+        logger.info(f"Getting all positions for user {current_user['username']}")
+
+        # 1. Получаем все бизнес-единицы с позициями
+        catalog_service = get_catalog_service()
+        search_items: List[Dict[str, Any]] = catalog_service.get_searchable_items()
+
+        # 2. Получаем информацию о профилях из БД
+        conn: sqlite3.Connection = get_db_manager().get_connection()
+        cursor: sqlite3.Cursor = conn.cursor()
+
+        # 3. Используем helper functions для обработки данных
+        profile_map = _build_profile_mapping(cursor)
+        all_positions = _flatten_business_units_to_positions(search_items, profile_map)
+        stats = _calculate_position_statistics(all_positions)
+
+        # 4. Формируем ответ
+        response: Dict[str, Any] = {
+            "success": True,
+            "message": f"Получено {stats['total_count']} позиций",
+            "data": {
+                "items": all_positions,
+                **stats  # Распаковываем статистику (total_count, positions_with_profiles, coverage_percentage)
+            },
+        }
+
+        logger.info(
+            f"Successfully returned {stats['total_count']} positions "
+            f"({stats['positions_with_profiles']} with profiles, "
+            f"{stats['coverage_percentage']}% coverage)"
+        )
+        return response
+
+    except RuntimeError as e:
+        # Service initialization errors
+        logger.error(f"Service initialization error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка инициализации сервиса",
+        )
+    except sqlite3.Error as e:
+        # Database errors
+        logger.error(f"Database error in get_all_positions: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка доступа к базе данных",
+        )
+    except (KeyError, ValueError, TypeError) as e:
+        # Data processing errors
+        logger.error(f"Data processing error in get_all_positions: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка обработки данных",
+        )
+    except Exception as e:
+        # Unexpected errors - log with full traceback but don't expose details
+        logger.exception(f"Unexpected error in get_all_positions: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера",
         )
 
 
