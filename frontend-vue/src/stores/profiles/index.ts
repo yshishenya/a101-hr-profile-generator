@@ -71,6 +71,15 @@ import {
   bulkCancel
 } from './actions-unified'
 
+// Export Actions
+import {
+  bulkDownload,
+  downloadProgress,
+  isDownloading,
+  downloadError,
+  clearDownloadError
+} from './actions-export'
+
 /**
  * Profiles store with unified position management
  *
@@ -155,6 +164,13 @@ export const useProfilesStore = defineStore('profiles', () => {
     loadUnifiedData,
     bulkGenerate,
     bulkCancel,
+
+    // Export actions
+    bulkDownload,
+    downloadProgress,
+    isDownloading,
+    downloadError,
+    clearDownloadError,
 
     reset
   }

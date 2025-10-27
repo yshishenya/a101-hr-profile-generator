@@ -183,7 +183,16 @@
       :selected-positions="selectedPositions"
       @bulk-generate="handleBulkGenerate"
       @bulk-cancel="handleBulkCancel"
+      @bulk-download="handleBulkDownload"
+      @quality-check="handleQualityCheck"
       @clear-selection="handleClearSelection"
+    />
+
+    <!-- Bulk Quality Dialog -->
+    <BulkQualityDialog
+      v-model="showQualityDialog"
+      :positions="selectedPositions"
+      @regenerate="handleRegenerateFromQualityCheck"
     />
   </v-container>
 </template>
@@ -203,6 +212,7 @@ import ProfileViewerModal from '@/components/profiles/ProfileViewerModal.vue'
 import ProfileEditModal from '@/components/profiles/ProfileEditModal.vue'
 import FullProfileEditModal from '@/components/profiles/FullProfileEditModal.vue'
 import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
+import BulkQualityDialog from '@/components/profiles/BulkQualityDialog.vue'
 import type { UnifiedPosition, PositionStatus } from '@/types/unified'
 
 // Stores
@@ -216,6 +226,7 @@ const showProfileEdit = ref(false)
 const showFullProfileEdit = ref(false)
 const showConfirmDelete = ref(false)
 const showVersionHistory = ref(false)
+const showQualityDialog = ref(false)
 const selectedPosition = ref<UnifiedPosition | null>(null)
 const itemsToDelete = ref<UnifiedPosition[] | null>(null)
 const selectedPositionIds = ref<string[]>([])
@@ -629,6 +640,106 @@ async function handleBulkCancel(): Promise<void> {
     logger.error(`Failed to cancel bulk tasks for ${selectedPositionIds.value.length} positions`, error)
     showNotification(
       `Не удалось отменить задачи. Некоторые из ${count} задач могут продолжить выполнение.`,
+      'error'
+    )
+  }
+}
+
+/**
+ * Handle bulk download of selected profiles
+ */
+async function handleBulkDownload(formats: Array<'json' | 'md' | 'docx'>): Promise<void> {
+  // Get profile IDs of generated profiles only
+  const generatedProfiles = selectedPositions.value.filter(p => p.status === 'generated')
+
+  if (generatedProfiles.length === 0) {
+    showNotification('Нет сгенерированных профилей для скачивания', 'warning')
+    return
+  }
+
+  const profileIds = generatedProfiles
+    .map(p => p.profile_id)
+    .filter((id): id is number => id !== null && id !== undefined)
+    .map(id => String(id)) // Convert to string for API
+
+  if (profileIds.length === 0) {
+    showNotification('Не найдены ID профилей для скачивания', 'error')
+    return
+  }
+
+  try {
+    // Show progress notification
+    showNotification(
+      `Подготовка к скачиванию ${profileIds.length} ${profileIds.length === 1 ? 'профиля' : 'профилей'}...`,
+      'info'
+    )
+
+    const result = await profilesStore.bulkDownload(profileIds, formats)
+
+    // Show result notification
+    if (result.errorCount === 0) {
+      showNotification(
+        `Скачано ${result.successCount} ${result.successCount === 1 ? 'файл' : 'файлов'} в ZIP архиве`,
+        'success'
+      )
+    } else {
+      showNotification(
+        `Скачано ${result.successCount} из ${result.totalFiles} файлов. Ошибок: ${result.errorCount}`,
+        'warning'
+      )
+    }
+
+    // Clear selection after successful download
+    handleClearSelection()
+  } catch (error: unknown) {
+    logger.error(`Failed to bulk download ${profileIds.length} profiles`, error)
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
+    showNotification(
+      `Не удалось скачать профили: ${errorMessage}`,
+      'error'
+    )
+  }
+}
+
+/**
+ * Handle quality check button click
+ */
+function handleQualityCheck(): void {
+  const generatedProfiles = selectedPositions.value.filter(p => p.status === 'generated')
+
+  if (generatedProfiles.length === 0) {
+    showNotification('Нет сгенерированных профилей для проверки качества', 'warning')
+    return
+  }
+
+  showQualityDialog.value = true
+}
+
+/**
+ * Handle regenerate from quality check dialog
+ */
+async function handleRegenerateFromQualityCheck(positionIds: string[]): Promise<void> {
+  if (positionIds.length === 0) {
+    return
+  }
+
+  try {
+    showNotification(
+      `Запуск регенерации для ${positionIds.length} ${positionIds.length === 1 ? 'профиля' : 'профилей'} с низким качеством...`,
+      'info'
+    )
+
+    const taskIds = await profilesStore.bulkGenerate(positionIds)
+
+    showNotification(
+      `Запущена регенерация для ${taskIds.length} ${taskIds.length === 1 ? 'профиля' : 'профилей'}`,
+      'success'
+    )
+  } catch (error: unknown) {
+    logger.error(`Failed to regenerate ${positionIds.length} profiles from quality check`, error)
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
+    showNotification(
+      `Не удалось запустить регенерацию: ${errorMessage}`,
       'error'
     )
   }

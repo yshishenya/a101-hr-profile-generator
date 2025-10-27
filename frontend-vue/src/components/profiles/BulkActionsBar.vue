@@ -61,17 +61,65 @@
                 Отменить все ({{ stats.generating }})
               </v-btn>
 
-              <!-- Export (Week 7) -->
+              <!-- Quality Check (Week 6 Phase 4) -->
               <v-btn
-                variant="text"
-                icon
-                disabled
+                v-if="stats.generated > 0"
+                variant="elevated"
+                color="white"
+                prepend-icon="mdi-clipboard-check"
+                @click="emit('qualityCheck')"
               >
-                <v-icon>mdi-file-excel</v-icon>
-                <v-tooltip activator="parent" location="top">
-                  Экспорт в XLSX (Week 7)
-                </v-tooltip>
+                Проверить качество
               </v-btn>
+
+              <!-- Download ZIP (Week 6 Phase 4) -->
+              <v-menu v-if="stats.generated > 0">
+                <template #activator="{ props: menuProps }">
+                  <v-btn
+                    variant="elevated"
+                    color="white"
+                    prepend-icon="mdi-download"
+                    v-bind="menuProps"
+                  >
+                    Скачать ZIP ({{ stats.generated }})
+                  </v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-subheader>Выберите форматы</v-list-subheader>
+                  <v-list-item
+                    prepend-icon="mdi-file-document-multiple"
+                    @click="emit('bulkDownload', ['json', 'md', 'docx'])"
+                  >
+                    <v-list-item-title>Все форматы (JSON + MD + DOCX)</v-list-item-title>
+                  </v-list-item>
+                  <v-divider />
+                  <v-list-item
+                    prepend-icon="mdi-code-json"
+                    @click="emit('bulkDownload', ['json'])"
+                  >
+                    <v-list-item-title>Только JSON</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item
+                    prepend-icon="mdi-file-document"
+                    @click="emit('bulkDownload', ['md'])"
+                  >
+                    <v-list-item-title>Только Markdown</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item
+                    prepend-icon="mdi-file-word"
+                    @click="emit('bulkDownload', ['docx'])"
+                  >
+                    <v-list-item-title>Только DOCX</v-list-item-title>
+                  </v-list-item>
+                  <v-divider />
+                  <v-list-item
+                    prepend-icon="mdi-file-document-outline"
+                    @click="emit('bulkDownload', ['json', 'docx'])"
+                  >
+                    <v-list-item-title>JSON + DOCX</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
 
               <!-- Clear Selection -->
               <v-btn
@@ -107,6 +155,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   bulkGenerate: []
   bulkCancel: []
+  bulkDownload: [formats: Array<'json' | 'md' | 'docx'>]
+  qualityCheck: []
   clearSelection: []
 }>()
 

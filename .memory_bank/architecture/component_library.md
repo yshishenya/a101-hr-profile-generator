@@ -25,6 +25,8 @@
    - 3.6 **ProfileVersionsPanel** - Панель истории версий профиля (NEW - Week 6 Phase 3!)
    - 3.7 **DateRangeFilter** - Фильтр по диапазону дат (Week 6 Phase 2)
    - 3.8 **FilterPresets** - ⚠️ Управление пресетами (сохранен но НЕ используется после UX ревью)
+   - 3.9 **BulkQualityDialog** - Диалог проверки качества профилей (NEW - Week 6 Phase 4!)
+   - 3.10 **BulkActionsBar** - Панель массовых операций (UPDATED - Week 6 Phase 4!)
 4. [Layout Components](#4-layout-components-layout) - Layout компоненты
 5. [Composables](#5-composables-переиспользуемая-логика) - Переиспользуемая логика
    - 5.1 useTaskStatus - Polling механизм
@@ -32,6 +34,7 @@
    - 5.3 **useAnalytics** - Tracking пользовательских событий (NEW - Week 6 Phase 3!)
 6. [Utilities](#6-utilities-утилиты) - Переиспользуемые утилиты
    - 6.1 **filterPresets.ts** - Управление пресетами фильтров (Week 6 Phase 2)
+   - 6.2 **exportHelper.ts** - Bulk download и ZIP архивы (NEW - Week 6 Phase 4!)
 7. [When to Create New Component](#7-когда-создавать-новый-компонент) - Руководство
 
 ---
@@ -1251,6 +1254,102 @@ interface ProfileVersion {
 
 ---
 
+### 3.9 **BulkQualityDialog** ⭐ NEW - Week 6 Phase 4
+
+**Файл**: [src/components/profiles/BulkQualityDialog.vue](../../frontend-vue/src/components/profiles/BulkQualityDialog.vue)
+
+**Назначение**: Диалог для проверки качества выбранных профилей с группировкой по уровню качества.
+
+**Props**:
+```typescript
+interface Props {
+  modelValue: boolean // Dialog visibility
+  positions: UnifiedPosition[] // Profiles to check
+}
+```
+
+**Events**:
+```typescript
+{
+  'update:modelValue': [value: boolean]
+  'regenerate': [positionIds: string[]] // Regenerate poor quality profiles
+}
+```
+
+**Особенности**:
+- ✅ Группировка по качеству: Good (≥80%), OK (60-79%), Poor (<60%)
+- ✅ Summary cards с количеством профилей в каждой группе
+- ✅ Tabs для переключения между группами
+- ✅ v-timeline отображение профилей
+- ✅ Quality score chips с цветовой индикацией
+- ✅ Warning alert для low-quality profiles
+- ✅ "Регенерировать" button для batch regeneration
+
+**Примеры использования**:
+```vue
+<BulkQualityDialog
+  v-model="showQualityDialog"
+  :positions="selectedPositions"
+  @regenerate="handleRegenerate"
+/>
+```
+
+**Техническ ие детали**:
+- Размер: 287 lines ✅ (under 300 limit)
+- BaseThemedDialog wrapper for consistent theming
+- Russian pluralization for counts
+- Filtering only generated profiles
+- Position metadata: name, department, quality_score
+
+---
+
+### 3.10 **BulkActionsBar** 🔄 UPDATED - Week 6 Phase 4
+
+**Файл**: [src/components/profiles/BulkActionsBar.vue](../../frontend-vue/src/components/profiles/BulkActionsBar.vue)
+
+**Назначение**: Floating action bar для массовых операций над выбранными позициями.
+
+**Props**:
+```typescript
+interface Props {
+  selectedPositions: UnifiedPosition[]
+}
+```
+
+**Events**:
+```typescript
+{
+  'bulkGenerate': [] // Generate all not_generated
+  'bulkCancel': [] // Cancel all generating
+  'bulkDownload': [formats: Array<'json' | 'md' | 'docx'>] // NEW Phase 4!
+  'qualityCheck': [] // NEW Phase 4!
+  'clearSelection': []
+}
+```
+
+**Новые возможности Week 6 Phase 4**:
+- ✅ **Download ZIP button** - Bulk download с выбором форматов:
+  - Все форматы (JSON + MD + DOCX)
+  - Только JSON / MD / DOCX
+  - Комбинация JSON + DOCX
+- ✅ **Quality Check button** - Проверка качества сгенерированных профилей
+- ✅ Format selector menu (v-menu с v-list)
+- ✅ Показывается только для generated profiles
+- ✅ Icons: mdi-download, mdi-clipboard-check
+
+**Примеры использования**:
+```vue
+<BulkActionsBar
+  :selected-positions="selectedPositions"
+  @bulk-generate="handleBulkGenerate"
+  @bulk-download="handleBulkDownload"
+  @quality-check="handleQualityCheck"
+  @clear-selection="clearSelection"
+/>
+```
+
+---
+
 ## 4. Layout Components (Layout)
 
 ### 4.1 AppLayout
@@ -1663,6 +1762,38 @@ addPreset(preset)
 **Когда НЕ использовать**:
 - ❌ Для других типов данных (создайте отдельную утилиту)
 - ❌ Для серверного хранения (это только для localStorage)
+
+---
+
+### 6.2 **exportHelper.ts** ⭐ NEW - Week 6 Phase 4
+
+**Файл**: [src/utils/exportHelper.ts](../../frontend-vue/src/utils/exportHelper.ts)
+
+**Назначение**: Bulk download профилей в ZIP архивах с JSZip integration.
+
+**Основные функции**:
+```typescript
+async function bulkDownloadProfiles(options: BulkDownloadOptions): Promise<BulkDownloadResult>
+async function downloadProfileAsZip(profileId: string, formats?: ExportFormat[]): Promise<BulkDownloadResult>
+```
+
+**Особенности**:
+- ✅ JSZip + file-saver для ZIP creation
+- ✅ Organized structure: folders по форматам (json/, markdown/, docx/)
+- ✅ Progress tracking через callback
+- ✅ Graceful partial failures (продолжает при ошибках)
+- ✅ Filename sanitization + timestamped names
+- ✅ 12 unit tests ✅ 100% passing
+
+**ZIP Structure Example**:
+```
+profiles_2025-10-27T14-53-29.zip
+├── json/profile_1.json, profile_2.json
+├── markdown/profile_1.md, profile_2.md
+└── docx/profile_1.docx, profile_2.docx
+```
+
+**Testing**: `__tests__/exportHelper.test.ts` - 12/12 tests passing
 
 ---
 
