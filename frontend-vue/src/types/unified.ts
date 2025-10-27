@@ -90,14 +90,38 @@ export type ViewMode = 'table' | 'tree'
  */
 export interface ProfileFilters {
   search: string
-  department: string | null
+  departments: string[]  // Changed from department (multi-select)
   status: StatusFilter
+  dateRange: DateRangeFilter | null
+  // qualityRange removed from UI - kept in backend for potential future use
 }
 
 /**
  * Status filter options
  */
 export type StatusFilter = 'all' | 'generated' | 'not_generated' | 'generating'
+
+/**
+ * Date range filter
+ */
+export interface DateRangeFilter {
+  type: 'created' | 'updated'
+  from: string | null  // ISO 8601 date string (YYYY-MM-DD)
+  to: string | null    // ISO 8601 date string (YYYY-MM-DD)
+}
+
+/**
+ * Quality score range filter
+ */
+export interface QualityRangeFilter {
+  min: number  // 0-100
+  max: number  // 0-100
+}
+
+/**
+ * Date range preset for quick selection
+ */
+export type DateRangePreset = 'last_7_days' | 'last_30_days' | 'last_90_days' | 'all_time' | 'custom'
 
 /**
  * Version comparison result

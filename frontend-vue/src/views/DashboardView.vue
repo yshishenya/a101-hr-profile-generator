@@ -226,7 +226,7 @@ const formattedLastUpdated = dashboardStore.formattedLastUpdated
 /**
  * Refresh stats manually
  */
-async function refresh() {
+async function refresh(): Promise<void> {
   await dashboardStore.refresh()
 }
 

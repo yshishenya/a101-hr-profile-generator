@@ -126,14 +126,14 @@ const passwordRules = [
 /**
  * Clear error message when user starts typing
  */
-function clearError() {
+function clearError(): void {
   authStore.clearError()
 }
 
 /**
  * Handle login form submission
  */
-async function handleLogin() {
+async function handleLogin(): Promise<void> {
   // Validate form
   const { valid } = await form.value.validate()
   if (!valid) return

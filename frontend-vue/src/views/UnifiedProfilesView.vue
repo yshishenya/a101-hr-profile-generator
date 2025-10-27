@@ -277,12 +277,12 @@ async function loadData(): Promise<void> {
   }
 }
 
-async function refreshData() {
+async function refreshData(): Promise<void> {
   await loadData()
   showNotification('Данные обновлены', 'success')
 }
 
-function startPolling() {
+function startPolling(): void {
   // Poll every 2 seconds if there are active generation tasks
   pollingInterval = window.setInterval(async () => {
     // Skip if already polling or too soon since last poll (rate limiting)
@@ -350,7 +350,7 @@ function startPolling() {
   }, 2000)
 }
 
-function stopPolling() {
+function stopPolling(): void {
   if (pollingInterval) {
     clearInterval(pollingInterval)
     pollingInterval = null
@@ -362,17 +362,17 @@ function stopPolling() {
 }
 
 // Event handlers
-function handleViewProfile(position: UnifiedPosition) {
+function handleViewProfile(position: UnifiedPosition): void {
   selectedPosition.value = position
   showProfileViewer.value = true
 }
 
-function handleEditProfile(position: UnifiedPosition) {
+function handleEditProfile(position: UnifiedPosition): void {
   selectedPosition.value = position
   showProfileEdit.value = true
 }
 
-async function handleSaveProfile(data: { employee_name?: string; status?: PositionStatus }) {
+async function handleSaveProfile(data: { employee_name?: string; status?: PositionStatus }): Promise<void> {
   if (!selectedPosition.value?.profile_id) {
     showNotification('Профиль не найден', 'error')
     return
@@ -417,12 +417,12 @@ function mapPositionStatusToProfileStatus(status?: PositionStatus): 'completed' 
   }
 }
 
-function handleDeleteProfile(position: UnifiedPosition) {
+function handleDeleteProfile(position: UnifiedPosition): void {
   itemsToDelete.value = [position]
   showConfirmDelete.value = true
 }
 
-async function handleConfirmDelete() {
+async function handleConfirmDelete(): Promise<void> {
   if (!itemsToDelete.value || itemsToDelete.value.length === 0) {
     showNotification('Нет профилей для удаления', 'error')
     return
@@ -453,7 +453,7 @@ async function handleConfirmDelete() {
   }
 }
 
-async function handleRestoreProfile(position: UnifiedPosition) {
+async function handleRestoreProfile(position: UnifiedPosition): Promise<void> {
   if (!position.profile_id) {
     showNotification('Профиль не найден', 'error')
     return
@@ -476,14 +476,14 @@ async function handleRestoreProfile(position: UnifiedPosition) {
   }
 }
 
-function handleGenerateProfile(position: UnifiedPosition) {
+function handleGenerateProfile(position: UnifiedPosition): void {
   showNotification(
     `Генерация профиля для "${position.position_name}" запущена`,
     'info'
   )
 }
 
-async function handleRegenerateProfile(position: UnifiedPosition) {
+async function handleRegenerateProfile(position: UnifiedPosition): Promise<void> {
   try {
     await generatorStore.startGeneration({
       position_id: position.position_id,
@@ -503,14 +503,14 @@ async function handleRegenerateProfile(position: UnifiedPosition) {
   }
 }
 
-function handleCancelGeneration(position: UnifiedPosition) {
+function handleCancelGeneration(position: UnifiedPosition): void {
   showNotification(
     `Генерация профиля для "${position.position_name}" отменена`,
     'warning'
   )
 }
 
-async function handleDownloadProfile(position: UnifiedPosition) {
+async function handleDownloadProfile(position: UnifiedPosition): Promise<void> {
   if (!position.profile_id) {
     showNotification('Профиль не найден', 'error')
     return
@@ -531,7 +531,7 @@ async function handleDownloadProfile(position: UnifiedPosition) {
   }
 }
 
-async function handleDownloadFromViewer(format: 'json' | 'md' | 'docx') {
+async function handleDownloadFromViewer(format: 'json' | 'md' | 'docx'): Promise<void> {
   if (!selectedPosition.value?.profile_id) {
     showNotification('Профиль не найден', 'error')
     return
@@ -552,12 +552,12 @@ async function handleDownloadFromViewer(format: 'json' | 'md' | 'docx') {
   }
 }
 
-function handleViewVersions(position: UnifiedPosition) {
+function handleViewVersions(position: UnifiedPosition): void {
   selectedPosition.value = position
   showVersionHistory.value = true
 }
 
-function handleShareProfile(position: UnifiedPosition) {
+function handleShareProfile(position: UnifiedPosition): void {
   // TODO(developer): Implement share functionality (Week 7)
   // Copy profile URL to clipboard and show notification
   // Example: navigator.clipboard.writeText(`${window.location.origin}/profiles/${position.profile_id}`)
@@ -568,16 +568,16 @@ function handleShareProfile(position: UnifiedPosition) {
 }
 
 // Selection handlers
-function handleSelectionChange(selectedIds: string[]) {
+function handleSelectionChange(selectedIds: string[]): void {
   selectedPositionIds.value = selectedIds
 }
 
-function handleClearSelection() {
+function handleClearSelection(): void {
   selectedPositionIds.value = []
 }
 
 // Bulk operations handlers
-async function handleBulkGenerate() {
+async function handleBulkGenerate(): Promise<void> {
   const count = selectedPositions.value.filter(p => p.status === 'not_generated').length
 
   if (count === 0) {
@@ -601,7 +601,7 @@ async function handleBulkGenerate() {
   }
 }
 
-async function handleBulkCancel() {
+async function handleBulkCancel(): Promise<void> {
   const count = selectedPositions.value.filter(p => p.status === 'generating').length
 
   if (count === 0) {
@@ -625,7 +625,7 @@ async function handleBulkCancel() {
   }
 }
 
-function showNotification(message: string, color: 'success' | 'error' | 'warning' | 'info') {
+function showNotification(message: string, color: 'success' | 'error' | 'warning' | 'info'): void {
   snackbar.value = {
     show: true,
     message,

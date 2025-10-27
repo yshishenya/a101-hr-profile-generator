@@ -102,8 +102,9 @@ export const useProfilesStore = defineStore('profiles', () => {
     }
     unifiedFilters.value = {
       search: '',
-      department: null,
-      status: 'all'
+      departments: [],
+      status: 'all',
+      dateRange: null
     }
   }
 

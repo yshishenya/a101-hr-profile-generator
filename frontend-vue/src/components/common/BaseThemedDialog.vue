@@ -30,22 +30,19 @@ import { useTheme } from 'vuetify'
  *
  * @component
  * @example
- * ```vue
- * <template>
- *   <BaseThemedDialog v-model="dialogVisible" max-width="800px">
- *     <v-card>
- *       <v-card-title>My Dialog</v-card-title>
- *       <v-card-text>Content here</v-card-text>
- *     </v-card>
- *   </BaseThemedDialog>
- * </template>
+ * ```typescript
+ * // Template usage:
+ * // <BaseThemedDialog v-model="dialogVisible" max-width="800px">
+ * //   <v-card>
+ * //     <v-card-title>My Dialog</v-card-title>
+ * //     <v-card-text>Content here</v-card-text>
+ * //   </v-card>
+ * // </BaseThemedDialog>
  *
- * <script setup lang="ts">
  * import { ref } from 'vue'
  * import BaseThemedDialog from '@/components/common/BaseThemedDialog.vue'
  *
  * const dialogVisible = ref(false)
- * </script>
  * ```
  */
 

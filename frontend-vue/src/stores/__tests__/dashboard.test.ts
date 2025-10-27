@@ -105,7 +105,20 @@ describe('dashboardStore', () => {
 
     it('should fetch stats successfully with nested response', async () => {
       const store = useDashboardStore()
-      const mockNestedResponse = {
+
+      interface NestedStatsResponse {
+        summary: {
+          positions_count: number
+          profiles_count: number
+          completion_percentage: number
+          active_tasks_count: number
+        }
+        metadata: {
+          last_updated: string
+        }
+      }
+
+      const mockNestedResponse: NestedStatsResponse = {
         summary: {
           positions_count: 100,
           profiles_count: 50,
@@ -117,7 +130,7 @@ describe('dashboardStore', () => {
         }
       }
 
-      vi.mocked(dashboardService.getStats).mockResolvedValue(mockNestedResponse as any)
+      vi.mocked(dashboardService.getStats).mockResolvedValue(mockNestedResponse as unknown as DashboardStats)
 
       await store.fetchStats()
 
@@ -135,9 +148,14 @@ describe('dashboardStore', () => {
     it('should handle wrapped response with data property', async () => {
       const store = useDashboardStore()
       const mockStats = createMockStats()
-      const wrappedResponse = { data: mockStats }
 
-      vi.mocked(dashboardService.getStats).mockResolvedValue(wrappedResponse as any)
+      interface WrappedResponse {
+        data: DashboardStats
+      }
+
+      const wrappedResponse: WrappedResponse = { data: mockStats }
+
+      vi.mocked(dashboardService.getStats).mockResolvedValue(wrappedResponse as unknown as DashboardStats)
 
       await store.fetchStats()
 
@@ -209,17 +227,28 @@ describe('dashboardStore', () => {
 
     it('should use nullish coalescing for missing fields in nested response', async () => {
       const store = useDashboardStore()
-      const incompleteResponse = {
+
+      interface IncompleteNestedResponse {
         summary: {
-          positions_count: null as any,
-          profiles_count: undefined as any,
+          positions_count: null | number
+          profiles_count: undefined | number
+          completion_percentage: number
+          active_tasks_count: number
+        }
+        metadata: Record<string, never>
+      }
+
+      const incompleteResponse: IncompleteNestedResponse = {
+        summary: {
+          positions_count: null,
+          profiles_count: undefined,
           completion_percentage: 0,
           active_tasks_count: 0
         },
         metadata: {}
       }
 
-      vi.mocked(dashboardService.getStats).mockResolvedValue(incompleteResponse as any)
+      vi.mocked(dashboardService.getStats).mockResolvedValue(incompleteResponse as unknown as DashboardStats)
 
       await store.fetchStats()
 
@@ -294,7 +323,7 @@ describe('dashboardStore', () => {
       vi.mocked(dashboardService.getStats).mockResolvedValue(mockStats)
 
       // Start multiple fetches concurrently
-      const [result1, result2, result3] = await Promise.all([
+      await Promise.all([
         store.fetchStats(),
         store.fetchStats(),
         store.fetchStats()

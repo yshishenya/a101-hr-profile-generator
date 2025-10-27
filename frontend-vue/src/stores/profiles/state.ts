@@ -45,8 +45,9 @@ export const viewMode: Ref<ViewMode> = ref('table')
  */
 export const unifiedFilters: Ref<ProfileFilters> = ref({
   search: '',
-  department: null,
-  status: 'all'
+  departments: [],  // Multi-select departments
+  status: 'all',
+  dateRange: null  // Date range filter (created/updated)
 })
 
 /**

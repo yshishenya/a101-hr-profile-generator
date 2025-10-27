@@ -65,10 +65,10 @@ export const filteredPositions = computed(() => {
     )
   }
 
-  // Department filter
-  if (unifiedFilters.value.department) {
+  // Department filter (multi-select)
+  if (unifiedFilters.value.departments.length > 0) {
     result = result.filter(p =>
-      p.department_name === unifiedFilters.value.department
+      unifiedFilters.value.departments.includes(p.department_name)
     )
   }
 

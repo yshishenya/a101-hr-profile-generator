@@ -54,7 +54,7 @@ Object.defineProperty(window, 'addEventListener', {
   }
 })
 
-function dispatchEvent(event: string) {
+function dispatchEvent(event: string): void {
   const listeners = eventListeners[event] || []
   listeners.forEach(listener => listener())
 }

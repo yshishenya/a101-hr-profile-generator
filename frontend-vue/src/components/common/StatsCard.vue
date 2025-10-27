@@ -119,7 +119,11 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  icon: undefined,
   iconColor: 'primary',
+  progressValue: undefined,
+  progressColor: undefined,
+  lastUpdated: undefined,
   decimals: 0
 })
 

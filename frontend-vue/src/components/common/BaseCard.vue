@@ -50,7 +50,8 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   elevation: 2,
-  rounded: 'lg'
+  rounded: 'lg',
+  class: ''
 })
 
 // Merge classes properly

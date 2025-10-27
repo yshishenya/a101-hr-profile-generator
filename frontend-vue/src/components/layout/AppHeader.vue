@@ -53,7 +53,7 @@ const { isDark, toggleTheme } = useTheme()
  * Handle logout action
  * Clears auth state and redirects to login page
  */
-const handleLogout = async () => {
+const handleLogout = async (): Promise<void> => {
   await auth.logout()
   router.push('/login')
 }

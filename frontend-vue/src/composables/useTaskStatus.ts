@@ -5,7 +5,12 @@
 
 import type { GenerationTask } from '@/stores/generator'
 
-export function useTaskStatus() {
+interface TaskStatusComposable {
+  getTaskStatusColor: (status: GenerationTask['status']) => string
+  getTaskStatusIcon: (status: GenerationTask['status']) => string
+}
+
+export function useTaskStatus(): TaskStatusComposable {
   /**
    * Get Vuetify color for task status
    *

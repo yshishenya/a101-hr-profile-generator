@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Conditional logging utility
  * Logs only in development mode to avoid cluttering production console
