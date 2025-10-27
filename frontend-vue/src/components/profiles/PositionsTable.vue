@@ -50,8 +50,20 @@
               ({{ item.version_count }} версий)
             </span>
           </div>
-          <div v-if="item.quality_score" class="text-caption text-medium-emphasis">
-            Качество: {{ item.quality_score }}%
+          <div v-if="item.quality_score" class="quality-score">
+            <span class="text-caption text-medium-emphasis">
+              Качество: {{ item.quality_score }}%
+            </span>
+            <v-icon size="x-small" class="ml-1">mdi-information-outline</v-icon>
+            <v-tooltip activator="parent" location="bottom" max-width="300">
+              <div class="text-body-2">
+                <strong>Оценка полноты и качества профиля</strong>
+                <div class="mt-1">
+                  Учитывается структура данных, детализация описаний и соответствие стандартам.
+                  Рекомендуется регенерация при оценке ниже 70%.
+                </div>
+              </div>
+            </v-tooltip>
           </div>
         </div>
         <div v-else class="text-caption text-medium-emphasis">
@@ -285,23 +297,23 @@ const headers = computed(() => [
 ])
 
 // Action handlers
-function onViewProfile(position: UnifiedPosition) {
+function onViewProfile(position: UnifiedPosition): void {
   emit('viewProfile', position)
 }
 
-function onEditProfile(position: UnifiedPosition) {
+function onEditProfile(position: UnifiedPosition): void {
   emit('editProfile', position)
 }
 
-function onDeleteProfile(position: UnifiedPosition) {
+function onDeleteProfile(position: UnifiedPosition): void {
   emit('deleteProfile', position)
 }
 
-function onRestoreProfile(position: UnifiedPosition) {
+function onRestoreProfile(position: UnifiedPosition): void {
   emit('restoreProfile', position)
 }
 
-async function onGenerateProfile(position: UnifiedPosition) {
+async function onGenerateProfile(position: UnifiedPosition): Promise<void> {
   try {
     await generatorStore.startGeneration({
       position_id: position.position_id,
@@ -314,11 +326,11 @@ async function onGenerateProfile(position: UnifiedPosition) {
   }
 }
 
-function onRegenerateProfile(position: UnifiedPosition) {
+function onRegenerateProfile(position: UnifiedPosition): void {
   emit('regenerateProfile', position)
 }
 
-async function onCancelGeneration(position: UnifiedPosition) {
+async function onCancelGeneration(position: UnifiedPosition): Promise<void> {
   if (position.task_id) {
     try {
       await generatorStore.cancelTask(position.task_id)
@@ -329,20 +341,20 @@ async function onCancelGeneration(position: UnifiedPosition) {
   }
 }
 
-function onDownloadProfile(position: UnifiedPosition) {
+function onDownloadProfile(position: UnifiedPosition): void {
   emit('downloadProfile', position)
 }
 
-function onViewVersions(position: UnifiedPosition) {
+function onViewVersions(position: UnifiedPosition): void {
   emit('viewVersions', position)
 }
 
-function onShareProfile(position: UnifiedPosition) {
+function onShareProfile(position: UnifiedPosition): void {
   emit('shareProfile', position)
 }
 
 // Selection handler
-function onSelectionChange(selectedIds: string[]) {
+function onSelectionChange(selectedIds: string[]): void {
   emit('selectionChange', selectedIds)
 }
 </script>
@@ -376,6 +388,13 @@ function onSelectionChange(selectedIds: string[]) {
   flex-direction: column;
   gap: 2px;
   text-align: center;
+}
+
+.quality-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
 }
 
 .actions-cell {

@@ -36,6 +36,7 @@
 
             <!-- Text content -->
             <div v-else-if="section.type === 'text' && section.content" class="text-body-1">
+              <!-- eslint-disable-next-line vue/no-v-html -->
               <div v-html="formatText(section.content)" />
             </div>
 
@@ -60,6 +61,7 @@
                     {{ subsection.title }}
                   </v-expansion-panel-title>
                   <v-expansion-panel-text>
+                    <!-- eslint-disable-next-line vue/no-v-html -->
                     <div v-if="subsection.content" class="text-body-2" v-html="formatText(subsection.content)" />
                     <v-chip
                       v-for="(item, itemIdx) in subsection.items"
@@ -76,8 +78,22 @@
               </v-expansion-panels>
             </div>
 
-            <!-- JSON fallback -->
-            <pre v-else class="json-content">{{ JSON.stringify(section, null, 2) }}</pre>
+            <!-- Unsupported format fallback -->
+            <v-alert v-else type="info" variant="tonal" class="ma-0">
+              <v-alert-title>Неподдерживаемый формат данных</v-alert-title>
+              <div class="text-body-2 mt-2 mb-3">
+                Эта секция содержит данные в специальном формате.
+                Вы можете скачать полный профиль в формате JSON для просмотра всех деталей.
+              </div>
+              <v-btn
+                size="small"
+                variant="outlined"
+                prepend-icon="mdi-code-json"
+                @click="$emit('download-json')"
+              >
+                Скачать JSON
+              </v-btn>
+            </v-alert>
           </v-card-text>
         </v-card>
       </div>
@@ -105,6 +121,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   loading: false
 })
+
+// Emits
+defineEmits<{
+  'download-json': []
+}>()
 
 // Profile section structure
 interface ProfileSection {

@@ -35,23 +35,33 @@
             </template>
 
             <v-list density="compact">
+              <!-- For Work -->
+              <v-list-subheader>Для работы</v-list-subheader>
               <v-list-item
-                prepend-icon="mdi-code-json"
-                @click="handleDownload('json')"
+                prepend-icon="mdi-file-word"
+                @click="handleDownload('docx')"
               >
-                <v-list-item-title>JSON</v-list-item-title>
+                <v-list-item-title>Microsoft Word</v-list-item-title>
+                <v-list-item-subtitle>Готовый документ для печати</v-list-item-subtitle>
               </v-list-item>
               <v-list-item
                 prepend-icon="mdi-language-markdown"
                 @click="handleDownload('md')"
               >
                 <v-list-item-title>Markdown</v-list-item-title>
+                <v-list-item-subtitle>Текстовый формат для редактирования</v-list-item-subtitle>
               </v-list-item>
+
+              <v-divider class="my-2" />
+
+              <!-- For Developers -->
+              <v-list-subheader>Для разработчиков</v-list-subheader>
               <v-list-item
-                prepend-icon="mdi-file-word"
-                @click="handleDownload('docx')"
+                prepend-icon="mdi-code-json"
+                @click="handleDownload('json')"
               >
-                <v-list-item-title>DOCX</v-list-item-title>
+                <v-list-item-title>JSON (технический)</v-list-item-title>
+                <v-list-item-subtitle>Данные в структурированном формате</v-list-item-subtitle>
               </v-list-item>
             </v-list>
           </v-menu>
@@ -111,6 +121,7 @@
               v-if="profileDetail"
               :profile="profileDetail.profile"
               :loading="loadingDetail"
+              @download-json="handleDownload('json')"
             />
 
             <!-- Loading State -->
@@ -212,7 +223,7 @@ watch(
 )
 
 // Methods
-async function loadProfileDetail() {
+async function loadProfileDetail(): Promise<void> {
   if (!props.profile?.profile_id) return
 
   try {
@@ -223,7 +234,7 @@ async function loadProfileDetail() {
   }
 }
 
-function handleDownload(format: 'json' | 'md' | 'docx') {
+function handleDownload(format: 'json' | 'md' | 'docx'): void {
   emit('download', format)
 }
 </script>

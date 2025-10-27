@@ -111,61 +111,74 @@
       </v-card-text>
     </v-card>
 
-    <!-- Generation Metadata (if available) -->
-    <v-card v-if="metadata" variant="outlined" class="mb-4">
-      <v-card-title class="text-subtitle-2 pa-3">
-        <v-icon class="mr-2" size="small">mdi-cog</v-icon>
-        Параметры генерации
-      </v-card-title>
+    <!-- Generation Metadata (if available) - Collapsible for advanced users -->
+    <v-expansion-panels v-if="metadata" variant="accordion" class="mb-4">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-subtitle-2">
+          <v-icon class="mr-2" size="small">mdi-cog</v-icon>
+          Техническая информация
+        </v-expansion-panel-title>
 
-      <v-divider />
+        <v-expansion-panel-text>
+          <v-list density="compact">
+            <v-list-item v-if="metadata.generation?.timestamp">
+              <v-list-item-title class="text-caption text-medium-emphasis">
+                Дата генерации
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-body-2 mt-1">
+                {{ formatDate(metadata.generation.timestamp) }}
+              </v-list-item-subtitle>
+            </v-list-item>
 
-      <v-list density="compact">
-        <v-list-item v-if="metadata.generation?.timestamp">
-          <v-list-item-title class="text-caption text-medium-emphasis">
-            Дата генерации
-          </v-list-item-title>
-          <v-list-item-subtitle class="text-body-2 mt-1">
-            {{ formatDate(metadata.generation.timestamp) }}
-          </v-list-item-subtitle>
-        </v-list-item>
+            <v-divider v-if="metadata.generation?.timestamp" />
 
-        <v-divider v-if="metadata.generation?.timestamp" />
+            <v-list-item v-if="metadata.generation?.duration">
+              <v-list-item-title class="text-caption text-medium-emphasis">
+                Длительность
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-body-2 mt-1">
+                {{ formatDuration(metadata.generation.duration) }}
+              </v-list-item-subtitle>
+            </v-list-item>
 
-        <v-list-item v-if="metadata.generation?.duration">
-          <v-list-item-title class="text-caption text-medium-emphasis">
-            Длительность
-          </v-list-item-title>
-          <v-list-item-subtitle class="text-body-2 mt-1">
-            {{ formatDuration(metadata.generation.duration) }}
-          </v-list-item-subtitle>
-        </v-list-item>
+            <v-divider v-if="metadata.generation?.duration" />
 
-        <v-divider v-if="metadata.generation?.duration" />
+            <v-list-item v-if="metadata.generation?.temperature">
+              <v-list-item-title class="text-caption text-medium-emphasis">
+                Temperature
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-body-2 mt-1">
+                {{ metadata.generation.temperature }}
+              </v-list-item-subtitle>
+            </v-list-item>
 
-        <v-list-item v-if="metadata.llm?.model">
-          <v-list-item-title class="text-caption text-medium-emphasis">
-            Модель
-          </v-list-item-title>
-          <v-list-item-subtitle class="text-body-2 mt-1">
-            {{ metadata.llm.model }}
-          </v-list-item-subtitle>
-        </v-list-item>
+            <v-divider v-if="metadata.generation?.temperature" />
 
-        <v-divider v-if="metadata.llm?.model" />
+            <v-list-item v-if="metadata.llm?.model">
+              <v-list-item-title class="text-caption text-medium-emphasis">
+                Модель
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-body-2 mt-1">
+                {{ metadata.llm.model }}
+              </v-list-item-subtitle>
+            </v-list-item>
 
-        <v-list-item v-if="metadata.llm?.tokens">
-          <v-list-item-title class="text-caption text-medium-emphasis">
-            Токены
-          </v-list-item-title>
-          <v-list-item-subtitle class="text-body-2 mt-1">
-            {{ formatNumber(metadata.llm.tokens.total) }}
-            (вход: {{ formatNumber(metadata.llm.tokens.input) }},
-            выход: {{ formatNumber(metadata.llm.tokens.output) }})
-          </v-list-item-subtitle>
-        </v-list-item>
-      </v-list>
-    </v-card>
+            <v-divider v-if="metadata.llm?.model" />
+
+            <v-list-item v-if="metadata.llm?.tokens">
+              <v-list-item-title class="text-caption text-medium-emphasis">
+                Токены
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-body-2 mt-1">
+                {{ formatNumber(metadata.llm.tokens.total) }}
+                (вход: {{ formatNumber(metadata.llm.tokens.input) }},
+                выход: {{ formatNumber(metadata.llm.tokens.output) }})
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </div>
 </template>
 
