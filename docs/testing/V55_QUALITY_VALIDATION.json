@@ -1,0 +1,281 @@
+{
+  "summary": {
+    "avg_score": 6.904166666666667,
+    "valid_profiles": 0,
+    "total_profiles": 4
+  },
+  "profiles": [
+    {
+      "name": "HR_Business_Partner_20251026_164045_c46b4cb9",
+      "score": 6.9,
+      "valid": false,
+      "result": {
+        "valid": false,
+        "quality_score": 6.9,
+        "metrics": {
+          "p0_1_tasks": {
+            "total_tasks": 20,
+            "valid_tasks": 20,
+            "valid_ratio": 1.0,
+            "avg_concrete_elements": 2.8,
+            "avg_filler_ratio": 0.0
+          },
+          "p0_2_soft_skills": {
+            "total_skills": 20,
+            "soft_skills_count": 5,
+            "with_methodology": 4,
+            "valid_ratio": 0.95
+          },
+          "p0_3_regulatory": {
+            "valid": true,
+            "domain": "hr",
+            "required": true,
+            "has_framework": true,
+            "found_frameworks": [
+              "ТК РФ",
+              "Трудовое право",
+              "152-ФЗ",
+              "персональные данные"
+            ],
+            "expected_frameworks": [
+              "ТК РФ",
+              "Трудовое право",
+              "152-ФЗ",
+              "персональные данные"
+            ],
+            "issues": []
+          },
+          "p0_4_levels": {
+            "valid": false,
+            "levels_found": [
+              1,
+              2,
+              3
+            ],
+            "unique_descriptions": 1,
+            "should_be_unique": 3,
+            "duplicate_descriptions": {
+              "Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в т.ч. в кризисных ситуациях": [
+                2,
+                3,
+                1
+              ]
+            },
+            "issues": [
+              "Одинаковое описание используется для разных уровней [2, 3, 1]: 'Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в...'"
+            ]
+          }
+        },
+        "summary": {
+          "total_issues": 1,
+          "total_warnings": 1,
+          "critical_issues": [
+            "Одинаковое описание используется для разных уровней [2, 3, 1]: 'Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в...'"
+          ],
+          "warnings": [
+            "Soft skill без методики: Learning & Development (курс- дизайн, KPI обучения, measurement)"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Backend_Python_Developer_20251026_164103_ef20d002",
+      "score": 7.0,
+      "valid": false,
+      "result": {
+        "valid": false,
+        "quality_score": 7.0,
+        "metrics": {
+          "p0_1_tasks": {
+            "total_tasks": 24,
+            "valid_tasks": 24,
+            "valid_ratio": 1.0,
+            "avg_concrete_elements": 3.125,
+            "avg_filler_ratio": 0.0
+          },
+          "p0_2_soft_skills": {
+            "total_skills": 20,
+            "soft_skills_count": 0,
+            "with_methodology": 0,
+            "valid_ratio": 1.0
+          },
+          "p0_3_regulatory": {
+            "valid": true,
+            "domain": "it",
+            "required": true,
+            "has_framework": true,
+            "found_frameworks": [
+              "архитектурн",
+              "паттерн",
+              "security",
+              "OWASP"
+            ],
+            "expected_frameworks": [
+              "архитектурн",
+              "паттерн",
+              "security",
+              "OWASP"
+            ],
+            "issues": []
+          },
+          "p0_4_levels": {
+            "valid": false,
+            "levels_found": [
+              2,
+              3
+            ],
+            "unique_descriptions": 2,
+            "should_be_unique": 2,
+            "duplicate_descriptions": {},
+            "issues": [
+              "Уровень 3 имеет 2 разных описаний (должно быть 1 описание для всех 5 навыков этого уровня)"
+            ]
+          }
+        },
+        "summary": {
+          "total_issues": 1,
+          "total_warnings": 0,
+          "critical_issues": [
+            "Уровень 3 имеет 2 разных описаний (должно быть 1 описание для всех 5 навыков этого уровня)"
+          ],
+          "warnings": []
+        }
+      }
+    },
+    {
+      "name": "Главный_бухгалтер_20251026_164047_3b07b176",
+      "score": 6.916666666666667,
+      "valid": false,
+      "result": {
+        "valid": false,
+        "quality_score": 6.916666666666667,
+        "metrics": {
+          "p0_1_tasks": {
+            "total_tasks": 18,
+            "valid_tasks": 18,
+            "valid_ratio": 1.0,
+            "avg_concrete_elements": 2.7777777777777777,
+            "avg_filler_ratio": 0.0
+          },
+          "p0_2_soft_skills": {
+            "total_skills": 24,
+            "soft_skills_count": 4,
+            "with_methodology": 3,
+            "valid_ratio": 0.9583333333333334
+          },
+          "p0_3_regulatory": {
+            "valid": true,
+            "domain": "finance",
+            "required": true,
+            "has_framework": true,
+            "found_frameworks": [
+              "МСФО",
+              "IFRS",
+              "РСБУ"
+            ],
+            "expected_frameworks": [
+              "МСФО",
+              "IFRS",
+              "РСБУ",
+              "налоговый",
+              "GAAP"
+            ],
+            "issues": []
+          },
+          "p0_4_levels": {
+            "valid": false,
+            "levels_found": [
+              2,
+              3
+            ],
+            "unique_descriptions": 1,
+            "should_be_unique": 2,
+            "duplicate_descriptions": {
+              "Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в т.ч. в кризисных ситуациях": [
+                3,
+                2
+              ]
+            },
+            "issues": [
+              "Одинаковое описание используется для разных уровней [3, 2]: 'Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в...'"
+            ]
+          }
+        },
+        "summary": {
+          "total_issues": 1,
+          "total_warnings": 1,
+          "critical_issues": [
+            "Одинаковое описание используется для разных уровней [3, 2]: 'Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в...'"
+          ],
+          "warnings": [
+            "Soft skill без методики: Управление командой (Situational Leadership, Tuckman's stages, регулярные 1-on-1)"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Менеджер_по_продажам_B2B_20251026_164021_1b9a80e8",
+      "score": 6.8,
+      "valid": false,
+      "result": {
+        "valid": false,
+        "quality_score": 6.8,
+        "metrics": {
+          "p0_1_tasks": {
+            "total_tasks": 20,
+            "valid_tasks": 20,
+            "valid_ratio": 1.0,
+            "avg_concrete_elements": 3.1,
+            "avg_filler_ratio": 0.0
+          },
+          "p0_2_soft_skills": {
+            "total_skills": 20,
+            "soft_skills_count": 6,
+            "with_methodology": 4,
+            "valid_ratio": 0.9
+          },
+          "p0_3_regulatory": {
+            "valid": true,
+            "domain": "unknown",
+            "required": false,
+            "has_framework": false,
+            "found_frameworks": [],
+            "expected_frameworks": [],
+            "issues": []
+          },
+          "p0_4_levels": {
+            "valid": false,
+            "levels_found": [
+              1,
+              2,
+              3
+            ],
+            "unique_descriptions": 1,
+            "should_be_unique": 3,
+            "duplicate_descriptions": {
+              "Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в т.ч. в кризисных ситуациях": [
+                3,
+                2,
+                1
+              ]
+            },
+            "issues": [
+              "Одинаковое описание используется для разных уровней [3, 2, 1]: 'Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в...'"
+            ]
+          }
+        },
+        "summary": {
+          "total_issues": 1,
+          "total_warnings": 2,
+          "critical_issues": [
+            "Одинаковое описание используется для разных уровней [3, 2, 1]: 'Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в...'"
+          ],
+          "warnings": [
+            "Soft skill без методики: JIRA/Confluence: взаимодействие с внутренними командами, трекинг задач по сделкам",
+            "Soft skill без методики: Понимание финансовых метрик: маржа, NPV (в базовом уровне), влияние условий оплаты"
+          ]
+        }
+      }
+    }
+  ]
+}
