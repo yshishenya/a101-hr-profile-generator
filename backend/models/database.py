@@ -225,6 +225,9 @@ class DatabaseManager:
                     -- Статус
                     status TEXT DEFAULT 'completed',  -- completed, failed, processing
 
+                    -- Версионность
+                    current_version INTEGER DEFAULT 1,
+
                     FOREIGN KEY (created_by) REFERENCES users (id)
                 )
             """
@@ -318,6 +321,39 @@ class DatabaseManager:
             """
             )
 
+            # 7. Таблица версий профилей (для истории изменений и восстановления)
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS profile_versions (
+                    version_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    profile_id TEXT NOT NULL,
+                    version_number INTEGER NOT NULL,
+
+                    -- Метаданные версии
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    created_by_user_id INTEGER NOT NULL,
+                    created_by_username TEXT NOT NULL,
+
+                    -- Тип версии
+                    version_type TEXT NOT NULL CHECK(version_type IN ('generated', 'regenerated', 'edited')),
+
+                    -- Содержимое профиля (JSON)
+                    profile_content TEXT NOT NULL,
+
+                    -- Метрики качества
+                    validation_score REAL,
+                    completeness_score REAL,
+
+                    -- Метаданные генерации (JSON)
+                    generation_metadata TEXT,
+
+                    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id),
+                    UNIQUE(profile_id, version_number)
+                )
+            """
+            )
+
             # Создание индексов для оптимизации запросов
             self._create_indexes(cursor)
 
@@ -357,6 +393,9 @@ class DatabaseManager:
             "CREATE INDEX IF NOT EXISTS idx_cache_key ON organization_cache (cache_key)",
             "CREATE INDEX IF NOT EXISTS idx_cache_type ON organization_cache (cache_type)",
             "CREATE INDEX IF NOT EXISTS idx_cache_expires_at ON organization_cache (expires_at)",
+            # Индексы для profile_versions
+            "CREATE INDEX IF NOT EXISTS idx_profile_versions_profile ON profile_versions (profile_id)",
+            "CREATE INDEX IF NOT EXISTS idx_profile_versions_created ON profile_versions (created_at DESC)",
         ]
 
         for index_sql in indexes:
@@ -394,6 +433,83 @@ class DatabaseManager:
             ORDER BY date DESC, department
         """
         )
+
+    def migrate_to_versioning(self) -> None:
+        """
+        Автоматическая миграция существующих профилей к версионности.
+        Создает версию v1 для всех профилей, у которых нет версий.
+
+        Вызывается автоматически при старте приложения.
+        Безопасна для повторных вызовов (idempotent).
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # 1. Проверить наличие колонки current_version
+            cursor.execute("PRAGMA table_info(profiles)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if 'current_version' not in columns:
+                # Добавить колонку если её нет
+                cursor.execute("ALTER TABLE profiles ADD COLUMN current_version INTEGER DEFAULT 1")
+                logger.info("✅ Added current_version column to profiles table")
+
+            # 2. Найти профили без версий
+            cursor.execute("""
+                SELECT p.id, p.profile_data, p.metadata_json, p.created_by,
+                       p.created_at, p.validation_score, p.completeness_score
+                FROM profiles p
+                WHERE p.id NOT IN (
+                    SELECT DISTINCT profile_id FROM profile_versions
+                )
+            """)
+
+            profiles_to_migrate = cursor.fetchall()
+            migrated_count = 0
+
+            # 3. Создать v1 для каждого профиля
+            for row in profiles_to_migrate:
+                try:
+                    cursor.execute("""
+                        INSERT INTO profile_versions
+                        (profile_id, version_number, version_type, profile_content,
+                         generation_metadata, created_by_user_id, created_by_username,
+                         created_at, validation_score, completeness_score)
+                        VALUES (?, 1, 'generated', ?, ?, ?, 'System', ?, ?, ?)
+                    """, (
+                        row['id'],
+                        row['profile_data'],
+                        row['metadata_json'],
+                        row['created_by'] or 1,  # Default to user_id=1 if NULL
+                        row['created_at'],
+                        row['validation_score'],
+                        row['completeness_score']
+                    ))
+
+                    # Установить current_version = 1
+                    cursor.execute(
+                        "UPDATE profiles SET current_version = 1 WHERE id = ?",
+                        (row['id'],)
+                    )
+
+                    migrated_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to migrate profile {row['id']}: {e}")
+                    # Продолжаем миграцию остальных профилей
+                    continue
+
+            conn.commit()
+
+            if migrated_count > 0:
+                logger.info(f"✅ Migrated {migrated_count} profiles to versioning (created v1)")
+            else:
+                logger.debug("No profiles to migrate - all profiles already have versions")
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"❌ Migration to versioning failed: {e}")
+            # Не поднимаем exception - миграция не должна падать при старте
 
     def seed_initial_data(
         self,

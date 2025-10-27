@@ -102,6 +102,7 @@ db_manager.seed_initial_data(
     hr_password=config.HR_PASSWORD,
     hr_full_name=config.HR_FULL_NAME
 )
+db_manager.migrate_to_versioning()  # Автоматическая миграция к версионности
 logger.info("✅ Database initialized for early dependency injection")
 
 # Initialize auth service for middleware dependency injection

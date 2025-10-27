@@ -198,7 +198,17 @@ class ProfileValidator:
 
     def validate_proficiency_levels(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """
-        P0.4: Валидация различающихся описаний уровней владения.
+        P0.4: Валидация описаний уровней владения.
+
+        Правила (на основе анализа оригинальных XLS):
+        1. Все навыки ОДНОГО уровня должны иметь ОДНО описание
+        2. РАЗНЫЕ уровни должны иметь РАЗНЫЕ описания
+
+        Стандартные описания из XLS:
+        - Уровень 1: "Знание основ, опыт применения знаний и навыков на практике необязателен"
+        - Уровень 2: "Существенные знания и регулярный опыт применения знаний на практике"
+        - Уровень 3: "Существенные знания и опыт применения знаний в ситуациях повышенной сложности, в т.ч. в кризисных ситуациях"
+        - Уровень 4: "Экспертные знания, должность подразумевает передачу знаний и опыта другим"
 
         Returns:
             {
@@ -211,27 +221,37 @@ class ProfileValidator:
             }
         """
         issues = []
-        descriptions_by_level = {}
 
-        # Собираем описания по уровням
+        # Собираем все описания по уровням (не только первое, а все)
+        all_descriptions_by_level = {}  # level -> [desc1, desc2, ...]
+
         for skill_cat in profile.get('professional_skills', []):
             for skill in skill_cat.get('specific_skills', []):
                 level = skill.get('proficiency_level')
                 desc = skill.get('proficiency_description', '')
                 if level and desc:
-                    if level not in descriptions_by_level:
-                        descriptions_by_level[level] = desc
-                    elif descriptions_by_level[level] != desc:
-                        # Разные описания для одного уровня - это ОК
-                        pass
+                    if level not in all_descriptions_by_level:
+                        all_descriptions_by_level[level] = []
+                    all_descriptions_by_level[level].append(desc)
 
-        levels_found = sorted(descriptions_by_level.keys())
-        unique_descriptions = len(set(descriptions_by_level.values()))
-        should_be_unique = len(descriptions_by_level)
+        # Правило 1: Все навыки одного уровня должны иметь одно описание
+        level_to_canonical_desc = {}
+        for level, descriptions in all_descriptions_by_level.items():
+            unique_descs = set(descriptions)
+            if len(unique_descs) > 1:
+                issues.append(
+                    f"Уровень {level} имеет {len(unique_descs)} разных описаний "
+                    f"(должно быть 1 описание для всех {len(descriptions)} навыков этого уровня)"
+                )
+                # Для отчетности берем первое
+                level_to_canonical_desc[level] = descriptions[0]
+            else:
+                # Все описания одинаковые - это норма
+                level_to_canonical_desc[level] = list(unique_descs)[0]
 
-        # Находим дубликаты
+        # Правило 2: Разные уровни должны иметь разные описания
         desc_to_levels = {}
-        for level, desc in descriptions_by_level.items():
+        for level, desc in level_to_canonical_desc.items():
             if desc not in desc_to_levels:
                 desc_to_levels[desc] = []
             desc_to_levels[desc].append(level)
@@ -241,14 +261,16 @@ class ProfileValidator:
             if len(levels) > 1
         }
 
-        # Валидация: каждый уровень должен иметь уникальное описание
-        if unique_descriptions < should_be_unique:
-            issues.append(
-                f"Найдены одинаковые описания для разных уровней: "
-                f"{unique_descriptions} уникальных из {should_be_unique} уровней"
-            )
+        if duplicate_descriptions:
             for desc, levels in duplicate_descriptions.items():
-                issues.append(f"  Уровни {levels}: '{desc[:50]}...'")
+                issues.append(
+                    f"Одинаковое описание используется для разных уровней {levels}: "
+                    f"'{desc[:80]}...'"
+                )
+
+        levels_found = sorted(all_descriptions_by_level.keys())
+        unique_descriptions = len(set(level_to_canonical_desc.values()))
+        should_be_unique = len(level_to_canonical_desc)
 
         return {
             'valid': len(issues) == 0,
