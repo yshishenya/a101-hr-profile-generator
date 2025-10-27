@@ -37,13 +37,16 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProfilesStore } from '@/stores/profiles'
 import SectionCard from './SectionCard.vue'
+import BasicInfoEditor from './editors/BasicInfoEditor.vue'
+import ResponsibilityAreasEditor from './editors/ResponsibilityAreasEditor.vue'
+import ProfessionalSkillsEditor from './editors/ProfessionalSkillsEditor.vue'
+import CompetenciesEditor from './editors/CompetenciesEditor.vue'
+import ExperienceEducationEditor from './editors/ExperienceEducationEditor.vue'
+import CareerogramEditor from './editors/CareerogramEditor.vue'
+import WorkplaceProvisioningEditor from './editors/WorkplaceProvisioningEditor.vue'
+import PerformanceMetricsEditor from './editors/PerformanceMetricsEditor.vue'
+import AdditionalInfoEditor from './editors/AdditionalInfoEditor.vue'
 import type { ProfileData } from '@/types/profile'
-
-// TODO: Import section editors when created
-// import BasicInfoEditor from './editors/BasicInfoEditor.vue'
-// import ResponsibilityAreasEditor from './editors/ResponsibilityAreasEditor.vue'
-// import ProfessionalSkillsEditor from './editors/ProfessionalSkillsEditor.vue'
-// ... etc
 
 // Props
 interface Props {
@@ -138,10 +141,27 @@ const editedSectionsCount = computed(
   () => Object.values(hasChanges.value).filter(Boolean).length
 )
 
+// Component map
+const componentMap: Record<string, ReturnType<typeof import('vue').defineComponent>> = {
+  BasicInfoEditor,
+  ResponsibilityAreasEditor,
+  ProfessionalSkillsEditor,
+  CompetenciesEditor,
+  ExperienceEducationEditor,
+  CareerogramEditor,
+  WorkplaceProvisioningEditor,
+  PerformanceMetricsEditor,
+  AdditionalInfoEditor,
+}
+
 // Methods
-function getSectionComponent(sectionId: string): string {
+function getSectionComponent(
+  sectionId: string
+): ReturnType<typeof import('vue').defineComponent> | string {
   const section = sections.value.find((s) => s.id === sectionId)
-  return section?.component || 'div'
+  if (!section) return 'div'
+
+  return componentMap[section.component] || 'div'
 }
 
 function handleEditSection(sectionId: string): void {
@@ -204,10 +224,11 @@ function validateSection(sectionId: string, data: unknown): boolean {
       if (
         !data ||
         typeof data !== 'object' ||
-        !(data as Record<string, unknown>).position_title
+        !(data as Record<string, unknown>).direct_manager ||
+        !(data as Record<string, unknown>).primary_activity_type
       ) {
         isValid = false
-        error = 'Укажите название позиции'
+        error = 'Укажите руководителя и вид деятельности'
       }
       break
 
@@ -268,17 +289,12 @@ function extractSectionData(sectionId: string, profileData: ProfileData): unknow
   const field = fieldMap[sectionId]
   if (!field) return null
 
-  // For basic_info, we need to extract multiple fields
+  // For basic_info, extract only the fields that BasicInfoEditor handles
   if (sectionId === 'basic_info') {
     return {
-      position_title: (profileData as Record<string, unknown>).position_title,
-      department_specific: (profileData as Record<string, unknown>)
-        .department_specific,
-      department_broad: (profileData as Record<string, unknown>).department_broad,
-      position_category: (profileData as Record<string, unknown>).position_category,
-      direct_manager: (profileData as Record<string, unknown>).direct_manager,
+      direct_manager: (profileData as Record<string, unknown>).direct_manager as string,
       primary_activity_type: (profileData as Record<string, unknown>)
-        .primary_activity_type,
+        .primary_activity_type as string,
     }
   }
 
