@@ -22,12 +22,16 @@
    - 3.3 ProfileViewerModal
    - 3.4 ProfileEditModal
    - 3.5 FilterBar
-   - 3.6 **DateRangeFilter** - Фильтр по диапазону дат (NEW - Week 6 Phase 2!)
-   - 3.7 **FilterPresets** - ⚠️ Управление пресетами (сохранен но НЕ используется после UX ревью)
+   - 3.6 **ProfileVersionsPanel** - Панель истории версий профиля (NEW - Week 6 Phase 3!)
+   - 3.7 **DateRangeFilter** - Фильтр по диапазону дат (Week 6 Phase 2)
+   - 3.8 **FilterPresets** - ⚠️ Управление пресетами (сохранен но НЕ используется после UX ревью)
 4. [Layout Components](#4-layout-components-layout) - Layout компоненты
 5. [Composables](#5-composables-переиспользуемая-логика) - Переиспользуемая логика
+   - 5.1 useTaskStatus - Polling механизм
+   - 5.2 **useProfileVersions** - Управление версиями профиля (NEW - Week 6 Phase 3!)
+   - 5.3 **useAnalytics** - Tracking пользовательских событий (NEW - Week 6 Phase 3!)
 6. [Utilities](#6-utilities-утилиты) - Переиспользуемые утилиты
-   - 6.1 **filterPresets.ts** - Управление пресетами фильтров (NEW - Week 6 Phase 2!)
+   - 6.1 **filterPresets.ts** - Управление пресетами фильтров (Week 6 Phase 2)
 7. [When to Create New Component](#7-когда-создавать-новый-компонент) - Руководство
 
 ---
@@ -739,6 +743,12 @@ interface PositionWithProfile {
 - ✅ Управление профилями (CRUD)
 - ✅ Bulk операции над профилями
 
+**Тестирование** (Week 6.5 Phase 1):
+- ✅ **Unit tests**: [tests/components/PositionsTable.spec.ts](../../frontend-vue/tests/components/PositionsTable.spec.ts)
+- ✅ **37 tests** covering data logic, permissions, state validation
+- ✅ **Focus**: Type safety, business logic, store integration
+- ⚠️ **Note**: Tests avoid Vuetify rendering to prevent test environment issues
+
 ---
 
 ### 3.2 ProfileContent
@@ -914,11 +924,11 @@ interface DateRangeFilter {
 
 ---
 
-### 3.5 FilterPresets ⚠️ NOT CURRENTLY USED
+### 3.5 FilterPresets ❌ DELETED
 
-**Файл**: [src/components/profiles/FilterPresets.vue](../../frontend-vue/src/components/profiles/FilterPresets.vue)
+**Файл**: ~~[src/components/profiles/FilterPresets.vue](../../frontend-vue/src/components/profiles/FilterPresets.vue)~~ (DELETED)
 
-**Статус**: 🔄 **Сохранен но не используется** - Удален из FilterBar после UX ревью
+**Статус**: ❌ **DELETED** - Удалено в Week 6.5 Phase 1 (2025-10-27)
 
 **Назначение**: Управление пресетами фильтров (сохранение, загрузка, удаление).
 
@@ -953,11 +963,11 @@ interface DateRangeFilter {
 - ✅ Хранение в localStorage
 - ✅ Валидация названий (уникальность, длина ≤50)
 
-**Текущий статус**:
-- ❌ **НЕ импортируется** в FilterBar.vue
-- ✅ **Код сохранен** для возможного использования в будущем
-- ✅ **Утилиты сохранены**: `utils/filterPresets.ts` (324 строки)
-- ✅ **Типы сохранены**: `types/presets.ts` (50 строк)
+**Deletion Details (Week 6.5 Phase 1)**:
+- ❌ **Удалено**: FilterPresets.vue (432 строки)
+- ❌ **Удалено**: utils/filterPresets.ts (345 строк)
+- ❌ **Удалено**: types/presets.ts (56 строк)
+- 📊 **Итого удалено**: 833 строки мертвого кода
 
 **Если потребуется в будущем**:
 - ✅ Добавить в меню настроек
@@ -1129,6 +1139,118 @@ interface FilterState {
 
 ---
 
+### 3.6 ProfileVersionsPanel
+
+**Файл**: [src/components/profiles/ProfileVersionsPanel.vue](../../frontend-vue/src/components/profiles/ProfileVersionsPanel.vue)
+
+**Назначение**: Панель для отображения истории версий профиля с timeline UI.
+
+**⚠️ Week 6 Phase 3**: Создан для управления версиями профилей
+
+**Props**:
+```typescript
+interface Props {
+  versions: ProfileVersion[]  // Список версий профиля
+  loading?: boolean           // Состояние загрузки
+  error?: string | null       // Сообщение об ошибке
+}
+
+interface ProfileVersion {
+  version_number: number
+  created_at: string
+  created_by_username: string
+  version_type: 'generated' | 'regenerated' | 'edited'
+  validation_score: number | null
+  completeness_score: number | null
+  is_current: boolean
+}
+```
+
+**Events**:
+```typescript
+{
+  'set-active': [versionNumber: number]                          // Активировать версию
+  'download': [versionNumber: number, format: 'json' | 'md' | 'docx']  // Скачать версию
+  'delete': [versionNumber: number]                              // Удалить версию
+  'retry': []                                                     // Повторить загрузку
+}
+```
+
+**Примеры использования**:
+
+```vue
+<!-- Базовое использование -->
+<ProfileVersionsPanel
+  :versions="versions"
+  :loading="versionsLoading"
+  :error="versionsError"
+  @set-active="handleSetActive"
+  @download="handleDownload"
+  @delete="handleDelete"
+  @retry="loadVersions"
+/>
+
+<!-- С состоянием загрузки (skeleton loaders) -->
+<ProfileVersionsPanel
+  :versions="[]"
+  :loading="true"
+/>
+
+<!-- С ошибкой -->
+<ProfileVersionsPanel
+  :versions="[]"
+  :error="'Не удалось загрузить версии'"
+  @retry="retryLoad"
+/>
+```
+
+**Особенности**:
+- ✅ **v-timeline** UI для визуализации истории
+- ✅ **Skeleton loaders** вместо спиннера при загрузке
+- ✅ Показывает текущую активную версию с badge "Текущая"
+- ✅ Показывает оригинальную версию (v1) с badge "Оригинал"
+- ✅ Иконки по типу версии:
+  - `mdi-magic-staff` - Сгенерирована
+  - `mdi-refresh` - Регенерирована
+  - `mdi-pencil` - Отредактирована
+- ✅ Прогресс-бары для качества и полноты профиля:
+  - Зеленый ≥ 80%
+  - Оранжевый 60-79%
+  - Красный < 60%
+- ✅ Dropdown меню с действиями:
+  - Сделать текущей (только для неактивных версий)
+  - Скачать (JSON, Markdown, Word)
+  - Удалить (только если не текущая и не последняя)
+- ✅ Форматирование даты: "DD.MM.YYYY HH:mm"
+- ✅ Dark theme support
+- ✅ Responsive design
+
+**Когда использовать**:
+- ✅ В ProfileViewerModal на вкладке "Версии"
+- ✅ Везде где нужна история изменений профиля
+- ✅ Audit trail для профилей
+
+**Когда НЕ использовать**:
+- ❌ Для истории других сущностей (создайте специализированный компонент)
+- ❌ Если не нужны действия с версиями (используйте простой v-timeline)
+
+**Технические детали**:
+- Размер файла: 262 строки (под лимит 300 ✅)
+- Использует Vuetify v-timeline для временной шкалы
+- v-skeleton-loader для loading state (3 элемента)
+- Parent отвечает за API вызовы через события
+- Все действия делегируются в parent через events
+
+**UI/UX Guidelines**:
+- Timeline всегда слева (align="start")
+- Версии отсортированы от новых к старым (desc)
+- Compact density для экономии места
+- Номер версии в левой колонке (opposite slot)
+- Tonal variant для текущей версии (выделение)
+- Иконка и цвет точки соответствуют типу версии
+
+---
+
 ## 4. Layout Components (Layout)
 
 ### 4.1 AppLayout
@@ -1217,6 +1339,176 @@ onBeforeUnmount(() => {
 - ✅ Долгие асинхронные операции
 - ✅ Background tasks
 - ✅ Real-time updates
+
+---
+
+### 5.2 useProfileVersions
+
+**Файл**: [src/composables/useProfileVersions.ts](../../frontend-vue/src/composables/useProfileVersions.ts)
+
+**Назначение**: Управление версиями профиля (загрузка, активация, скачивание, удаление).
+
+**⚠️ Week 6 Phase 3**: Создан для функционала версионирования профилей
+
+**API**:
+```typescript
+interface UseProfileVersionsReturn {
+  versions: Ref<ProfileVersion[]>
+  versionsLoading: Ref<boolean>
+  versionsError: Ref<string | null>
+  snackbar: Ref<SnackbarState>
+  loadVersions: () => Promise<void>
+  handleSetActive: (versionNumber: number) => Promise<void>
+  handleVersionDownload: (versionNumber: number, format: 'json' | 'md' | 'docx') => Promise<void>
+  handleDeleteVersion: (versionNumber: number) => Promise<void>
+}
+
+const {
+  versions,
+  versionsLoading,
+  versionsError,
+  snackbar,
+  loadVersions,
+  handleSetActive,
+  handleVersionDownload,
+  handleDeleteVersion
+} = useProfileVersions(
+  profileId,      // ComputedRef<string | undefined>
+  activeTab,      // Ref<string>
+  onVersionChanged // Optional callback
+)
+```
+
+**Примеры использования**:
+
+```typescript
+// В компоненте ProfileViewerModal
+const profileId = computed(() => props.profile?.id)
+const activeTab = ref('content')
+
+const {
+  versions,
+  versionsLoading,
+  versionsError,
+  snackbar,
+  loadVersions,
+  handleSetActive,
+  handleVersionDownload,
+  handleDeleteVersion
+} = useProfileVersions(profileId, activeTab, async () => {
+  await reloadProfile()
+})
+
+// Автоматическая загрузка при переключении на вкладку "versions"
+watch(activeTab, (newTab) => {
+  if (newTab === 'versions' && profileId.value) {
+    loadVersions()
+  }
+})
+```
+
+**Особенности**:
+- ✅ Реактивное state management (versions, loading, error)
+- ✅ Интегрированный snackbar для уведомлений
+- ✅ Автоматический reload профиля после активации версии
+- ✅ Автоматический reload списка версий после удаления
+- ✅ Специфичная обработка ошибок (VersionNotFoundError, etc.)
+- ✅ **Analytics tracking** для всех операций
+- ✅ Watch механизм для lazy loading при переключении вкладок
+- ✅ Переключение на вкладку "content" после активации версии
+
+**Когда использовать**:
+- ✅ В ProfileViewerModal для управления версиями
+- ✅ Везде где нужна работа с версиями профилей
+- ✅ Для инкапсуляции версионной логики из компонентов
+
+**Когда НЕ использовать**:
+- ❌ Если нужна только часть функционала (используйте profile.service напрямую)
+- ❌ Для других сущностей (создайте специализированный composable)
+
+**Технические детали**:
+- Размер: 295 строк (под лимит 500 ✅)
+- Использует специфичные error классы для типобезопасной обработки
+- Интегрируется с useAnalytics для tracking
+- 100% test coverage (41 unit tests)
+
+---
+
+### 5.3 useAnalytics
+
+**Файл**: [src/composables/useAnalytics.ts](../../frontend-vue/src/composables/useAnalytics.ts)
+
+**Назначение**: Tracking пользовательских событий и взаимодействий.
+
+**⚠️ Week 6 Phase 3**: Создан для analytics версионных операций, готов для расширения
+
+**API**:
+```typescript
+interface UseAnalyticsReturn {
+  trackVersionListViewed: (profileId: string, totalVersions: number, currentVersion: number) => void
+  trackVersionActivated: (profileId: string, previousVersion: number, newVersion: number) => void
+  trackVersionDownloaded: (profileId: string, versionNumber: number, format: DownloadFormat) => void
+  trackVersionDeleted: (profileId: string, versionNumber: number, remainingVersions: number) => void
+}
+
+const analytics = useAnalytics()
+```
+
+**Примеры использования**:
+
+```typescript
+// Track версий
+analytics.trackVersionListViewed('prof_123', 5, 3)
+
+// Track активации
+analytics.trackVersionActivated('prof_123', 2, 3)
+
+// Track скачивания
+analytics.trackVersionDownloaded('prof_123', 2, 'json')
+
+// Track удаления
+analytics.trackVersionDeleted('prof_123', 2, 4)
+```
+
+**Особенности**:
+- ✅ **Extensible design** - готов для интеграции с GA4, Mixpanel, Plausible
+- ✅ Development mode: логирует события в console
+- ✅ Production ready: комментарии с примерами интеграции
+- ✅ Environment-aware: проверяет `VITE_ANALYTICS_ENABLED`
+- ✅ Type-safe события через TypeScript interfaces
+- ✅ Timestamp для каждого события
+- ✅ Structured event properties
+
+**Когда использовать**:
+- ✅ Tracking user interactions
+- ✅ Monitoring feature usage
+- ✅ A/B testing metrics
+- ✅ Product analytics
+
+**Когда НЕ использовать**:
+- ❌ Для error tracking (используйте logger)
+- ❌ Для server-side analytics (используйте backend)
+
+**Технические детали**:
+- Размер: 242 строки (под лимит 500 ✅)
+- Использует типы из `types/analytics.ts`
+- TODO markers для platform integration:
+  ```typescript
+  // Google Analytics 4:
+  // gtag('event', event.event, event.properties)
+
+  // Mixpanel:
+  // mixpanel.track(event.event, event.properties)
+
+  // Plausible:
+  // plausible(event.event, { props: event.properties })
+  ```
+
+**Будущие расширения**:
+- Добавить tracking для profile generation
+- Добавить tracking для dashboard interactions
+- Добавить tracking для filter usage
+- Интегрировать с выбранной analytics платформой
 
 ---
 

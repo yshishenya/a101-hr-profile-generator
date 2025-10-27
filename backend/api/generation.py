@@ -12,6 +12,7 @@ import asyncio
 import uuid
 import logging
 import json
+import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
@@ -27,6 +28,7 @@ from ..models.schemas import (
     GenerationStatusResponse,
     GenerationResultResponse,
 )
+from ..utils.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -181,11 +183,27 @@ async def background_generate_profile(
 
 async def save_generation_to_db(
     result: Dict[str, Any], user_id: int, task_id: str, profile_id: str
-):
-    """Сохранение результата генерации в базу данных"""
+) -> None:
+    """
+    Сохранение результата генерации в базу данных.
+    Создает профиль и первую версию (v1) в profile_versions.
+
+    Args:
+        result: Результат генерации с profile и metadata
+        user_id: ID пользователя, создавшего профиль
+        task_id: ID задачи генерации
+        profile_id: ID создаваемого профиля
+
+    Raises:
+        DatabaseError: При ошибке сохранения в БД
+    """
+    conn = get_db_manager().get_connection()
     try:
-        conn = get_db_manager().get_connection()
         cursor = conn.cursor()
+
+        profile_data_json = json.dumps(result["profile"], ensure_ascii=False)
+        metadata_json = json.dumps(result["metadata"], ensure_ascii=False)
+        created_at = datetime.now().isoformat()
 
         # Сохраняем профиль с правильной схемой
         cursor.execute(
@@ -195,16 +213,16 @@ async def save_generation_to_db(
                 profile_data, metadata_json,
                 generation_time_seconds, input_tokens, output_tokens, total_tokens,
                 validation_score, completeness_score,
-                created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_by, created_at, updated_at, current_version
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 profile_id,
                 result["metadata"]["generation"]["department"],
                 result["metadata"]["generation"]["position"],
                 result["metadata"]["generation"].get("employee_name"),
-                json.dumps(result["profile"], ensure_ascii=False),
-                json.dumps(result["metadata"], ensure_ascii=False),
+                profile_data_json,
+                metadata_json,
                 result["metadata"]["generation"]["duration"],
                 result["metadata"]["llm"].get("input_tokens", 0),
                 result["metadata"]["llm"].get("output_tokens", 0),
@@ -212,18 +230,49 @@ async def save_generation_to_db(
                 result["metadata"]["validation"].get("validation_score", 0.0),
                 result["metadata"]["validation"].get("completeness_score", 0.0),
                 user_id,
-                datetime.now().isoformat(),
-                datetime.now().isoformat(),
+                created_at,
+                created_at,
+                1,  # current_version = 1 для нового профиля
+            ),
+        )
+
+        # Создаем первую версию (v1) в profile_versions
+        cursor.execute(
+            """
+            INSERT INTO profile_versions (
+                profile_id, version_number, version_type,
+                profile_content, generation_metadata,
+                created_by_user_id, created_by_username, created_at,
+                validation_score, completeness_score
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                profile_id,
+                1,  # version_number = 1
+                'generated',  # version_type = 'generated' для первой генерации
+                profile_data_json,
+                metadata_json,
+                user_id,
+                'System',  # TODO(yan): получить username из user_id через JOIN с users
+                created_at,
+                result["metadata"]["validation"].get("validation_score", 0.0),
+                result["metadata"]["validation"].get("completeness_score", 0.0),
             ),
         )
 
         conn.commit()
-        conn.close()
+        logger.info(f"💾 Saved generation result to database: profile_id={profile_id}, version=1")
 
-        logger.info(f"💾 Saved generation result to database: profile_id={profile_id}")
-
+    except sqlite3.Error as e:
+        conn.rollback()
+        logger.error(f"❌ Database error saving generation to DB: {e}")
+        raise DatabaseError(f"Failed to save profile {profile_id}: {e}") from e
     except Exception as e:
-        logger.error(f"❌ Failed to save generation to DB: {e}")
+        conn.rollback()
+        logger.exception(f"❌ Unexpected error saving generation to DB")
+        raise
+    finally:
+        conn.close()
 
 
 @router.post("/start", response_model=GenerationStartResponse)
@@ -357,7 +406,14 @@ async def get_task_status(task_id: str, current_user=Depends(get_current_user)):
 
     # Формируем ответ
     task = GenerationTaskData(**task_data)
-    result = _task_results.get(task_id) if task_data["status"] == "completed" else None
+
+    # Извлекаем profile_data из result, если задача завершена
+    result = None
+    if task_data["status"] == "completed" and task_id in _task_results:
+        task_result = _task_results[task_id]
+        # result содержит dict с ключами: success, profile_id, profile_data, metadata
+        # Нам нужен только profile_data для соответствия ProfileData модели
+        result = task_result.get("profile_data") if task_result.get("success") else None
 
     return GenerationStatusResponse(
         success=True,

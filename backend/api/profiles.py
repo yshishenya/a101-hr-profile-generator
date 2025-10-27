@@ -657,7 +657,7 @@ async def update_profile_content(
     profile_id: str,
     update_request: ProfileContentUpdateRequest,
     current_user: dict = Depends(get_current_user),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     @doc Обновить содержимое профиля (profile_data)
 

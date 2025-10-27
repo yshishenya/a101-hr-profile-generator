@@ -16,6 +16,14 @@ import type {
   DeleteVersionResponse
 } from '@/types/version'
 import type { PaginationParams, FilterParams } from '@/types/api'
+import {
+  VersionNotFoundError,
+  CannotDeleteCurrentVersionError,
+  CannotDeleteLastVersionError,
+  VersionActivationError,
+  VersionsLoadError
+} from '@/utils/errors'
+import axios from 'axios'
 
 /**
  * Parameters for profile listing with pagination and filters
@@ -212,15 +220,25 @@ export async function downloadDOCX(id: string): Promise<Blob> {
  *
  * @param id - Profile ID
  * @returns Promise<ProfileVersionsResponse> List of all versions
- * @throws AxiosError if request fails
+ * @throws VersionsLoadError if request fails
+ * @throws VersionNotFoundError if profile not found
  *
  * @example
  * const response = await profileService.getProfileVersions('prof_123')
  * console.log(`Profile has ${response.total_versions} versions`)
  */
 export async function getProfileVersions(id: string): Promise<ProfileVersionsResponse> {
-  const response = await api.get<ProfileVersionsResponse>(`/api/profiles/${id}/versions`)
-  return response.data
+  try {
+    const response = await api.get<ProfileVersionsResponse>(`/api/profiles/${id}/versions`)
+    return response.data
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new VersionNotFoundError(id, 0, error)
+      }
+    }
+    throw new VersionsLoadError(id, error)
+  }
 }
 
 /**
@@ -229,7 +247,8 @@ export async function getProfileVersions(id: string): Promise<ProfileVersionsRes
  * @param id - Profile ID
  * @param version - Version number to set as active
  * @returns Promise<SetActiveVersionResponse> Operation result
- * @throws AxiosError if request fails
+ * @throws VersionNotFoundError if version doesn't exist
+ * @throws VersionActivationError if activation fails
  *
  * @example
  * await profileService.setActiveVersion('prof_123', 2)
@@ -238,10 +257,19 @@ export async function setActiveVersion(
   id: string,
   version: number
 ): Promise<SetActiveVersionResponse> {
-  const response = await api.put<SetActiveVersionResponse>(
-    `/api/profiles/${id}/versions/${version}/set-active`
-  )
-  return response.data
+  try {
+    const response = await api.put<SetActiveVersionResponse>(
+      `/api/profiles/${id}/versions/${version}/set-active`
+    )
+    return response.data
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        throw new VersionNotFoundError(id, version, error)
+      }
+    }
+    throw new VersionActivationError(id, version, error)
+  }
 }
 
 /**
@@ -251,7 +279,9 @@ export async function setActiveVersion(
  * @param id - Profile ID
  * @param version - Version number to delete
  * @returns Promise<DeleteVersionResponse> Operation result
- * @throws AxiosError if request fails (400 if trying to delete current version)
+ * @throws VersionNotFoundError if version doesn't exist
+ * @throws CannotDeleteCurrentVersionError if trying to delete current version
+ * @throws CannotDeleteLastVersionError if trying to delete last version
  *
  * @example
  * await profileService.deleteVersion('prof_123', 1)
@@ -260,10 +290,31 @@ export async function deleteVersion(
   id: string,
   version: number
 ): Promise<DeleteVersionResponse> {
-  const response = await api.delete<DeleteVersionResponse>(
-    `/api/profiles/${id}/versions/${version}`
-  )
-  return response.data
+  try {
+    const response = await api.delete<DeleteVersionResponse>(
+      `/api/profiles/${id}/versions/${version}`
+    )
+    return response.data
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      const detail = error.response?.data?.detail || ''
+
+      if (status === 404) {
+        throw new VersionNotFoundError(id, version, error)
+      }
+
+      if (status === 400) {
+        if (detail.includes('current') || detail.includes('active')) {
+          throw new CannotDeleteCurrentVersionError(version, error)
+        }
+        if (detail.includes('last') || detail.includes('remaining')) {
+          throw new CannotDeleteLastVersionError(id, error)
+        }
+      }
+    }
+    throw error
+  }
 }
 
 export default {
