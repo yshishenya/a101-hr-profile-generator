@@ -65,6 +65,8 @@ export interface Profile {
   status: ProfileStatus
   validation_score: number
   completeness_score: number
+  current_version: number
+  version_count: number
   created_at: string
   created_by_username: string
   actions: {

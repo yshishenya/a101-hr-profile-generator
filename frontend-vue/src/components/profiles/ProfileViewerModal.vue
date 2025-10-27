@@ -112,11 +112,29 @@
 
       <v-divider />
 
-      <!-- Content with Sidebar -->
-      <v-card-text class="pa-0" style="height: calc(100vh - 200px)">
-        <v-row no-gutters style="height: 100%">
-          <!-- Main Content Area -->
-          <v-col cols="12" md="9" class="overflow-y-auto pa-6">
+      <!-- Tabs Navigation -->
+      <v-tabs v-model="activeTab" bg-color="surface">
+        <v-tab value="content">Контент</v-tab>
+        <v-tab value="metadata">Метаданные</v-tab>
+        <v-tab value="versions">
+          Версии
+          <v-badge
+            v-if="profile.version_count && profile.version_count > 1"
+            :content="profile.version_count"
+            inline
+            color="primary"
+            class="ml-2"
+          />
+        </v-tab>
+      </v-tabs>
+
+      <v-divider />
+
+      <!-- Tabs Content -->
+      <v-card-text class="pa-0" style="height: calc(100vh - 260px)">
+        <v-window v-model="activeTab">
+          <!-- Content Tab -->
+          <v-window-item value="content" class="overflow-y-auto pa-6" style="height: 100%">
             <ProfileContent
               v-if="profileDetail"
               :profile="profileDetail.profile"
@@ -139,15 +157,10 @@
                 Попробовать снова
               </v-btn>
             </div>
-          </v-col>
+          </v-window-item>
 
-          <!-- Metadata Sidebar -->
-          <v-col
-            cols="12"
-            md="3"
-            bg-color="surface-variant"
-            class="overflow-y-auto pa-4"
-          >
+          <!-- Metadata Tab -->
+          <v-window-item value="metadata" class="overflow-y-auto pa-6" style="height: 100%">
             <ProfileMetadata
               v-if="profileDetail"
               :profile="profile"
@@ -159,20 +172,53 @@
               <v-skeleton-loader type="list-item-three-line" />
               <v-skeleton-loader type="list-item-three-line" class="mt-4" />
             </div>
-          </v-col>
-        </v-row>
+          </v-window-item>
+
+          <!-- Versions Tab -->
+          <v-window-item value="versions" class="overflow-y-auto" style="height: 100%">
+            <ProfileVersionsPanel
+              :versions="versions"
+              :loading="versionsLoading"
+              :error="versionsError"
+              @set-active="handleSetActive"
+              @download="handleVersionDownload"
+              @delete="handleDeleteVersion"
+              @retry="loadVersions"
+            />
+          </v-window-item>
+        </v-window>
       </v-card-text>
     </v-card>
+
+    <!-- Notification Snackbar -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="3000"
+      location="top"
+    >
+      {{ snackbar.message }}
+      <template #actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Закрыть
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useProfilesStore } from '@/stores/profiles'
+import { useProfileVersions } from '@/composables/useProfileVersions'
 import { logger } from '@/utils/logger'
 import ProfileContent from './ProfileContent.vue'
 import ProfileMetadata from './ProfileMetadata.vue'
+import ProfileVersionsPanel from './ProfileVersionsPanel.vue'
 import type { UnifiedPosition } from '@/types/unified'
 
 // Props
@@ -196,10 +242,42 @@ const theme = useTheme()
 // Store
 const profilesStore = useProfilesStore()
 
+// State
+const activeTab = ref<string>('content')
+
 // Computed - use store's currentProfile
 const profileDetail = computed(() => profilesStore.currentProfile)
 const loadingDetail = computed(() => profilesStore.loading)
 const error = computed(() => profilesStore.error)
+const profileId = computed(() => props.profile?.profile_id ? String(props.profile.profile_id) : undefined)
+
+// Methods
+async function loadProfileDetail(): Promise<void> {
+  if (!props.profile?.profile_id) return
+
+  try {
+    await profilesStore.loadProfile(String(props.profile.profile_id))
+  } catch (err: unknown) {
+    logger.error('Failed to load profile detail', err)
+    // Error is already set in store
+  }
+}
+
+function handleDownload(format: 'json' | 'md' | 'docx'): void {
+  emit('download', format)
+}
+
+// Versions Management Composable
+const {
+  versions,
+  versionsLoading,
+  versionsError,
+  snackbar,
+  loadVersions,
+  handleSetActive,
+  handleVersionDownload,
+  handleDeleteVersion
+} = useProfileVersions(profileId, activeTab, loadProfileDetail)
 
 // Watch for profile changes
 watch(
@@ -221,22 +299,6 @@ watch(
     }
   }
 )
-
-// Methods
-async function loadProfileDetail(): Promise<void> {
-  if (!props.profile?.profile_id) return
-
-  try {
-    await profilesStore.loadProfile(String(props.profile.profile_id))
-  } catch (err) {
-    logger.error('Failed to load profile detail', err)
-    // Error is already set in store
-  }
-}
-
-function handleDownload(format: 'json' | 'md' | 'docx'): void {
-  emit('download', format)
-}
 </script>
 
 <style scoped>

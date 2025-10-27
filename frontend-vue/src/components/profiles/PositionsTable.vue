@@ -44,10 +44,16 @@
       <!-- Profile Info Column -->
       <template #item.profile_info="{ item }">
         <div v-if="item.profile_id" class="profile-info">
-          <div class="text-caption">
-            v{{ item.current_version || 1 }}
-            <span v-if="item.version_count && item.version_count > 1">
-              ({{ item.version_count }} версий)
+          <div>
+            <v-chip
+              v-if="item.version_count && item.version_count > 1"
+              size="small"
+              prepend-icon="mdi-layers"
+            >
+              v{{ item.current_version || 1 }} ({{ item.version_count }})
+            </v-chip>
+            <span v-else class="text-caption text-medium-emphasis">
+              v{{ item.current_version || 1 }}
             </span>
           </div>
           <div v-if="item.quality_score" class="quality-score">

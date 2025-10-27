@@ -5,6 +5,7 @@
 export * from './auth'
 export * from './generation'
 export * from './profile'
+export * from './version'
 
 // Export all from api except ProfileData (to avoid conflict with profile.ts)
 export type {
