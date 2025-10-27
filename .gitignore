@@ -91,6 +91,9 @@ settings.local.*
 # Generated profiles (может содержать конфиденциальную информацию)
 generated_profiles/
 
+# Test output files
+output/
+
 # Company data (конфиденциально)
 data/profiles.db
 data/company_sensitive/
