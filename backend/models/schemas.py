@@ -163,6 +163,18 @@ class GenerationTaskStatus(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
+    @field_validator('result_profile_id')
+    @classmethod
+    def validate_uuid_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that result_profile_id is a valid UUID format."""
+        if v is None:
+            return v
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid UUID format: {v}')
+
 
 class ProfileValidation(BaseModel):
     """Результаты валидации профиля"""
@@ -272,6 +284,16 @@ class ProfileResponse(BaseResponse):
     created_at: datetime
     created_by_username: Optional[str] = None
 
+    @field_validator('profile_id')
+    @classmethod
+    def validate_uuid_format(cls, v: str) -> str:
+        """Validate that profile_id is a valid UUID format."""
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid UUID format: {v}')
+
 
 class ProfileSummary(BaseModel):
     """Краткая информация о профиле для списков"""
@@ -285,6 +307,16 @@ class ProfileSummary(BaseModel):
     completeness_score: float
     created_at: datetime
     created_by_username: Optional[str]
+
+    @field_validator('profile_id')
+    @classmethod
+    def validate_uuid_format(cls, v: str) -> str:
+        """Validate that profile_id is a valid UUID format."""
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid UUID format: {v}')
 
 
 # ================================
@@ -329,6 +361,17 @@ class ExportRequest(BaseModel):
     format: ExportFormat
     include_metadata: bool = True
     compress: bool = False  # Для множественного экспорта
+
+    @field_validator('profile_ids')
+    @classmethod
+    def validate_uuid_list(cls, v: List[str]) -> List[str]:
+        """Validate that all profile_ids are valid UUID formats."""
+        for profile_id in v:
+            try:
+                uuid.UUID(profile_id)
+            except ValueError:
+                raise ValueError(f'Invalid UUID format in profile_ids: {profile_id}')
+        return v
 
 
 class ExportResponse(BaseResponse):
@@ -507,6 +550,18 @@ class WebhookEvent(BaseModel):
     data: Dict[str, Any]
     timestamp: datetime = Field(default_factory=datetime.now)
 
+    @field_validator('profile_id')
+    @classmethod
+    def validate_uuid_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that profile_id is a valid UUID format."""
+        if v is None:
+            return v
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid UUID format: {v}')
+
 
 # Обновляем forward references
 LoginResponse.model_rebuild()
@@ -593,7 +648,19 @@ class OrganizationPosition(BaseModel):
     department_name: str
     department_path: str
     profile_exists: bool
-    profile_id: Optional[int] = None
+    profile_id: Optional[str] = None  # UUID string from database
+
+    @field_validator('profile_id')
+    @classmethod
+    def validate_uuid_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that profile_id is a valid UUID format."""
+        if v is None:
+            return v
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f'Invalid UUID format: {v}')
 
 
 # ================================

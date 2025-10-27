@@ -1,24 +1,26 @@
 <template>
   <v-dialog
     :model-value="modelValue"
+    :theme="theme.global.name.value"
     max-width="1400px"
     scrollable
     @update:model-value="emit('update:modelValue', $event)"
   >
     <v-card v-if="profile">
       <!-- Header -->
-      <v-card-title class="d-flex align-center justify-space-between pa-4 bg-surface-variant">
-        <div class="d-flex align-center gap-3">
-          <v-icon size="32" color="primary">mdi-file-document-outline</v-icon>
-          <div>
-            <h2 class="text-h5">{{ profile.position_name }}</h2>
-            <div class="text-caption text-medium-emphasis">
-              {{ profile.department_name }}
+      <v-sheet bg-color="surface-variant" class="pa-4">
+        <div class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center gap-4">
+            <v-icon size="32" color="primary">mdi-file-document-outline</v-icon>
+            <div>
+              <h2 class="text-h5">{{ profile.position_name }}</h2>
+              <div class="text-caption text-medium-emphasis">
+                {{ profile.department_name }}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="d-flex align-center gap-2">
+          <div class="d-flex align-center gap-3">
           <!-- Download Menu -->
           <v-menu>
             <template #activator="{ props: menuProps }">
@@ -94,8 +96,9 @@
           >
             <v-icon>mdi-close</v-icon>
           </v-btn>
+          </div>
         </div>
-      </v-card-title>
+      </v-sheet>
 
       <v-divider />
 
@@ -128,7 +131,12 @@
           </v-col>
 
           <!-- Metadata Sidebar -->
-          <v-col cols="12" md="3" class="bg-surface-variant overflow-y-auto pa-4">
+          <v-col
+            cols="12"
+            md="3"
+            bg-color="surface-variant"
+            class="overflow-y-auto pa-4"
+          >
             <ProfileMetadata
               v-if="profileDetail"
               :profile="profile"
@@ -149,6 +157,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import { useProfilesStore } from '@/stores/profiles'
 import { logger } from '@/utils/logger'
 import ProfileContent from './ProfileContent.vue'
@@ -169,6 +178,9 @@ const emit = defineEmits<{
   'download': [format: 'json' | 'md' | 'docx']
   'viewVersions': []
 }>()
+
+// Theme
+const theme = useTheme()
 
 // Store
 const profilesStore = useProfilesStore()
@@ -217,14 +229,6 @@ function handleDownload(format: 'json' | 'md' | 'docx') {
 </script>
 
 <style scoped>
-.gap-2 {
-  gap: 8px;
-}
-
-.gap-3 {
-  gap: 12px;
-}
-
 /* Ensure proper scrolling */
 .overflow-y-auto {
   overflow-y: auto;

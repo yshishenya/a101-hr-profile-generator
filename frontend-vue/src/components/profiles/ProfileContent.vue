@@ -13,11 +13,13 @@
         :key="index"
         class="section mb-6"
       >
-        <v-card variant="outlined">
-          <v-card-title class="bg-surface-variant">
-            <v-icon class="mr-2" :icon="section.icon" />
-            {{ section.title }}
-          </v-card-title>
+        <v-card>
+          <v-sheet bg-color="surface-variant" class="pa-4">
+            <div class="d-flex align-center">
+              <v-icon class="mr-2" :icon="section.icon" />
+              <span class="text-h6">{{ section.title }}</span>
+            </div>
+          </v-sheet>
 
           <v-card-text class="pa-4">
             <!-- List items -->
@@ -49,7 +51,7 @@
 
             <!-- Nested sections -->
             <div v-else-if="section.type === 'nested' && section.subsections">
-              <v-expansion-panels>
+              <v-expansion-panels variant="accordion">
                 <v-expansion-panel
                   v-for="(subsection, subIdx) in section.subsections"
                   :key="subIdx"
@@ -115,90 +117,117 @@ interface ProfileSection {
   subsections?: Array<{ title: string; content?: string; items?: string[] }>
 }
 
+/**
+ * Section builders - extract complex logic into testable functions
+ */
+
+function buildCompetenciesSection(competencies: unknown): ProfileSection | null {
+  if (!competencies) return null
+
+  return {
+    title: 'Компетенции',
+    icon: 'mdi-brain',
+    type: 'nested',
+    subsections: Object.entries(competencies as Record<string, unknown>).map(([key, value]) => ({
+      title: key,
+      items: Array.isArray(value) ? value : [String(value)]
+    }))
+  }
+}
+
+function buildResponsibilitiesSection(responsibilities: unknown): ProfileSection | null {
+  if (!responsibilities) return null
+
+  const items = Array.isArray(responsibilities)
+    ? responsibilities.map(r =>
+        typeof r === 'string' ? r : `${r.title}: ${r.description}`
+      )
+    : [String(responsibilities)]
+
+  return {
+    title: 'Обязанности',
+    icon: 'mdi-clipboard-list',
+    type: 'list',
+    items
+  }
+}
+
+function buildRequirementsSection(requirements: unknown): ProfileSection | null {
+  if (!requirements) return null
+
+  return {
+    title: 'Требования',
+    icon: 'mdi-check-circle',
+    type: 'nested',
+    subsections: Object.entries(requirements as Record<string, unknown>).map(([key, value]) => ({
+      title: key,
+      items: Array.isArray(value) ? value : [String(value)]
+    }))
+  }
+}
+
+function buildSkillsSection(skills: unknown): ProfileSection | null {
+  if (!skills) return null
+
+  return {
+    title: 'Навыки',
+    icon: 'mdi-toolbox',
+    type: 'list',
+    items: Array.isArray(skills) ? skills : [String(skills)]
+  }
+}
+
+function buildEducationSection(education: unknown): ProfileSection | null {
+  if (!education) return null
+
+  return {
+    title: 'Образование',
+    icon: 'mdi-school',
+    type: 'text',
+    content: typeof education === 'string'
+      ? education
+      : JSON.stringify(education, null, 2)
+  }
+}
+
+function buildExperienceSection(experience: unknown): ProfileSection | null {
+  if (!experience) return null
+
+  return {
+    title: 'Опыт работы',
+    icon: 'mdi-briefcase',
+    type: 'text',
+    content: typeof experience === 'string'
+      ? experience
+      : JSON.stringify(experience, null, 2)
+  }
+}
+
+function buildFallbackSection(profile: ProfileData): ProfileSection {
+  return {
+    title: 'Содержимое профиля',
+    icon: 'mdi-file-document',
+    type: 'text',
+    content: JSON.stringify(profile, null, 2)
+  }
+}
+
 // Computed
 const profileSections = computed<ProfileSection[]>(() => {
   if (!props.profile) return []
 
-  const sections: ProfileSection[] = []
+  const sections = [
+    buildCompetenciesSection(props.profile.competencies),
+    buildResponsibilitiesSection(props.profile.responsibilities),
+    buildRequirementsSection(props.profile.requirements),
+    buildSkillsSection(props.profile.skills),
+    buildEducationSection(props.profile.education),
+    buildExperienceSection(props.profile.experience)
+  ].filter((section): section is ProfileSection => section !== null)
 
-  // Parse profile structure
-  // Common profile fields from backend
-  if (props.profile.competencies) {
-    sections.push({
-      title: 'Компетенции',
-      icon: 'mdi-brain',
-      type: 'nested',
-      subsections: Object.entries(props.profile.competencies || {}).map(([key, value]: [string, unknown]) => ({
-        title: key,
-        items: Array.isArray(value) ? value : [String(value)]
-      }))
-    })
-  }
-
-  if (props.profile.responsibilities) {
-    sections.push({
-      title: 'Обязанности',
-      icon: 'mdi-clipboard-list',
-      type: 'list',
-      items: Array.isArray(props.profile.responsibilities)
-        ? props.profile.responsibilities.map(r =>
-            typeof r === 'string' ? r : `${r.title}: ${r.description}`
-          )
-        : [String(props.profile.responsibilities)]
-    })
-  }
-
-  if (props.profile.requirements) {
-    sections.push({
-      title: 'Требования',
-      icon: 'mdi-check-circle',
-      type: 'nested',
-      subsections: Object.entries(props.profile.requirements || {}).map(([key, value]: [string, unknown]) => ({
-        title: key,
-        items: Array.isArray(value) ? value : [String(value)]
-      }))
-    })
-  }
-
-  if (props.profile.skills) {
-    sections.push({
-      title: 'Навыки',
-      icon: 'mdi-toolbox',
-      type: 'list',
-      items: Array.isArray(props.profile.skills) ? props.profile.skills : [String(props.profile.skills)]
-    })
-  }
-
-  if (props.profile.education) {
-    sections.push({
-      title: 'Образование',
-      icon: 'mdi-school',
-      type: 'text',
-      content: typeof props.profile.education === 'string'
-        ? props.profile.education
-        : JSON.stringify(props.profile.education, null, 2)
-    })
-  }
-
-  if (props.profile.experience) {
-    sections.push({
-      title: 'Опыт работы',
-      icon: 'mdi-briefcase',
-      type: 'text',
-      content: typeof props.profile.experience === 'string'
-        ? props.profile.experience
-        : JSON.stringify(props.profile.experience, null, 2)
-    })
-  }
-
-  // If no structured data, show raw JSON
+  // If no structured data, show raw JSON fallback
   if (sections.length === 0) {
-    sections.push({
-      title: 'Содержимое профиля',
-      icon: 'mdi-file-document',
-      type: 'text',
-      content: JSON.stringify(props.profile, null, 2)
-    })
+    sections.push(buildFallbackSection(props.profile))
   }
 
   return sections

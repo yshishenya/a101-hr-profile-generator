@@ -41,6 +41,7 @@ export default createVuetify({
           info: '#2196F3',       // Blue for info
           background: '#FFFFFF', // White background
           surface: '#FFFFFF',    // White surface
+          'surface-variant': '#F5F5F5', // Light grey for headers/accents
         },
       },
       dark: {
@@ -53,7 +54,9 @@ export default createVuetify({
           success: '#4CAF50',
           warning: '#FFC107',
           info: '#2196F3',
-          // Background and surface auto-adjusted by Vuetify
+          background: '#121212', // Dark background
+          surface: '#1E1E1E',    // Dark surface for cards
+          'surface-variant': '#2C2C2C', // Slightly lighter for headers
         },
       },
     },
@@ -87,6 +90,9 @@ export default createVuetify({
     VSelect: {
       variant: 'outlined',
       density: 'comfortable',
+    },
+    VDialog: {
+      scrim: 'rgba(0, 0, 0, 0.5)',
     },
   },
 })

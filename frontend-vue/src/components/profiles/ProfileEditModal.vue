@@ -1,14 +1,16 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="600px" persistent @update:model-value="handleClose">
+  <v-dialog :model-value="modelValue" :theme="theme.global.name.value" max-width="600px" persistent @update:model-value="handleClose">
     <v-card>
       <!-- Header -->
-      <v-card-title class="d-flex align-center justify-space-between pa-4 bg-primary">
-        <div class="d-flex align-center gap-2">
-          <v-icon color="white">mdi-pencil</v-icon>
-          <span class="text-white">Редактирование профиля</span>
+      <v-sheet bg-color="surface-variant" class="pa-4">
+        <div class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center gap-3">
+            <v-icon color="primary">mdi-pencil</v-icon>
+            <span class="text-h6">Редактирование профиля</span>
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="handleClose" />
         </div>
-        <v-btn icon="mdi-close" variant="text" color="white" @click="handleClose" />
-      </v-card-title>
+      </v-sheet>
 
       <v-divider />
 
@@ -71,7 +73,7 @@
             </template>
 
             <template #selection="{ item }">
-              <div class="d-flex align-center gap-2">
+              <div class="d-flex align-center gap-3">
                 <v-icon :color="item.raw.color" size="small">{{ item.raw.icon }}</v-icon>
                 <span>{{ item.raw.label }}</span>
               </div>
@@ -110,6 +112,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import type { UnifiedPosition, PositionStatus } from '@/types/unified'
 
 // Props
@@ -125,6 +128,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   save: [data: { employee_name?: string; status?: PositionStatus }]
 }>()
+
+// Theme
+const theme = useTheme()
 
 // Form state
 const formRef = ref()
@@ -251,10 +257,6 @@ async function handleSubmit(): Promise<void> {
 </script>
 
 <style scoped>
-.gap-2 {
-  gap: 8px;
-}
-
 /* Ensure proper text wrapping */
 .v-alert {
   word-break: break-word;

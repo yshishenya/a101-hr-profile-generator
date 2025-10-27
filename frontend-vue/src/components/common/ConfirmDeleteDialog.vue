@@ -1,14 +1,16 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="500px" persistent @update:model-value="handleClose">
+  <v-dialog :model-value="modelValue" :theme="theme.global.name.value" max-width="500px" persistent @update:model-value="handleClose">
     <v-card>
       <!-- Header -->
-      <v-card-title class="d-flex align-center justify-space-between pa-4 bg-error">
-        <div class="d-flex align-center gap-2">
-          <v-icon color="white">mdi-alert-circle</v-icon>
-          <span class="text-white">Подтверждение удаления</span>
+      <v-sheet bg-color="surface-variant" class="pa-4">
+        <div class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center gap-3">
+            <v-icon color="error">mdi-alert-circle</v-icon>
+            <span class="text-h6">Подтверждение удаления</span>
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="handleClose" />
         </div>
-        <v-btn icon="mdi-close" variant="text" color="white" @click="handleClose" />
-      </v-card-title>
+      </v-sheet>
 
       <v-divider />
 
@@ -33,13 +35,17 @@
           </div>
 
           <!-- Single item -->
-          <div v-if="itemCount === 1 && items[0]" class="pa-3 rounded bg-surface-variant">
+          <v-sheet
+            v-if="itemCount === 1 && items[0]"
+            bg-color="surface-variant"
+            class="pa-3 rounded"
+          >
             <div class="text-body-1 font-weight-medium">{{ items[0]?.position_name }}</div>
             <div class="text-caption text-medium-emphasis">{{ items[0]?.department_name }}</div>
             <div v-if="items[0]?.employee_name" class="text-caption mt-1">
               Сотрудник: {{ items[0]?.employee_name }}
             </div>
-          </div>
+          </v-sheet>
 
           <!-- Multiple items -->
           <div v-else class="items-list">
@@ -111,6 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import type { UnifiedPosition } from '@/types/unified'
 
 // Props
@@ -131,6 +138,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   delete: []
 }>()
+
+// Theme
+const theme = useTheme()
 
 // Local state
 const confirmed = ref(false)
@@ -177,10 +187,6 @@ async function handleDelete(): Promise<void> {
 </script>
 
 <style scoped>
-.gap-2 {
-  gap: 8px;
-}
-
 .items-list {
   max-height: 200px;
   overflow-y: auto;

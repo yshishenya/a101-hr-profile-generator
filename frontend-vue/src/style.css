@@ -36,3 +36,28 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+/* ================================
+ * Utility Classes
+ * ================================ */
+
+/* Gap utilities for flex/grid layouts */
+.gap-1 {
+  gap: 2px;
+}
+
+.gap-2 {
+  gap: 4px;
+}
+
+.gap-3 {
+  gap: 8px;
+}
+
+.gap-4 {
+  gap: 12px;
+}
+
+.gap-5 {
+  gap: 16px;
+}
