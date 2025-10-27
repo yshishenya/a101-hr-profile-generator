@@ -536,6 +536,75 @@ class ProfileUpdateRequest(BaseModel):
         return v
 
 
+class ProfileContentUpdateRequest(BaseModel):
+    """Запрос обновления содержимого профиля (profile_data)"""
+
+    profile_data: Dict[str, Any] = Field(
+        ..., description="Полное содержимое профиля в JSON формате"
+    )
+
+    @field_validator("profile_data")
+    @classmethod
+    def validate_profile_data(cls, v):
+        """Валидация структуры profile_data"""
+        if not isinstance(v, dict):
+            raise ValueError("profile_data must be a dictionary")
+
+        # Список обязательных секций
+        required_sections = [
+            "position_title",
+            "department_specific",
+            "responsibility_areas",
+            "professional_skills",
+            "corporate_competencies",
+            "personal_qualities",
+            "experience_and_education",
+        ]
+
+        # Проверяем наличие обязательных секций
+        missing_sections = [
+            section for section in required_sections if section not in v
+        ]
+        if missing_sections:
+            raise ValueError(
+                f"Missing required sections: {', '.join(missing_sections)}"
+            )
+
+        # Валидация типов данных для каждой секции
+        # position_title - строка
+        if not isinstance(v.get("position_title"), str) or not v["position_title"]:
+            raise ValueError("position_title must be a non-empty string")
+
+        # department_specific - строка
+        if (
+            not isinstance(v.get("department_specific"), str)
+            or not v["department_specific"]
+        ):
+            raise ValueError("department_specific must be a non-empty string")
+
+        # responsibility_areas - массив объектов
+        if not isinstance(v.get("responsibility_areas"), list):
+            raise ValueError("responsibility_areas must be a list")
+
+        # professional_skills - массив объектов
+        if not isinstance(v.get("professional_skills"), list):
+            raise ValueError("professional_skills must be a list")
+
+        # corporate_competencies - массив строк
+        if not isinstance(v.get("corporate_competencies"), list):
+            raise ValueError("corporate_competencies must be a list")
+
+        # personal_qualities - массив строк
+        if not isinstance(v.get("personal_qualities"), list):
+            raise ValueError("personal_qualities must be a list")
+
+        # experience_and_education - объект
+        if not isinstance(v.get("experience_and_education"), dict):
+            raise ValueError("experience_and_education must be a dictionary")
+
+        return v
+
+
 # ================================
 # WEBHOOK MODELS (для будущего использования)
 # ================================

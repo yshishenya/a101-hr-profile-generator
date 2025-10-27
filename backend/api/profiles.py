@@ -13,13 +13,21 @@ Examples:
 """
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from typing import Optional
 import json
 import sqlite3
+import tempfile
+import io
+import os
 from datetime import datetime
+from pathlib import Path
 
-from ..models.schemas import ProfileListResponse, ProfileUpdateRequest
+from ..models.schemas import (
+    ProfileListResponse,
+    ProfileUpdateRequest,
+    ProfileContentUpdateRequest,
+)
 from .auth import get_current_user
 from ..models.database import get_db_manager
 from ..core.config import config
@@ -38,9 +46,13 @@ from ..utils.exceptions import (
     ServiceUnavailableError,
 )
 from ..core.storage_service import ProfileStorageService
+from ..core.markdown_service import ProfileMarkdownService
+from ..core.docx_service import initialize_docx_service
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile Management"])
 storage_service = ProfileStorageService()
+markdown_service = ProfileMarkdownService()
+docx_service = initialize_docx_service()
 
 
 @router.get("/", response_model=ProfileListResponse)
@@ -631,6 +643,156 @@ async def update_profile_metadata(
         )
 
 
+@router.put("/{profile_id}/content")
+async def update_profile_content(
+    profile_id: str,
+    update_request: ProfileContentUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    @doc Обновить содержимое профиля (profile_data)
+
+    Позволяет обновить полное содержимое профиля (все секции).
+    Этот endpoint используется для редактирования всех полей профиля:
+    обязанностей, навыков, компетенций, образования, KPI и т.д.
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля для обновления
+
+    **Request Body:** ProfileContentUpdateRequest
+    - `profile_data` (dict): Полное содержимое профиля в JSON формате
+
+    **Response:** Сообщение об успешном обновлении
+    - `message`: Текст подтверждения
+    - `profile_id`: UUID обновленного профиля
+
+    **Authentication:** Требуется Bearer Token
+
+    **Validation Rules:**
+    Обязательные секции profile_data:
+    - `position_title`: Название позиции (строка)
+    - `department_specific`: Департамент (строка)
+    - `responsibility_areas`: Зоны ответственности (массив объектов)
+    - `professional_skills`: Профессиональные навыки (массив объектов)
+    - `corporate_competencies`: Корпоративные компетенции (массив строк)
+    - `personal_qualities`: Личные качества (массив строк)
+    - `experience_and_education`: Опыт и образование (объект)
+
+    Опциональные секции:
+    - `careerogram`: Карьерограмма
+    - `workplace_provisioning`: Обеспечение рабочего места
+    - `performance_metrics`: Показатели эффективности
+    - `additional_information`: Дополнительная информация
+    - И другие секции
+
+    Examples:
+        bash>
+        # Успешное обновление содержимого профиля
+        curl -X PUT "http://localhost:8001/api/profiles/{profile_id}/content" \
+          -H "Authorization: Bearer TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "profile_data": {
+              "position_title": "Backend Python Developer",
+              "department_specific": "Департамент информационных технологий",
+              "responsibility_areas": [
+                {
+                  "area": ["Разработка backend-сервисов"],
+                  "tasks": ["Разработка API", "Интеграции с 1С"]
+                }
+              ],
+              "professional_skills": [
+                {
+                  "skill_category": "Технические",
+                  "specific_skills": [
+                    {
+                      "skill_name": "Python",
+                      "proficiency_level": 3
+                    }
+                  ]
+                }
+              ],
+              "corporate_competencies": ["Инновационность", "Результативность"],
+              "personal_qualities": ["аналитическое мышление", "ответственность"],
+              "experience_and_education": {
+                "education_level": "Высшее",
+                "total_work_experience": "От 3 лет"
+              }
+            }
+          }'
+
+        # Response (200 OK):
+        {
+          "message": "Profile content updated successfully",
+          "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef"
+        }
+    """
+    # Валидация profile_id
+    validate_profile_id(profile_id)
+
+    try:
+        # Получаем подключение к БД
+        db_manager = get_db_manager()
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+
+        # Проверяем существование профиля
+        cursor.execute("SELECT id FROM profiles WHERE id = ?", (profile_id,))
+        if not cursor.fetchone():
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        # Сериализуем profile_data в JSON
+        profile_data_json = json.dumps(
+            update_request.profile_data, ensure_ascii=False, indent=2
+        )
+
+        # Обновляем profile_data и updated_at
+        update_query = """
+            UPDATE profiles
+            SET profile_data = ?,
+                updated_at = ?
+            WHERE id = ?
+        """
+
+        cursor.execute(
+            update_query,
+            (profile_data_json, datetime.now().isoformat(), profile_id),
+        )
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        return {
+            "message": "Profile content updated successfully",
+            "profile_id": profile_id,
+        }
+
+    except (NotFoundError, ValidationError):
+        raise
+    except json.JSONEncodeError as e:
+        raise ValidationError(
+            f"Failed to encode profile_data to JSON: {str(e)}",
+            field="profile_data",
+        )
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to update profile content {profile_id}: {str(e)}",
+            operation="UPDATE",
+            table="profiles",
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error updating profile content {profile_id}: {str(e)}",
+            operation="UPDATE",
+            table="profiles",
+        )
+
+
 @router.delete("/{profile_id}")
 async def delete_profile(
     profile_id: str, current_user: dict = Depends(get_current_user)
@@ -901,21 +1063,26 @@ async def restore_profile(
 
 @router.get("/{profile_id}/download/json")
 async def download_profile_json(
-    profile_id: str, current_user: dict = Depends(get_current_user)
+    profile_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Номер версии для скачивания (опционально)"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    @doc Скачать JSON файл профиля
+    @doc Скачать JSON файл профиля (с поддержкой версий)
 
-    Скачивает полный профиль в JSON формате из файловой системы. Файл содержит
-    как сами данные профиля, так и метаданные генерации.
+    Скачивает полный профиль в JSON формате. Если указан параметр version,
+    скачивается конкретная версия из истории. Без параметра - текущая версия из файловой системы.
 
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для скачивания
 
+    **Query Parameters:**
+    - `version` (int, optional): Номер версии для скачивания (>= 1)
+
     **Response:** Файл JSON для скачивания
     - Content-Type: application/json
     - Content-Disposition: attachment
-    - Имя файла: profile_{position}_{profile_id_short}.json
+    - Имя файла: profile_{position}_{profile_id_short}_v{version}.json
 
     **Authentication:** Требуется Bearer Token
 
@@ -989,6 +1156,47 @@ async def download_profile_json(
         conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
+        # Если запрошена конкретная версия - получаем из profile_versions
+        if version is not None:
+            # Проверяем существование профиля
+            cursor.execute("SELECT position FROM profiles WHERE id = ?", (profile_id,))
+            profile_row = cursor.fetchone()
+            if not profile_row:
+                raise NotFoundError(
+                    "Profile not found", resource="profile", resource_id=profile_id
+                )
+
+            # Получаем конкретную версию
+            cursor.execute(
+                """
+                SELECT profile_content, version_number
+                FROM profile_versions
+                WHERE profile_id = ? AND version_number = ?
+            """,
+                (profile_id, version),
+            )
+
+            version_row = cursor.fetchone()
+            if not version_row:
+                raise NotFoundError(
+                    f"Version {version} not found for profile",
+                    resource="profile_version",
+                    resource_id=f"{profile_id}/{version}",
+                )
+
+            # Парсим JSON и возвращаем как файл из памяти
+            profile_content = json.loads(version_row["profile_content"])
+            json_bytes = json.dumps(profile_content, ensure_ascii=False, indent=2).encode('utf-8')
+
+            return StreamingResponse(
+                io.BytesIO(json_bytes),
+                media_type="application/json",
+                headers={
+                    "Content-Disposition": f'attachment; filename="profile_{profile_row["position"]}_{profile_id[:8]}_v{version}.json"'
+                }
+            )
+
+        # Если версия НЕ указана - используем текущую логику (файл с диска)
         # Получаем информацию о профиле из БД
         cursor.execute(
             """
@@ -1007,7 +1215,7 @@ async def download_profile_json(
 
         # Вычисляем путь к JSON файлу детерминистически
         created_at = datetime.fromisoformat(row["created_at"])
-        json_path, _ = storage_service.get_profile_paths(
+        json_path, _, _ = storage_service.get_profile_paths(
             profile_id=row["id"],
             department=row["department"],
             position=row["position"],
@@ -1048,22 +1256,26 @@ async def download_profile_json(
 
 @router.get("/{profile_id}/download/docx")
 async def download_profile_docx(
-    profile_id: str, current_user: dict = Depends(get_current_user)
+    profile_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Номер версии для скачивания (опционально)"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    @doc Скачать DOCX файл профиля
+    @doc Скачать DOCX файл профиля (с поддержкой версий)
 
-    Скачивает профиль в формате Microsoft Word (DOCX) из файловой системы.
-    DOCX файл содержит профессионально отформатированный профиль готовый
-    для редактирования и корпоративного документооборота.
+    Скачивает профиль в формате Microsoft Word (DOCX). Если указан параметр version,
+    скачивается конкретная версия (генерируется на лету из БД).
 
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для скачивания
 
+    **Query Parameters:**
+    - `version` (int, optional): Номер версии для скачивания (>= 1)
+
     **Response:** Файл Microsoft Word для скачивания
     - Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
     - Content-Disposition: attachment
-    - Имя файла: profile_{position}_{profile_id_short}.docx
+    - Имя файла: profile_{position}_{profile_id_short}_v{version}.docx
 
     **Authentication:** Требуется Bearer Token
 
@@ -1117,6 +1329,62 @@ async def download_profile_docx(
         conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
+        # Если запрошена конкретная версия - генерируем DOCX на лету
+        if version is not None:
+            # Проверяем существование профиля
+            cursor.execute("SELECT position FROM profiles WHERE id = ?", (profile_id,))
+            profile_row = cursor.fetchone()
+            if not profile_row:
+                raise NotFoundError(
+                    "Profile not found", resource="profile", resource_id=profile_id
+                )
+
+            # Получаем конкретную версию
+            cursor.execute(
+                """
+                SELECT profile_content, version_number
+                FROM profile_versions
+                WHERE profile_id = ? AND version_number = ?
+            """,
+                (profile_id, version),
+            )
+
+            version_row = cursor.fetchone()
+            if not version_row:
+                raise NotFoundError(
+                    f"Version {version} not found for profile",
+                    resource="profile_version",
+                    resource_id=f"{profile_id}/{version}",
+                )
+
+            # Парсим JSON и генерируем DOCX через docx_service
+            if not docx_service:
+                raise ServiceUnavailableError("DOCX generation service is not available")
+
+            profile_content = json.loads(version_row["profile_content"])
+
+            # Создаем временный файл для DOCX
+            temp_fd, temp_docx_path = tempfile.mkstemp(suffix=".docx")
+            try:
+                os.close(temp_fd)  # Закрываем дескриптор, docx_service откроет файл сам
+
+                # Генерируем DOCX
+                docx_service.create_docx_from_json(profile_content, temp_docx_path)
+
+                # Возвращаем временный файл
+                return FileResponse(
+                    path=temp_docx_path,
+                    filename=f'profile_{profile_row["position"]}_{profile_id[:8]}_v{version}.docx',
+                    media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": "attachment"},
+                    background=lambda: Path(temp_docx_path).unlink(missing_ok=True)  # Удаляем после отправки
+                )
+            except Exception as e:
+                # Очищаем временный файл при ошибке
+                Path(temp_docx_path).unlink(missing_ok=True)
+                raise
+
+        # Если версия НЕ указана - используем текущую логику (файл с диска)
         # Получаем информацию о профиле из БД
         cursor.execute(
             """
@@ -1176,21 +1444,26 @@ async def download_profile_docx(
 
 @router.get("/{profile_id}/download/md")
 async def download_profile_md(
-    profile_id: str, current_user: dict = Depends(get_current_user)
+    profile_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Номер версии для скачивания (опционально)"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    @doc Скачать MD файл профиля
+    @doc Скачать MD файл профиля (с поддержкой версий)
 
-    Скачивает профиль в Markdown формате для удобного чтения и печати.
-    MD файл содержит человекочитаемое описание профиля с форматированием.
+    Скачивает профиль в Markdown формате. Если указан параметр version,
+    скачивается конкретная версия (генерируется на лету из БД).
 
     **Path Parameters:**
     - `profile_id` (str): UUID профиля для скачивания
 
+    **Query Parameters:**
+    - `version` (int, optional): Номер версии для скачивания (>= 1)
+
     **Response:** Файл Markdown для скачивания
     - Content-Type: text/markdown
     - Content-Disposition: attachment
-    - Имя файла: profile_{position}_{profile_id_short}.md
+    - Имя файла: profile_{position}_{profile_id_short}_v{version}.md
 
     **Authentication:** Требуется Bearer Token
 
@@ -1291,6 +1564,48 @@ async def download_profile_md(
         conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
+        # Если запрошена конкретная версия - генерируем MD на лету
+        if version is not None:
+            # Проверяем существование профиля
+            cursor.execute("SELECT position FROM profiles WHERE id = ?", (profile_id,))
+            profile_row = cursor.fetchone()
+            if not profile_row:
+                raise NotFoundError(
+                    "Profile not found", resource="profile", resource_id=profile_id
+                )
+
+            # Получаем конкретную версию
+            cursor.execute(
+                """
+                SELECT profile_content, version_number
+                FROM profile_versions
+                WHERE profile_id = ? AND version_number = ?
+            """,
+                (profile_id, version),
+            )
+
+            version_row = cursor.fetchone()
+            if not version_row:
+                raise NotFoundError(
+                    f"Version {version} not found for profile",
+                    resource="profile_version",
+                    resource_id=f"{profile_id}/{version}",
+                )
+
+            # Парсим JSON и генерируем MD через markdown_service
+            profile_content = json.loads(version_row["profile_content"])
+            md_content = markdown_service.generate_from_json(profile_content)
+            md_bytes = md_content.encode('utf-8')
+
+            return StreamingResponse(
+                io.BytesIO(md_bytes),
+                media_type="text/markdown",
+                headers={
+                    "Content-Disposition": f'attachment; filename="profile_{profile_row["position"]}_{profile_id[:8]}_v{version}.md"'
+                }
+            )
+
+        # Если версия НЕ указана - используем текущую логику (файл с диска)
         # Получаем информацию о профиле из БД
         cursor.execute(
             """
@@ -1346,3 +1661,730 @@ async def download_profile_md(
             operation="FILE_ACCESS",
             table="profiles",
         )
+
+
+# ============================================================================
+# PROFILE VERSIONING ENDPOINTS
+# ============================================================================
+
+
+@router.get("/{profile_id}/versions")
+async def get_profile_versions(
+    profile_id: str, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Получить список всех версий профиля
+
+    Возвращает полный список версий профиля с метаданными каждой версии.
+    Показывает, какая версия является текущей активной.
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля
+
+    **Response:** Список версий профиля
+    - `versions`: Массив объектов версий (сортировка по version_number DESC)
+    - `current_version`: Номер текущей активной версии
+    - `total_versions`: Общее количество версий
+
+    **Version Object Structure:**
+    - `version_number` (int): Номер версии
+    - `created_at` (datetime): Дата создания версии
+    - `created_by_username` (str): Имя создателя версии
+    - `version_type` (str): Тип версии ('generated', 'regenerated', 'edited')
+    - `validation_score` (float): Оценка валидации
+    - `completeness_score` (float): Оценка полноты
+    - `is_current` (bool): Является ли версия текущей активной
+
+    **Authentication:** Требуется Bearer Token
+
+    Examples:
+        bash>
+        # 1. Получить список версий профиля
+        curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (200 OK):
+        {
+          "versions": [
+            {
+              "version_number": 3,
+              "created_at": "2025-01-15T10:30:00",
+              "created_by_username": "admin",
+              "version_type": "edited",
+              "validation_score": 0.95,
+              "completeness_score": 0.92,
+              "is_current": true
+            },
+            {
+              "version_number": 2,
+              "created_at": "2025-01-12T14:20:00",
+              "created_by_username": "hr_manager",
+              "version_type": "regenerated",
+              "validation_score": 0.90,
+              "completeness_score": 0.88,
+              "is_current": false
+            },
+            {
+              "version_number": 1,
+              "created_at": "2025-01-10T09:15:00",
+              "created_by_username": "admin",
+              "version_type": "generated",
+              "validation_score": 0.85,
+              "completeness_score": 0.82,
+              "is_current": false
+            }
+          ],
+          "current_version": 3,
+          "total_versions": 3
+        }
+
+        # 2. Ошибка - профиль не найден
+        curl -X GET "http://localhost:8001/api/profiles/nonexistent-id/versions" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (404 Not Found):
+        {
+          "detail": {
+            "error": "Profile not found",
+            "error_code": "RESOURCE_NOT_FOUND",
+            "resource": "profile",
+            "resource_id": "nonexistent-id"
+          }
+        }
+    """
+    # Валидация profile_id
+    profile_id = validate_profile_id(profile_id)
+
+    try:
+        conn = get_db_manager().get_connection()
+        cursor = conn.cursor()
+
+        # Проверяем существование профиля и получаем current_version
+        cursor.execute(
+            "SELECT current_version FROM profiles WHERE id = ?", (profile_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        current_version = row["current_version"] or 1
+
+        # Получаем все версии профиля
+        cursor.execute(
+            """
+            SELECT version_number, created_at, created_by_username, version_type,
+                   validation_score, completeness_score
+            FROM profile_versions
+            WHERE profile_id = ?
+            ORDER BY version_number DESC
+        """,
+            (profile_id,),
+        )
+
+        versions = []
+        for v in cursor.fetchall():
+            versions.append(
+                {
+                    "version_number": v["version_number"],
+                    "created_at": v["created_at"],
+                    "created_by_username": v["created_by_username"],
+                    "version_type": v["version_type"],
+                    "validation_score": v["validation_score"],
+                    "completeness_score": v["completeness_score"],
+                    "is_current": v["version_number"] == current_version,
+                }
+            )
+
+        return {
+            "versions": versions,
+            "current_version": current_version,
+            "total_versions": len(versions),
+        }
+
+    except NotFoundError:
+        raise
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to fetch versions for profile {profile_id}: {str(e)}",
+            operation="SELECT",
+            table="profile_versions",
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error fetching versions for profile {profile_id}: {str(e)}",
+            operation="SELECT",
+            table="profile_versions",
+        )
+
+
+@router.get("/{profile_id}/versions/{version_number}")
+async def get_profile_version(
+    profile_id: str, version_number: int, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Получить конкретную версию профиля
+
+    Возвращает полные данные конкретной версии профиля, включая содержимое
+    профиля и метаданные генерации.
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля
+    - `version_number` (int): Номер версии (должен быть >= 1)
+
+    **Response:** Полные данные версии
+    - `version_number` (int): Номер версии
+    - `profile_content` (object): Полное содержимое профиля
+    - `generation_metadata` (object): Метаданные генерации
+    - `created_at` (datetime): Дата создания версии
+    - `created_by_username` (str): Имя создателя
+    - `version_type` (str): Тип версии
+    - `validation_score` (float): Оценка валидации
+    - `completeness_score` (float): Оценка полноты
+    - `is_current` (bool): Является ли текущей активной версией
+
+    **Authentication:** Требуется Bearer Token
+
+    Examples:
+        bash>
+        # 1. Получить версию 2 профиля
+        curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/2" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (200 OK):
+        {
+          "version_number": 2,
+          "profile_content": {
+            "position_info": {
+              "title": "Старший аналитик данных",
+              "department": "Группа анализа данных",
+              ...
+            },
+            "responsibilities": [...],
+            "qualifications": {...},
+            "kpis": [...]
+          },
+          "generation_metadata": {
+            "generation_id": "gen_20250112_142000_xyz789",
+            "model_used": "gemini-2.0-flash-exp",
+            "tokens_used": 1300,
+            ...
+          },
+          "created_at": "2025-01-12T14:20:00",
+          "created_by_username": "hr_manager",
+          "version_type": "regenerated",
+          "validation_score": 0.90,
+          "completeness_score": 0.88,
+          "is_current": false
+        }
+
+        # 2. Ошибка - версия не найдена
+        curl -X GET "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/999" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (404 Not Found):
+        {
+          "detail": {
+            "error": "Version 999 not found for profile",
+            "error_code": "RESOURCE_NOT_FOUND",
+            "resource": "profile_version",
+            "resource_id": "4aec3e73-c9bd-4d25-a123-456789abcdef/999"
+          }
+        }
+    """
+    # Валидация
+    profile_id = validate_profile_id(profile_id)
+
+    if version_number < 1:
+        raise ValidationError(
+            "Version number must be >= 1",
+            field="version_number",
+            details={"provided_value": version_number},
+        )
+
+    try:
+        conn = get_db_manager().get_connection()
+        cursor = conn.cursor()
+
+        # Проверяем существование профиля и получаем current_version
+        cursor.execute(
+            "SELECT current_version FROM profiles WHERE id = ?", (profile_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        current_version = row["current_version"] or 1
+
+        # Получаем конкретную версию
+        cursor.execute(
+            """
+            SELECT version_number, profile_content, generation_metadata,
+                   created_at, created_by_username, version_type,
+                   validation_score, completeness_score
+            FROM profile_versions
+            WHERE profile_id = ? AND version_number = ?
+        """,
+            (profile_id, version_number),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                f"Version {version_number} not found for profile",
+                resource="profile_version",
+                resource_id=f"{profile_id}/{version_number}",
+            )
+
+        # Парсим JSON данные
+        profile_content = json.loads(row["profile_content"])
+        generation_metadata = (
+            json.loads(row["generation_metadata"])
+            if row["generation_metadata"]
+            else None
+        )
+
+        return {
+            "version_number": row["version_number"],
+            "profile_content": profile_content,
+            "generation_metadata": generation_metadata,
+            "created_at": row["created_at"],
+            "created_by_username": row["created_by_username"],
+            "version_type": row["version_type"],
+            "validation_score": row["validation_score"],
+            "completeness_score": row["completeness_score"],
+            "is_current": row["version_number"] == current_version,
+        }
+
+    except (NotFoundError, ValidationError):
+        raise
+    except json.JSONDecodeError as e:
+        raise DatabaseError(
+            f"Invalid JSON data in version {version_number}: {str(e)}",
+            operation="JSON_DECODE",
+            table="profile_versions",
+        )
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to fetch version {version_number} for profile {profile_id}: {str(e)}",
+            operation="SELECT",
+            table="profile_versions",
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error fetching version {version_number}: {str(e)}",
+            operation="SELECT",
+            table="profile_versions",
+        )
+
+
+@router.put("/{profile_id}/versions/{version_number}/set-active")
+async def set_active_version(
+    profile_id: str, version_number: int, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Установить версию как текущую активную
+
+    Устанавливает указанную версию профиля как текущую активную. Активная версия
+    отображается в списке профилей и используется при просмотре профиля.
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля
+    - `version_number` (int): Номер версии для активации (должен быть >= 1)
+
+    **Response:** Подтверждение операции
+    - `message`: Текст подтверждения
+    - `profile_id`: UUID профиля
+    - `previous_version`: Номер предыдущей активной версии
+    - `current_version`: Номер новой активной версии
+
+    **Business Logic:**
+    - Проверяет существование профиля и версии
+    - Обновляет поле current_version в таблице profiles
+    - Обновляет profile_data в профиле данными из выбранной версии
+    - Обновляет updated_at timestamp
+
+    **Authentication:** Требуется Bearer Token
+
+    Examples:
+        bash>
+        # 1. Установить версию 2 как активную
+        curl -X PUT "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/2/set-active" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+          -H "Content-Type: application/json"
+
+        # Response (200 OK):
+        {
+          "message": "Version 2 set as active",
+          "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef",
+          "previous_version": 3,
+          "current_version": 2
+        }
+
+        # 2. Ошибка - версия не найдена
+        curl -X PUT "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/999/set-active" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (404 Not Found):
+        {
+          "detail": {
+            "error": "Version 999 not found for profile",
+            "error_code": "RESOURCE_NOT_FOUND",
+            "resource": "profile_version",
+            "resource_id": "4aec3e73-c9bd-4d25-a123-456789abcdef/999"
+          }
+        }
+
+        # 3. Попытка установить уже активную версию (допустимо)
+        curl -X PUT "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/3/set-active" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (200 OK):
+        {
+          "message": "Version 3 set as active",
+          "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef",
+          "previous_version": 3,
+          "current_version": 3
+        }
+    """
+    # Валидация
+    profile_id = validate_profile_id(profile_id)
+
+    if version_number < 1:
+        raise ValidationError(
+            "Version number must be >= 1",
+            field="version_number",
+            details={"provided_value": version_number},
+        )
+
+    try:
+        conn = get_db_manager().get_connection()
+        cursor = conn.cursor()
+
+        # Проверяем существование профиля и получаем current_version
+        cursor.execute(
+            "SELECT current_version FROM profiles WHERE id = ?", (profile_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        previous_version = row["current_version"] or 1
+
+        # Проверяем существование версии и получаем её данные
+        cursor.execute(
+            """
+            SELECT profile_content, generation_metadata
+            FROM profile_versions
+            WHERE profile_id = ? AND version_number = ?
+        """,
+            (profile_id, version_number),
+        )
+
+        version_row = cursor.fetchone()
+        if not version_row:
+            raise NotFoundError(
+                f"Version {version_number} not found for profile",
+                resource="profile_version",
+                resource_id=f"{profile_id}/{version_number}",
+            )
+
+        # Обновляем профиль: устанавливаем новую активную версию
+        cursor.execute(
+            """
+            UPDATE profiles
+            SET current_version = ?,
+                profile_data = ?,
+                metadata_json = ?,
+                updated_at = ?
+            WHERE id = ?
+        """,
+            (
+                version_number,
+                version_row["profile_content"],
+                version_row["generation_metadata"],
+                datetime.now().isoformat(),
+                profile_id,
+            ),
+        )
+
+        conn.commit()
+
+        return {
+            "message": f"Version {version_number} set as active",
+            "profile_id": profile_id,
+            "previous_version": previous_version,
+            "current_version": version_number,
+        }
+
+    except (NotFoundError, ValidationError):
+        raise
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise DatabaseError(
+            f"Failed to set version {version_number} as active: {str(e)}",
+            operation="UPDATE",
+            table="profiles",
+        )
+    except Exception as e:
+        conn.rollback()
+        raise DatabaseError(
+            f"Unexpected error setting version {version_number} as active: {str(e)}",
+            operation="UPDATE",
+            table="profiles",
+        )
+
+
+@router.delete("/{profile_id}/versions/{version_number}")
+async def delete_profile_version(
+    profile_id: str, version_number: int, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Удалить конкретную версию профиля
+
+    Удаляет указанную версию профиля из истории версий. Нельзя удалить
+    текущую активную версию или последнюю оставшуюся версию.
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля
+    - `version_number` (int): Номер версии для удаления (должен быть >= 1)
+
+    **Response:** Подтверждение удаления
+    - `message`: Текст подтверждения
+    - `profile_id`: UUID профиля
+    - `deleted_version`: Номер удаленной версии
+    - `remaining_versions`: Количество оставшихся версий
+
+    **Business Logic:**
+    - Проверяет, что версия не является текущей активной
+    - Проверяет, что это не последняя версия (минимум 1 версия должна остаться)
+    - Удаляет версию из таблицы profile_versions
+
+    **Authentication:** Требуется Bearer Token
+
+    **Validation Rules:**
+    - Нельзя удалить текущую активную версию (вернет 422)
+    - Нельзя удалить последнюю оставшуюся версию (вернет 422)
+    - Версия должна существовать (иначе 404)
+
+    Examples:
+        bash>
+        # 1. Успешное удаление версии 1 (не активной)
+        curl -X DELETE "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/1" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+          -H "Content-Type: application/json"
+
+        # Response (200 OK):
+        {
+          "message": "Version 1 deleted successfully",
+          "profile_id": "4aec3e73-c9bd-4d25-a123-456789abcdef",
+          "deleted_version": 1,
+          "remaining_versions": 2
+        }
+
+        # 2. Ошибка - попытка удалить текущую активную версию
+        curl -X DELETE "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/3" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (422 Unprocessable Entity):
+        {
+          "detail": {
+            "error": "Cannot delete current active version",
+            "error_code": "VALIDATION_ERROR",
+            "field": "version_number",
+            "details": {
+              "current_version": 3,
+              "requested_version": 3,
+              "hint": "Set another version as active before deleting this one"
+            }
+          }
+        }
+
+        # 3. Ошибка - попытка удалить последнюю оставшуюся версию
+        curl -X DELETE "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/1" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (422 Unprocessable Entity):
+        {
+          "detail": {
+            "error": "Cannot delete last remaining version",
+            "error_code": "VALIDATION_ERROR",
+            "field": "version_number",
+            "details": {
+              "total_versions": 1,
+              "hint": "Profile must have at least one version"
+            }
+          }
+        }
+
+        # 4. Ошибка - версия не найдена
+        curl -X DELETE "http://localhost:8001/api/profiles/4aec3e73-c9bd-4d25-a123-456789abcdef/versions/999" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+        # Response (404 Not Found):
+        {
+          "detail": {
+            "error": "Version 999 not found for profile",
+            "error_code": "RESOURCE_NOT_FOUND",
+            "resource": "profile_version",
+            "resource_id": "4aec3e73-c9bd-4d25-a123-456789abcdef/999"
+          }
+        }
+    """
+    # Валидация
+    profile_id = validate_profile_id(profile_id)
+
+    if version_number < 1:
+        raise ValidationError(
+            "Version number must be >= 1",
+            field="version_number",
+            details={"provided_value": version_number},
+        )
+
+    try:
+        conn = get_db_manager().get_connection()
+        cursor = conn.cursor()
+
+        # Проверяем существование профиля и получаем current_version
+        cursor.execute(
+            "SELECT current_version FROM profiles WHERE id = ?", (profile_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise NotFoundError(
+                "Profile not found", resource="profile", resource_id=profile_id
+            )
+
+        current_version = row["current_version"] or 1
+
+        # Проверяем, что удаляемая версия не является текущей активной
+        if version_number == current_version:
+            raise ValidationError(
+                "Cannot delete current active version",
+                field="version_number",
+                details={
+                    "current_version": current_version,
+                    "requested_version": version_number,
+                    "hint": "Set another version as active before deleting this one",
+                },
+            )
+
+        # Проверяем существование версии
+        cursor.execute(
+            """
+            SELECT version_number
+            FROM profile_versions
+            WHERE profile_id = ? AND version_number = ?
+        """,
+            (profile_id, version_number),
+        )
+
+        if not cursor.fetchone():
+            raise NotFoundError(
+                f"Version {version_number} not found for profile",
+                resource="profile_version",
+                resource_id=f"{profile_id}/{version_number}",
+            )
+
+        # Проверяем, что это не последняя версия
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM profile_versions WHERE profile_id = ?",
+            (profile_id,),
+        )
+        total_versions = cursor.fetchone()["count"]
+
+        if total_versions <= 1:
+            raise ValidationError(
+                "Cannot delete last remaining version",
+                field="version_number",
+                details={
+                    "total_versions": total_versions,
+                    "hint": "Profile must have at least one version",
+                },
+            )
+
+        # Удаляем версию
+        cursor.execute(
+            """
+            DELETE FROM profile_versions
+            WHERE profile_id = ? AND version_number = ?
+        """,
+            (profile_id, version_number),
+        )
+
+        conn.commit()
+
+        return {
+            "message": f"Version {version_number} deleted successfully",
+            "profile_id": profile_id,
+            "deleted_version": version_number,
+            "remaining_versions": total_versions - 1,
+        }
+
+    except (NotFoundError, ValidationError):
+        raise
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise DatabaseError(
+            f"Failed to delete version {version_number}: {str(e)}",
+            operation="DELETE",
+            table="profile_versions",
+        )
+    except Exception as e:
+        conn.rollback()
+        raise DatabaseError(
+            f"Unexpected error deleting version {version_number}: {str(e)}",
+            operation="DELETE",
+            table="profile_versions",
+        )
+
+
+# ============================================================================
+# PROFILE REGENERATION ENDPOINT (TODO)
+# ============================================================================
+
+
+@router.post("/{profile_id}/regenerate")
+async def regenerate_profile(
+    profile_id: str, current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Регенерировать профиль (создать новую версию)
+
+    TODO: Полная реализация требует интеграции с background tasks из generation.py.
+
+    Планируемая логика:
+    1. Получить current_version и данные профиля
+    2. Запустить background task для регенерации
+    3. После генерации:
+       - Увеличить current_version
+       - Создать новую запись в profile_versions с version_type='regenerated'
+       - Обновить profile_data в profiles
+    4. Вернуть task_id для polling статуса
+
+    **Path Parameters:**
+    - `profile_id` (str): UUID профиля для регенерации
+
+    **Response:** Task information для polling
+    - `task_id`: ID фоновой задачи
+    - `message`: Информационное сообщение
+
+    **Authentication:** Требуется Bearer Token
+    """
+    profile_id = validate_profile_id(profile_id)
+
+    # TODO: Реализовать полную логику регенерации
+    # Требуется:
+    # 1. Импортировать ProfileGenerator
+    # 2. Создать background task аналогично generation.py
+    # 3. Интегрировать с существующей системой версионирования
+
+    raise ServiceUnavailableError(
+        "Profile regeneration is not yet implemented. "
+        "Please use the generation endpoint to create a new profile."
+    )
