@@ -10,6 +10,11 @@ import type {
   ProfilesListResponse,
   ProfileUpdateRequest
 } from '@/types/profile'
+import type {
+  ProfileVersionsResponse,
+  SetActiveVersionResponse,
+  DeleteVersionResponse
+} from '@/types/version'
 import type { PaginationParams, FilterParams } from '@/types/api'
 
 /**
@@ -73,6 +78,30 @@ export async function getProfile(id: string): Promise<ProfileDetail> {
  */
 export async function updateProfile(id: string, data: ProfileUpdateRequest): Promise<Profile> {
   const response = await api.put<Profile>(`/api/profiles/${id}`, data)
+  // Backend returns: { success, timestamp, data: Profile }
+  return response.data
+}
+
+/**
+ * Update profile content (full profile_data)
+ * Updates all sections of the profile content
+ *
+ * @param id - Profile ID
+ * @param profileData - Complete profile_data object with all sections
+ * @returns Promise<Profile> - Updated profile
+ * @throws AxiosError if request fails
+ *
+ * @example
+ * await profileService.updateProfileContent('prof_123', {
+ *   responsibility_areas: [...],
+ *   professional_skills: [...],
+ *   ...
+ * })
+ */
+export async function updateProfileContent(id: string, profileData: Record<string, unknown>): Promise<Profile> {
+  const response = await api.put<Profile>(`/api/profiles/${id}/content`, {
+    profile_data: profileData
+  })
   // Backend returns: { success, timestamp, data: Profile }
   return response.data
 }
@@ -178,13 +207,76 @@ export async function downloadDOCX(id: string): Promise<Blob> {
   return response.data
 }
 
+/**
+ * Get all versions of a profile
+ *
+ * @param id - Profile ID
+ * @returns Promise<ProfileVersionsResponse> List of all versions
+ * @throws AxiosError if request fails
+ *
+ * @example
+ * const response = await profileService.getProfileVersions('prof_123')
+ * console.log(`Profile has ${response.total_versions} versions`)
+ */
+export async function getProfileVersions(id: string): Promise<ProfileVersionsResponse> {
+  const response = await api.get<ProfileVersionsResponse>(`/api/profiles/${id}/versions`)
+  return response.data
+}
+
+/**
+ * Set a specific version as the active/current version
+ *
+ * @param id - Profile ID
+ * @param version - Version number to set as active
+ * @returns Promise<SetActiveVersionResponse> Operation result
+ * @throws AxiosError if request fails
+ *
+ * @example
+ * await profileService.setActiveVersion('prof_123', 2)
+ */
+export async function setActiveVersion(
+  id: string,
+  version: number
+): Promise<SetActiveVersionResponse> {
+  const response = await api.put<SetActiveVersionResponse>(
+    `/api/profiles/${id}/versions/${version}/set-active`
+  )
+  return response.data
+}
+
+/**
+ * Delete a specific version
+ * Cannot delete the current active version
+ *
+ * @param id - Profile ID
+ * @param version - Version number to delete
+ * @returns Promise<DeleteVersionResponse> Operation result
+ * @throws AxiosError if request fails (400 if trying to delete current version)
+ *
+ * @example
+ * await profileService.deleteVersion('prof_123', 1)
+ */
+export async function deleteVersion(
+  id: string,
+  version: number
+): Promise<DeleteVersionResponse> {
+  const response = await api.delete<DeleteVersionResponse>(
+    `/api/profiles/${id}/versions/${version}`
+  )
+  return response.data
+}
+
 export default {
   listProfiles,
   getProfile,
   updateProfile,
+  updateProfileContent,
   archiveProfile,
   restoreProfile,
   downloadJSON,
   downloadMarkdown,
-  downloadDOCX
+  downloadDOCX,
+  getProfileVersions,
+  setActiveVersion,
+  deleteVersion
 }

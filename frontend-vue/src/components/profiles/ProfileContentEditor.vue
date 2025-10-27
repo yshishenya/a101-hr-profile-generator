@@ -169,7 +169,7 @@ function handleEditSection(sectionId: string): void {
   emit('section-edited', sectionId)
 }
 
-function handleSaveSection(sectionId: string): void {
+async function handleSaveSection(sectionId: string): Promise<void> {
   // Validate section data
   const isValid = validateSection(sectionId, sectionData.value[sectionId])
 
@@ -177,14 +177,52 @@ function handleSaveSection(sectionId: string): void {
     return
   }
 
-  // Save to store
-  profilesStore.updateSectionData(sectionId, sectionData.value[sectionId])
+  // Build full profile_data with updated section
+  if (!currentProfile.value?.profile) return
 
-  // Exit edit mode
-  editingSections.value[sectionId] = false
-  hasChanges.value[sectionId] = false
+  const updatedProfileData = { ...currentProfile.value.profile }
 
-  emit('section-saved', sectionId)
+  // Update the specific section
+  if (sectionId === 'basic_info') {
+    // For basic_info, merge the fields
+    Object.assign(updatedProfileData, sectionData.value[sectionId])
+  } else {
+    // For other sections, directly set the value
+    const fieldMap: Record<string, string> = {
+      responsibility_areas: 'responsibility_areas',
+      professional_skills: 'professional_skills',
+      corporate_competencies: 'corporate_competencies',
+      personal_qualities: 'personal_qualities',
+      experience_and_education: 'experience_and_education',
+      careerogram: 'careerogram',
+      workplace_provisioning: 'workplace_provisioning',
+      performance_metrics: 'performance_metrics',
+      additional_information: 'additional_information',
+    }
+
+    const field = fieldMap[sectionId]
+    if (field) {
+      ;(updatedProfileData as Record<string, unknown>)[field] = sectionData.value[sectionId]
+    }
+  }
+
+  try {
+    // Save to backend via store
+    await profilesStore.updateProfileContent(
+      currentProfile.value.profile_id,
+      updatedProfileData as Record<string, unknown>
+    )
+
+    // Exit edit mode
+    editingSections.value[sectionId] = false
+    hasChanges.value[sectionId] = false
+
+    emit('section-saved', sectionId)
+  } catch (error: unknown) {
+    // Handle error - validation status will show the error
+    const errorMessage = error instanceof Error ? error.message : 'Failed to save section'
+    validationStatus.value[sectionId] = { isValid: false, error: errorMessage }
+  }
 }
 
 function handleCancelSection(sectionId: string): void {
@@ -354,7 +392,7 @@ defineExpose({
     )
 
     for (const sectionId of sectionsToSave) {
-      handleSaveSection(sectionId)
+      await handleSaveSection(sectionId)
     }
   },
 })

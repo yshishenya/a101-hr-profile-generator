@@ -170,6 +170,61 @@ export async function updateProfile(id: string, data: ProfileUpdateRequest): Pro
 }
 
 /**
+ * Update profile content (full profile_data)
+ * Updates all sections of the profile
+ * Automatically refreshes profile after update
+ *
+ * @param id - Profile ID
+ * @param profileData - Complete profile_data object with all sections
+ * @throws ProfileError if update fails
+ *
+ * @example
+ * ```typescript
+ * await updateProfileContent('prof_123', {
+ *   responsibility_areas: [...],
+ *   professional_skills: [...],
+ *   corporate_competencies: [...],
+ *   ...
+ * })
+ * ```
+ */
+export async function updateProfileContent(id: string, profileData: Record<string, unknown>): Promise<void> {
+  if (!id?.trim()) {
+    throw new ProfileError('Profile ID is required', 'VALIDATION_ERROR')
+  }
+
+  loading.value = true
+  error.value = null
+
+  try {
+    await profileService.updateProfileContent(id, profileData)
+
+    // Refresh the profile if it's currently loaded
+    if (currentProfile.value?.profile_id === id) {
+      await loadProfile(id)
+    }
+
+    // Refresh list if profile is in current page
+    const profileIndex = profiles.value.findIndex(p => p.profile_id === id)
+    if (profileIndex !== -1) {
+      await loadProfiles()
+    }
+
+    loading.value = false
+  } catch (err) {
+    const axiosError = err as AxiosError<{ message?: string }>
+    error.value = axiosError.response?.data?.message || 'Failed to update profile content'
+    loading.value = false
+
+    throw new ProfileError(
+      error.value,
+      'UPDATE_FAILED',
+      err
+    )
+  }
+}
+
+/**
  * Archive (soft delete) a profile
  * Removes profile from list after archiving
  *
