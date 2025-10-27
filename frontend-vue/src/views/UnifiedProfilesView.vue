@@ -112,11 +112,17 @@
       @view-versions="handleViewVersions(selectedPosition!)"
     />
 
-    <!-- Profile Edit Modal -->
+    <!-- Profile Edit Modal (Metadata only) -->
     <ProfileEditModal
       v-model="showProfileEdit"
       :profile="selectedPosition"
       @save="handleSaveProfile"
+    />
+
+    <!-- Full Profile Edit Modal (Content editing) -->
+    <FullProfileEditModal
+      v-model="showFullProfileEdit"
+      :profile="selectedPosition"
     />
 
     <!-- Confirm Delete Dialog -->
@@ -195,6 +201,7 @@ import PositionsTable from '@/components/profiles/PositionsTable.vue'
 import BulkActionsBar from '@/components/profiles/BulkActionsBar.vue'
 import ProfileViewerModal from '@/components/profiles/ProfileViewerModal.vue'
 import ProfileEditModal from '@/components/profiles/ProfileEditModal.vue'
+import FullProfileEditModal from '@/components/profiles/FullProfileEditModal.vue'
 import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
 import type { UnifiedPosition, PositionStatus } from '@/types/unified'
 
@@ -206,6 +213,7 @@ const dashboardStore = useDashboardStore()
 // Local state
 const showProfileViewer = ref(false)
 const showProfileEdit = ref(false)
+const showFullProfileEdit = ref(false)
 const showConfirmDelete = ref(false)
 const showVersionHistory = ref(false)
 const selectedPosition = ref<UnifiedPosition | null>(null)
@@ -369,7 +377,8 @@ function handleViewProfile(position: UnifiedPosition): void {
 
 function handleEditProfile(position: UnifiedPosition): void {
   selectedPosition.value = position
-  showProfileEdit.value = true
+  // Open full profile content editor instead of metadata-only editor
+  showFullProfileEdit.value = true
 }
 
 async function handleSaveProfile(data: { employee_name?: string; status?: PositionStatus }): Promise<void> {
