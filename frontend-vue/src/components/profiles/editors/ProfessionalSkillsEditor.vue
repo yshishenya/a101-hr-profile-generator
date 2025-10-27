@@ -3,48 +3,11 @@
     <!-- Read-only View Mode -->
     <div v-if="readonly" class="readonly-view">
       <v-expansion-panels variant="accordion">
-        <v-expansion-panel
+        <SkillCategoryReadonly
           v-for="(category, index) in localSkills"
           :key="index"
-        >
-          <v-expansion-panel-title>
-            <div class="d-flex align-center gap-2">
-              <v-icon size="small">mdi-toolbox</v-icon>
-              <span class="font-weight-medium">{{ category.skill_category }}</span>
-              <v-chip size="x-small" variant="outlined">
-                {{ category.specific_skills.length }} навыков
-              </v-chip>
-            </div>
-          </v-expansion-panel-title>
-
-          <v-expansion-panel-text>
-            <v-table density="compact">
-              <thead>
-                <tr>
-                  <th>Навык</th>
-                  <th style="width: 100px">Уровень</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(skill, skillIdx) in category.specific_skills"
-                  :key="skillIdx"
-                >
-                  <td>{{ skill.skill_name }}</td>
-                  <td>
-                    <v-chip
-                      size="small"
-                      :color="getProficiencyColor(skill.proficiency_level)"
-                      variant="flat"
-                    >
-                      {{ skill.proficiency_level }}
-                    </v-chip>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
+          :category="category"
+        />
       </v-expansion-panels>
 
       <div v-if="localSkills.length === 0" class="text-body-2 text-medium-emphasis pa-4">
@@ -100,114 +63,14 @@
             </div>
           </v-expansion-panel-title>
 
-          <v-expansion-panel-text>
-            <!-- Category Name -->
-            <v-text-field
-              v-model="category.skill_category"
-              variant="outlined"
-              label="Название категории"
-              placeholder="Например: Технические навыки"
-              density="comfortable"
-              class="mb-4"
-            >
-              <template #prepend-inner>
-                <v-icon>mdi-tag</v-icon>
-              </template>
-            </v-text-field>
-
-            <!-- Skills Table -->
-            <div class="skills-table mb-3">
-              <div class="text-subtitle-2 mb-2">Навыки в категории</div>
-
-              <v-table density="compact" class="mb-2">
-                <thead>
-                  <tr>
-                    <th style="width: 60%">Название навыка</th>
-                    <th style="width: 30%">Уровень (1-4)</th>
-                    <th style="width: 10%">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(skill, skillIdx) in category.specific_skills"
-                    :key="skillIdx"
-                  >
-                    <td>
-                      <v-text-field
-                        v-model="skill.skill_name"
-                        variant="plain"
-                        density="compact"
-                        hide-details
-                        placeholder="Название навыка"
-                      />
-                    </td>
-                    <td>
-                      <v-select
-                        v-model="skill.proficiency_level"
-                        :items="proficiencyLevels"
-                        item-title="label"
-                        item-value="value"
-                        variant="plain"
-                        density="compact"
-                        hide-details
-                      >
-                        <template #selection="{ item }">
-                          <v-chip
-                            size="small"
-                            :color="getProficiencyColor(item.value)"
-                            variant="flat"
-                          >
-                            {{ item.value }}
-                          </v-chip>
-                        </template>
-                      </v-select>
-                    </td>
-                    <td>
-                      <v-btn
-                        icon
-                        variant="text"
-                        size="x-small"
-                        color="error"
-                        @click="removeSkill(catIndex, skillIdx)"
-                      >
-                        <v-icon size="small">mdi-delete</v-icon>
-                      </v-btn>
-                    </td>
-                  </tr>
-
-                  <!-- Empty state -->
-                  <tr v-if="category.specific_skills.length === 0">
-                    <td colspan="3" class="text-center text-caption text-medium-emphasis pa-4">
-                      Нет навыков. Нажмите "Добавить навык" ниже.
-                    </td>
-                  </tr>
-                </tbody>
-              </v-table>
-
-              <!-- Add Skill Button -->
-              <v-btn
-                prepend-icon="mdi-plus"
-                variant="outlined"
-                size="small"
-                @click="addSkill(catIndex)"
-              >
-                Добавить навык
-              </v-btn>
-            </div>
-
-            <!-- Category Validation -->
-            <v-alert
-              v-if="!category.skill_category || category.specific_skills.length === 0"
-              type="warning"
-              variant="tonal"
-              density="compact"
-            >
-              <div class="text-caption">
-                ⚠️ {{ !category.skill_category ? 'Укажите название категории. ' : '' }}
-                {{ category.specific_skills.length === 0 ? 'Добавьте хотя бы один навык.' : '' }}
-              </div>
-            </v-alert>
-          </v-expansion-panel-text>
+          <SkillCategoryEdit
+            :category="category"
+            @update:name="(value) => updateCategoryName(catIndex, value)"
+            @update:skill-name="(skillIdx, value) => updateSkillName(catIndex, skillIdx, value)"
+            @update:proficiency-level="(skillIdx, value) => updateProficiencyLevel(catIndex, skillIdx, value)"
+            @add-skill="addSkill(catIndex)"
+            @remove-skill="(skillIdx) => removeSkill(catIndex, skillIdx)"
+          />
         </v-expansion-panel>
       </v-expansion-panels>
 
@@ -222,40 +85,21 @@
         Добавить категорию навыков
       </v-btn>
 
-      <!-- Proficiency Level Legend -->
-      <v-card variant="tonal" class="mt-4 pa-3">
-        <div class="text-subtitle-2 mb-2">Уровни владения:</div>
-        <div class="d-flex flex-wrap gap-2">
-          <v-chip
-            v-for="level in proficiencyLevels"
-            :key="level.value"
-            size="small"
-            :color="getProficiencyColor(level.value)"
-            variant="flat"
-          >
-            {{ level.value }} - {{ level.label }}
-          </v-chip>
-        </div>
-      </v-card>
-
-      <!-- Overall Statistics -->
-      <v-alert
-        type="info"
-        variant="tonal"
-        density="compact"
+      <!-- Legend and Statistics -->
+      <ProficiencyLegend
+        :categories-count="localSkills.length"
+        :total-skills="totalSkills"
         class="mt-4"
-      >
-        <div class="text-caption">
-          Всего: {{ localSkills.length }} {{ categoriesLabel }},
-          {{ totalSkills }} {{ skillsLabel }}
-        </div>
-      </v-alert>
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import SkillCategoryReadonly from './sub-components/SkillCategoryReadonly.vue'
+import SkillCategoryEdit from './sub-components/SkillCategoryEdit.vue'
+import ProficiencyLegend from './sub-components/ProficiencyLegend.vue'
 
 // Types
 interface Skill {
@@ -299,14 +143,6 @@ const emit = defineEmits<{
 const localSkills = ref<SkillCategory[]>([])
 const openPanels = ref<string[]>([])
 
-// Proficiency levels
-const proficiencyLevels = [
-  { value: 1, label: 'Базовый' },
-  { value: 2, label: 'Средний' },
-  { value: 3, label: 'Продвинутый' },
-  { value: 4, label: 'Экспертный' },
-]
-
 // Computed
 const totalSkills = computed(() => {
   return localSkills.value.reduce(
@@ -315,36 +151,7 @@ const totalSkills = computed(() => {
   )
 })
 
-const categoriesLabel = computed(() => {
-  const count = localSkills.value.length
-  if (count === 1) return 'категория'
-  if (count >= 2 && count <= 4) return 'категории'
-  return 'категорий'
-})
-
-const skillsLabel = computed(() => {
-  const count = totalSkills.value
-  if (count === 1) return 'навык'
-  if (count >= 2 && count <= 4) return 'навыка'
-  return 'навыков'
-})
-
 // Methods
-function getProficiencyColor(level: number): string {
-  switch (level) {
-    case 1:
-      return 'grey'
-    case 2:
-      return 'info'
-    case 3:
-      return 'success'
-    case 4:
-      return 'primary'
-    default:
-      return 'grey'
-  }
-}
-
 function initializeSkills(): void {
   localSkills.value = (props.modelValue || []).map((cat, index) => ({
     id: `cat-${Date.now()}-${index}`,
@@ -382,6 +189,10 @@ function removeCategory(index: number): void {
   handleUpdate()
 }
 
+function updateCategoryName(categoryIndex: number, value: string): void {
+  localSkills.value[categoryIndex].skill_category = value
+}
+
 function addSkill(categoryIndex: number): void {
   localSkills.value[categoryIndex].specific_skills.push({
     skill_name: '',
@@ -393,6 +204,14 @@ function addSkill(categoryIndex: number): void {
 function removeSkill(categoryIndex: number, skillIndex: number): void {
   localSkills.value[categoryIndex].specific_skills.splice(skillIndex, 1)
   handleUpdate()
+}
+
+function updateSkillName(categoryIndex: number, skillIndex: number, value: string): void {
+  localSkills.value[categoryIndex].specific_skills[skillIndex].skill_name = value
+}
+
+function updateProficiencyLevel(categoryIndex: number, skillIndex: number, value: number): void {
+  localSkills.value[categoryIndex].specific_skills[skillIndex].proficiency_level = value
 }
 
 function handleUpdate(): void {
@@ -453,12 +272,6 @@ watch(
 
 .gap-2 {
   gap: 8px;
-}
-
-.skills-table {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 4px;
-  padding: 8px;
 }
 
 /* Table styling */

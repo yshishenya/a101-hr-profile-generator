@@ -46,7 +46,9 @@ import CareerogramEditor from './editors/CareerogramEditor.vue'
 import WorkplaceProvisioningEditor from './editors/WorkplaceProvisioningEditor.vue'
 import PerformanceMetricsEditor from './editors/PerformanceMetricsEditor.vue'
 import AdditionalInfoEditor from './editors/AdditionalInfoEditor.vue'
-import type { ProfileData } from '@/types/profile'
+import { PROFILE_SECTIONS, SECTION_FIELD_MAP } from './constants/profileSections'
+import { validateSection } from './utils/sectionValidation'
+import { extractSectionData } from './utils/sectionDataExtractor'
 
 // Props
 interface Props {
@@ -72,68 +74,7 @@ const hasChanges = ref<Record<string, boolean>>({})
 const validationStatus = ref<Record<string, { isValid: boolean; error?: string }>>({})
 
 // Section definitions
-const sections = ref([
-  {
-    id: 'basic_info',
-    title: 'Основная информация',
-    icon: 'mdi-information',
-    component: 'BasicInfoEditor',
-  },
-  {
-    id: 'responsibility_areas',
-    title: 'Зоны ответственности',
-    icon: 'mdi-clipboard-list',
-    component: 'ResponsibilityAreasEditor',
-  },
-  {
-    id: 'professional_skills',
-    title: 'Профессиональные навыки',
-    icon: 'mdi-toolbox',
-    component: 'ProfessionalSkillsEditor',
-  },
-  {
-    id: 'corporate_competencies',
-    title: 'Корпоративные компетенции',
-    icon: 'mdi-brain',
-    component: 'CompetenciesEditor',
-  },
-  {
-    id: 'personal_qualities',
-    title: 'Личные качества',
-    icon: 'mdi-account-heart',
-    component: 'CompetenciesEditor', // Reuse same editor
-  },
-  {
-    id: 'experience_and_education',
-    title: 'Опыт и образование',
-    icon: 'mdi-school',
-    component: 'ExperienceEducationEditor',
-  },
-  {
-    id: 'careerogram',
-    title: 'Карьерограмма',
-    icon: 'mdi-chart-timeline-variant',
-    component: 'CareerogramEditor',
-  },
-  {
-    id: 'workplace_provisioning',
-    title: 'Обеспечение рабочего места',
-    icon: 'mdi-laptop',
-    component: 'WorkplaceProvisioningEditor',
-  },
-  {
-    id: 'performance_metrics',
-    title: 'Показатели эффективности',
-    icon: 'mdi-chart-line',
-    component: 'PerformanceMetricsEditor',
-  },
-  {
-    id: 'additional_information',
-    title: 'Дополнительная информация',
-    icon: 'mdi-information-outline',
-    component: 'AdditionalInfoEditor',
-  },
-])
+const sections = ref(PROFILE_SECTIONS)
 
 // Computed
 const totalSections = computed(() => sections.value.length)
@@ -171,9 +112,10 @@ function handleEditSection(sectionId: string): void {
 
 async function handleSaveSection(sectionId: string): Promise<void> {
   // Validate section data
-  const isValid = validateSection(sectionId, sectionData.value[sectionId])
+  const validation = validateSection(sectionId, sectionData.value[sectionId])
+  validationStatus.value[sectionId] = validation
 
-  if (!isValid) {
+  if (!validation.isValid) {
     return
   }
 
@@ -188,19 +130,7 @@ async function handleSaveSection(sectionId: string): Promise<void> {
     Object.assign(updatedProfileData, sectionData.value[sectionId])
   } else {
     // For other sections, directly set the value
-    const fieldMap: Record<string, string> = {
-      responsibility_areas: 'responsibility_areas',
-      professional_skills: 'professional_skills',
-      corporate_competencies: 'corporate_competencies',
-      personal_qualities: 'personal_qualities',
-      experience_and_education: 'experience_and_education',
-      careerogram: 'careerogram',
-      workplace_provisioning: 'workplace_provisioning',
-      performance_metrics: 'performance_metrics',
-      additional_information: 'additional_information',
-    }
-
-    const field = fieldMap[sectionId]
+    const field = SECTION_FIELD_MAP[sectionId]
     if (field) {
       ;(updatedProfileData as Record<string, unknown>)[field] = sectionData.value[sectionId]
     }
@@ -243,100 +173,8 @@ function handleSectionChange(sectionId: string): void {
   hasChanges.value[sectionId] = true
 
   // Validate on change
-  validateSection(sectionId, sectionData.value[sectionId])
-}
-
-function validateSection(sectionId: string, data: unknown): boolean {
-  // Basic validation - will be replaced with comprehensive validation
-  let isValid = true
-  let error: string | undefined
-
-  if (!data) {
-    isValid = false
-    error = 'Секция не может быть пустой'
-  }
-
-  // Section-specific validation
-  switch (sectionId) {
-    case 'basic_info':
-      if (
-        !data ||
-        typeof data !== 'object' ||
-        !(data as Record<string, unknown>).direct_manager ||
-        !(data as Record<string, unknown>).primary_activity_type
-      ) {
-        isValid = false
-        error = 'Укажите руководителя и вид деятельности'
-      }
-      break
-
-    case 'responsibility_areas':
-      if (!Array.isArray(data) || data.length === 0) {
-        isValid = false
-        error = 'Добавьте хотя бы одну зону ответственности'
-      }
-      break
-
-    case 'professional_skills':
-      if (!Array.isArray(data) || data.length === 0) {
-        isValid = false
-        error = 'Добавьте хотя бы один навык'
-      }
-      break
-
-    case 'corporate_competencies':
-    case 'personal_qualities':
-      if (!Array.isArray(data) || data.length === 0) {
-        isValid = false
-        error = 'Добавьте хотя бы одно значение'
-      }
-      break
-
-    case 'experience_and_education':
-      if (
-        !data ||
-        typeof data !== 'object' ||
-        !(data as Record<string, unknown>).education_level
-      ) {
-        isValid = false
-        error = 'Укажите уровень образования'
-      }
-      break
-  }
-
-  validationStatus.value[sectionId] = { isValid, error }
-  return isValid
-}
-
-function extractSectionData(sectionId: string, profileData: ProfileData): unknown {
-  // Extract section data from profile
-  // This maps section IDs to actual profile_data fields
-  const fieldMap: Record<string, string> = {
-    basic_info: 'position_title',
-    responsibility_areas: 'responsibility_areas',
-    professional_skills: 'professional_skills',
-    corporate_competencies: 'corporate_competencies',
-    personal_qualities: 'personal_qualities',
-    experience_and_education: 'experience_and_education',
-    careerogram: 'careerogram',
-    workplace_provisioning: 'workplace_provisioning',
-    performance_metrics: 'performance_metrics',
-    additional_information: 'additional_information',
-  }
-
-  const field = fieldMap[sectionId]
-  if (!field) return null
-
-  // For basic_info, extract only the fields that BasicInfoEditor handles
-  if (sectionId === 'basic_info') {
-    return {
-      direct_manager: (profileData as Record<string, unknown>).direct_manager as string,
-      primary_activity_type: (profileData as Record<string, unknown>)
-        .primary_activity_type as string,
-    }
-  }
-
-  return (profileData as Record<string, unknown>)[field]
+  const validation = validateSection(sectionId, sectionData.value[sectionId])
+  validationStatus.value[sectionId] = validation
 }
 
 function initializeSectionData(): void {
@@ -354,7 +192,8 @@ function initializeSectionData(): void {
     hasChanges.value[section.id] = false
 
     // Initial validation
-    validateSection(section.id, sectionData.value[section.id])
+    const validation = validateSection(section.id, sectionData.value[section.id])
+    validationStatus.value[section.id] = validation
   })
 }
 
@@ -380,8 +219,9 @@ defineExpose({
   validateAllSections: () => {
     let allValid = true
     sections.value.forEach((section) => {
-      const isValid = validateSection(section.id, sectionData.value[section.id])
-      if (!isValid) allValid = false
+      const validation = validateSection(section.id, sectionData.value[section.id])
+      validationStatus.value[section.id] = validation
+      if (!validation.isValid) allValid = false
     })
     return allValid
   },

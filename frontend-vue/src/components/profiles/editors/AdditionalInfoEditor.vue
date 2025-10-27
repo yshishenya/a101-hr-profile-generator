@@ -1,110 +1,12 @@
 <template>
   <div class="additional-info-editor">
     <!-- Read-only View Mode -->
-    <div v-if="readonly" class="readonly-view">
-      <v-expansion-panels variant="accordion">
-        <!-- Working Conditions -->
-        <v-expansion-panel>
-          <v-expansion-panel-title>
-            <div class="d-flex align-center gap-2">
-              <v-icon size="small">mdi-calendar-clock</v-icon>
-              <span class="font-weight-medium">Условия работы</span>
-            </div>
-          </v-expansion-panel-title>
-
-          <v-expansion-panel-text>
-            <v-list lines="two" density="compact">
-              <v-list-item prepend-icon="mdi-clock-outline">
-                <v-list-item-title>График работы</v-list-item-title>
-                <v-list-item-subtitle class="text-wrap mt-1">
-                  {{ localData.working_conditions.work_schedule || 'Не указано' }}
-                </v-list-item-subtitle>
-              </v-list-item>
-
-              <v-divider />
-
-              <v-list-item prepend-icon="mdi-home-account">
-                <v-list-item-title>Удалённая работа</v-list-item-title>
-                <v-list-item-subtitle class="text-wrap mt-1">
-                  {{ localData.working_conditions.remote_work_options || 'Не указано' }}
-                </v-list-item-subtitle>
-              </v-list-item>
-
-              <v-divider />
-
-              <v-list-item prepend-icon="mdi-airplane">
-                <v-list-item-title>Командировки</v-list-item-title>
-                <v-list-item-subtitle class="text-wrap mt-1">
-                  {{ localData.working_conditions.business_travel || 'Не указано' }}
-                </v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-
-        <!-- Special Requirements -->
-        <v-expansion-panel>
-          <v-expansion-panel-title>
-            <div class="d-flex align-center gap-2">
-              <v-icon size="small">mdi-shield-check</v-icon>
-              <span class="font-weight-medium">Особые требования</span>
-              <v-chip size="x-small" variant="outlined">
-                {{ localData.special_requirements.length }}
-              </v-chip>
-            </div>
-          </v-expansion-panel-title>
-
-          <v-expansion-panel-text>
-            <v-list density="compact">
-              <v-list-item
-                v-for="(req, idx) in localData.special_requirements"
-                :key="idx"
-                class="px-0"
-              >
-                <template #prepend>
-                  <v-icon size="small" color="warning">mdi-alert-circle</v-icon>
-                </template>
-                <v-list-item-subtitle class="text-wrap">{{ req }}</v-list-item-subtitle>
-              </v-list-item>
-              <v-list-item v-if="localData.special_requirements.length === 0" class="px-0">
-                <v-list-item-subtitle class="text-medium-emphasis">Нет требований</v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-
-        <!-- Risk Factors -->
-        <v-expansion-panel>
-          <v-expansion-panel-title>
-            <div class="d-flex align-center gap-2">
-              <v-icon size="small">mdi-alert</v-icon>
-              <span class="font-weight-medium">Факторы риска</span>
-              <v-chip size="x-small" variant="outlined">
-                {{ localData.risk_factors.length }}
-              </v-chip>
-            </div>
-          </v-expansion-panel-title>
-
-          <v-expansion-panel-text>
-            <v-list density="compact">
-              <v-list-item
-                v-for="(risk, idx) in localData.risk_factors"
-                :key="idx"
-                class="px-0"
-              >
-                <template #prepend>
-                  <v-icon size="small" color="error">mdi-alert-octagon</v-icon>
-                </template>
-                <v-list-item-subtitle class="text-wrap">{{ risk }}</v-list-item-subtitle>
-              </v-list-item>
-              <v-list-item v-if="localData.risk_factors.length === 0" class="px-0">
-                <v-list-item-subtitle class="text-medium-emphasis">Рисков не выявлено</v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
-    </div>
+    <AdditionalInfoReadonly
+      v-if="readonly"
+      :working-conditions="localData.working_conditions"
+      :special-requirements="localData.special_requirements"
+      :risk-factors="localData.risk_factors"
+    />
 
     <!-- Edit Mode -->
     <div v-else class="edit-mode">
@@ -116,60 +18,12 @@
       </v-alert>
 
       <!-- Working Conditions -->
-      <v-card variant="outlined" class="mb-4">
-        <v-card-title class="d-flex align-center gap-2">
-          <v-icon>mdi-calendar-clock</v-icon>
-          Условия работы
-        </v-card-title>
-
-        <v-card-text>
-          <!-- Work Schedule -->
-          <v-text-field
-            v-model="localData.working_conditions.work_schedule"
-            variant="outlined"
-            label="График работы"
-            placeholder="Например: 5/2 с 9:00 до 18:00"
-            density="comfortable"
-            class="mb-4"
-            :rules="scheduleRules"
-          >
-            <template #prepend-inner>
-              <v-icon>mdi-clock-outline</v-icon>
-            </template>
-          </v-text-field>
-
-          <!-- Remote Work Options -->
-          <v-textarea
-            v-model="localData.working_conditions.remote_work_options"
-            variant="outlined"
-            label="Возможности удалённой работы"
-            placeholder="Например: Гибридный режим, 2-3 дня удалённо..."
-            rows="2"
-            auto-grow
-            class="mb-4"
-            :rules="remoteWorkRules"
-          >
-            <template #prepend-inner>
-              <v-icon>mdi-home-account</v-icon>
-            </template>
-          </v-textarea>
-
-          <!-- Business Travel -->
-          <v-textarea
-            v-model="localData.working_conditions.business_travel"
-            variant="outlined"
-            label="Командировки"
-            placeholder="Например: Редкие командировки по РФ (до 10%)..."
-            rows="2"
-            auto-grow
-            :rules="businessTravelRules"
-          >
-            <template #prepend-inner>
-              <v-icon>mdi-airplane</v-icon>
-            </template>
-          </v-textarea>
-        </v-card-text>
-      </v-card>
+      <WorkingConditionsSection
+        :working-conditions="localData.working_conditions"
+        @update:schedule="updateSchedule"
+        @update:remote-work="updateRemoteWork"
+        @update:business-travel="updateBusinessTravel"
+      />
 
       <!-- Special Requirements -->
       <v-card variant="outlined" class="mb-4">
@@ -266,6 +120,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import WorkingConditionsSection from './sub-components/WorkingConditionsSection.vue'
+import AdditionalInfoReadonly from './sub-components/AdditionalInfoReadonly.vue'
+import { REQUIREMENTS_SUGGESTIONS, RISK_SUGGESTIONS } from './constants/additionalInfoSuggestions'
 
 // Types
 interface WorkingConditions {
@@ -306,41 +163,23 @@ const localData = ref<AdditionalInfo>({
   risk_factors: [],
 })
 
-// Suggestions
-const requirementsSuggestions = [
-  'Прохождение проверки безопасности',
-  'Медосмотр',
-  'Знание корпоративных политик',
-  'Двухфакторная аутентификация',
-]
-
-const riskSuggestions = [
-  'Высокая нагрузка в периоды дедлайнов',
-  'Работа с legacy-системами',
-  'Зависимость от внешних подрядчиков',
-  'Частые изменения приоритетов',
-]
-
-// Validation rules
-const scheduleRules = [
-  (v: string) => !!v || 'Укажите график работы',
-  (v: string) => (v && v.length >= 5) || 'Минимум 5 символов',
-  (v: string) => (v && v.length <= 200) || 'Максимум 200 символов',
-]
-
-const remoteWorkRules = [
-  (v: string) => !!v || 'Укажите возможности удалённой работы',
-  (v: string) => (v && v.length >= 10) || 'Минимум 10 символов',
-  (v: string) => (v && v.length <= 500) || 'Максимум 500 символов',
-]
-
-const businessTravelRules = [
-  (v: string) => !!v || 'Укажите информацию о командировках',
-  (v: string) => (v && v.length >= 10) || 'Минимум 10 символов',
-  (v: string) => (v && v.length <= 500) || 'Максимум 500 символов',
-]
+// Constants
+const requirementsSuggestions = REQUIREMENTS_SUGGESTIONS
+const riskSuggestions = RISK_SUGGESTIONS
 
 // Methods
+function updateSchedule(value: string): void {
+  localData.value.working_conditions.work_schedule = value
+}
+
+function updateRemoteWork(value: string): void {
+  localData.value.working_conditions.remote_work_options = value
+}
+
+function updateBusinessTravel(value: string): void {
+  localData.value.working_conditions.business_travel = value
+}
+
 function addRequirement(req: string): void {
   if (!localData.value.special_requirements.includes(req)) {
     localData.value.special_requirements.push(req)
@@ -410,14 +249,8 @@ watch(
   min-height: 200px;
 }
 
-.readonly-view,
 .edit-mode {
   padding: 0;
-}
-
-.text-wrap {
-  white-space: normal;
-  word-wrap: break-word;
 }
 
 .gap-2 {
