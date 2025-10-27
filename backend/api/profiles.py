@@ -203,13 +203,20 @@ async def get_profiles(
         conn = get_db_manager().get_connection()
         cursor = conn.cursor()
 
-        # Базовый запрос
+        # Базовый запрос - оптимизирован с LEFT JOIN вместо подзапроса для производительности
         base_query = """
             SELECT p.id as profile_id, p.department, p.position, p.employee_name,
                    p.created_at, p.updated_at, p.status, p.validation_score,
-                   p.completeness_score, u.full_name as created_by_name, u.username as created_by_username
+                   p.completeness_score, p.current_version,
+                   COALESCE(vc.version_count, 0) as version_count,
+                   u.full_name as created_by_name, u.username as created_by_username
             FROM profiles p
             LEFT JOIN users u ON p.created_by = u.id
+            LEFT JOIN (
+                SELECT profile_id, COUNT(*) as version_count
+                FROM profile_versions
+                GROUP BY profile_id
+            ) vc ON vc.profile_id = p.id
             WHERE 1=1
         """
 
@@ -273,6 +280,8 @@ async def get_profiles(
                 "status": row["status"],
                 "validation_score": row["validation_score"],
                 "completeness_score": row["completeness_score"],
+                "current_version": row["current_version"],
+                "version_count": row["version_count"],
                 "created_at": row["created_at"],
                 "created_by_username": row["created_by_username"],
                 "actions": {
@@ -648,7 +657,7 @@ async def update_profile_content(
     profile_id: str,
     update_request: ProfileContentUpdateRequest,
     current_user: dict = Depends(get_current_user),
-):
+) -> Dict[str, str]:
     """
     @doc Обновить содержимое профиля (profile_data)
 

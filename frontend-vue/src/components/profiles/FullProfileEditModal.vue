@@ -259,6 +259,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useTheme } from 'vuetify'
+import { logger } from '@/utils/logger'
 import type { UnifiedPosition } from '@/types/unified'
 
 // Props
@@ -329,7 +330,7 @@ async function handleSaveAll(): Promise<void> {
     emit('save')
     hasUnsavedChanges.value = false
   } catch (error: unknown) {
-    console.error('Failed to save profile', error)
+    logger.error('Failed to save profile', error)
   } finally {
     saving.value = false
   }
@@ -338,7 +339,7 @@ async function handleSaveAll(): Promise<void> {
 function scrollToSection(sectionId: string): void {
   activeSection.value = sectionId
   // TODO: Implement smooth scroll to section
-  console.log('Scroll to section:', sectionId)
+  logger.debug('Scroll to section:', sectionId)
 }
 </script>
 

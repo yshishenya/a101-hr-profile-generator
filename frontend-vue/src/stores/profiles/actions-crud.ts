@@ -67,7 +67,7 @@ export async function loadProfiles(options?: Partial<PaginationParams & FilterPa
     }
 
     loading.value = false
-  } catch (err) {
+  } catch (err: unknown) {
     const axiosError = err as AxiosError<{ message?: string }>
     error.value = axiosError.response?.data?.message || 'Failed to load profiles'
     loading.value = false
@@ -104,7 +104,7 @@ export async function loadProfile(id: string): Promise<void> {
     const profile = await profileService.getProfile(id)
     currentProfile.value = profile
     loading.value = false
-  } catch (err) {
+  } catch (err: unknown) {
     const axiosError = err as AxiosError<{ message?: string }>
     error.value = axiosError.response?.data?.message || 'Failed to load profile'
     loading.value = false
@@ -156,7 +156,7 @@ export async function updateProfile(id: string, data: ProfileUpdateRequest): Pro
     }
 
     loading.value = false
-  } catch (err) {
+  } catch (err: unknown) {
     const axiosError = err as AxiosError<{ message?: string }>
     error.value = axiosError.response?.data?.message || 'Failed to update profile'
     loading.value = false
@@ -211,7 +211,7 @@ export async function updateProfileContent(id: string, profileData: Record<strin
     }
 
     loading.value = false
-  } catch (err) {
+  } catch (err: unknown) {
     const axiosError = err as AxiosError<{ message?: string }>
     error.value = axiosError.response?.data?.message || 'Failed to update profile content'
     loading.value = false
@@ -261,7 +261,7 @@ export async function deleteProfile(id: string): Promise<void> {
     }
 
     loading.value = false
-  } catch (err) {
+  } catch (err: unknown) {
     const axiosError = err as AxiosError<{ message?: string }>
     error.value = axiosError.response?.data?.message || 'Failed to delete profile'
     loading.value = false
@@ -318,7 +318,7 @@ export async function downloadProfile(id: string, format: 'json' | 'md' | 'docx'
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-  } catch (err) {
+  } catch (err: unknown) {
     const axiosError = err as AxiosError<{ message?: string }>
     const errorMessage = axiosError.response?.data?.message || `Failed to download ${format.toUpperCase()}`
 
