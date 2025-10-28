@@ -60,7 +60,7 @@ interface Props {
   skill: Skill
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 // Emits
 const emit = defineEmits<{

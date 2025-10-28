@@ -257,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useTheme } from 'vuetify'
 import { logger } from '@/utils/logger'
 import type { UnifiedPosition } from '@/types/unified'
@@ -268,7 +268,7 @@ interface Props {
   profile: UnifiedPosition | null
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 // Emits
 const emit = defineEmits<{

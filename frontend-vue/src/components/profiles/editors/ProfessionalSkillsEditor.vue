@@ -180,7 +180,10 @@ function addCategory(): void {
 }
 
 function removeCategory(index: number): void {
-  const categoryId = localSkills.value[index].id
+  const category = localSkills.value[index]
+  if (!category) return
+
+  const categoryId = category.id
   localSkills.value.splice(index, 1)
 
   // Remove from open panels
@@ -190,11 +193,17 @@ function removeCategory(index: number): void {
 }
 
 function updateCategoryName(categoryIndex: number, value: string): void {
-  localSkills.value[categoryIndex].skill_category = value
+  const category = localSkills.value[categoryIndex]
+  if (!category) return
+
+  category.skill_category = value
 }
 
 function addSkill(categoryIndex: number): void {
-  localSkills.value[categoryIndex].specific_skills.push({
+  const category = localSkills.value[categoryIndex]
+  if (!category) return
+
+  category.specific_skills.push({
     skill_name: '',
     proficiency_level: 2,
   })
@@ -202,16 +211,27 @@ function addSkill(categoryIndex: number): void {
 }
 
 function removeSkill(categoryIndex: number, skillIndex: number): void {
-  localSkills.value[categoryIndex].specific_skills.splice(skillIndex, 1)
+  const category = localSkills.value[categoryIndex]
+  if (!category) return
+
+  category.specific_skills.splice(skillIndex, 1)
   handleUpdate()
 }
 
 function updateSkillName(categoryIndex: number, skillIndex: number, value: string): void {
-  localSkills.value[categoryIndex].specific_skills[skillIndex].skill_name = value
+  const category = localSkills.value[categoryIndex]
+  const skill = category?.specific_skills[skillIndex]
+  if (!skill) return
+
+  skill.skill_name = value
 }
 
 function updateProficiencyLevel(categoryIndex: number, skillIndex: number, value: number): void {
-  localSkills.value[categoryIndex].specific_skills[skillIndex].proficiency_level = value
+  const category = localSkills.value[categoryIndex]
+  const skill = category?.specific_skills[skillIndex]
+  if (!skill) return
+
+  skill.proficiency_level = value
 }
 
 function handleUpdate(): void {

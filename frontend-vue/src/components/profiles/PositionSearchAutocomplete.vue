@@ -56,6 +56,7 @@ import type { SearchableItem } from '@/stores/catalog'
 import Fuse from 'fuse.js'
 import { useDebounceFn } from '@vueuse/core'
 
+// Props with defaults
 const props = withDefaults(defineProps<Props>(), {
   modelValue: null,
   disabled: false,
@@ -66,19 +67,17 @@ const emit = defineEmits<{
   'update:modelValue': [value: SearchableItem | null]
   'select': [value: SearchableItem]
 }>()
-// Constants - must be defined before use in withDefaults
+// Constants - MUST be defined BEFORE withDefaults
 const SEARCH_DEBOUNCE_MS = 300
 const FUZZY_SEARCH_THRESHOLD = 0.3
 const FUZZY_SEARCH_DISTANCE = 100
 const MIN_SEARCH_LENGTH = 2
 const DEFAULT_MAX_RESULTS = 50
-
-// Additional Constants
 const POSITION_NAME_WEIGHT = 2
 const BUSINESS_UNIT_WEIGHT = 1.5
 const DEPARTMENT_PATH_WEIGHT = 1
 
-// Props
+// Props interface
 interface Props {
   modelValue?: SearchableItem | null
   disabled?: boolean

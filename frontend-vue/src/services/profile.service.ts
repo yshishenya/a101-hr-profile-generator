@@ -317,6 +317,67 @@ export async function deleteVersion(
   }
 }
 
+/**
+ * Bulk download multiple profiles as ZIP archive
+ *
+ * @param profileIds - Array of profile IDs to download (max 100)
+ * @param format - File format: 'json', 'md', or 'docx'
+ * @returns Promise<Blob> ZIP archive blob
+ * @throws AxiosError if request fails
+ *
+ * @example
+ * const blob = await profileService.bulkDownload(['123', '456'], 'json')
+ * const url = URL.createObjectURL(blob)
+ * const a = document.createElement('a')
+ * a.href = url
+ * a.download = 'profiles.zip'
+ * a.click()
+ */
+export async function bulkDownload(
+  profileIds: string[],
+  format: 'json' | 'md' | 'docx' = 'json'
+): Promise<Blob> {
+  // Validate input
+  if (profileIds.length === 0) {
+    throw new Error('At least one profile ID is required')
+  }
+
+  if (profileIds.length > 100) {
+    throw new Error('Maximum 100 profiles per download')
+  }
+
+  // Make POST request to bulk download endpoint
+  const response = await api.post<Blob>(
+    '/api/profiles/bulk-download',
+    {
+      profile_ids: profileIds,
+      format: format
+    },
+    {
+      responseType: 'blob'
+    }
+  )
+
+  return response.data
+}
+
+/**
+ * Helper function to download blob as file
+ *
+ * @param blob - Blob to download
+ * @param filename - Suggested filename
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export default {
   listProfiles,
   getProfile,
@@ -329,5 +390,7 @@ export default {
   downloadDOCX,
   getProfileVersions,
   setActiveVersion,
-  deleteVersion
+  deleteVersion,
+  bulkDownload,
+  downloadBlob
 }

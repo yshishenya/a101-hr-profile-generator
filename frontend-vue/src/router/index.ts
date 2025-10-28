@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger'
  * Route structure:
  * - /login: Public authentication page
  * - /: Protected app layout with nested routes
- *   - Dashboard (index): Main dashboard view
+ *   - Profiles (index): Unified profiles workspace (main view)
  */
 const routes: RouteRecordRaw[] = [
   {
@@ -28,22 +28,6 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
-        name: 'Dashboard',
-        component: () => import('@/views/DashboardView.vue'),
-        meta: {
-          title: 'Dashboard'
-        }
-      },
-      {
-        path: 'generator',
-        name: 'Generator',
-        component: () => import('@/views/GeneratorView.vue'),
-        meta: {
-          title: 'Profile Generator'
-        }
-      },
-      {
-        path: 'profiles',
         name: 'Profiles',
         component: () => import('@/views/UnifiedProfilesView.vue'),
         meta: {

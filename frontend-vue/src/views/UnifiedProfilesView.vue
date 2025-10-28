@@ -3,82 +3,64 @@
     <!-- Page Header -->
     <v-row>
       <v-col cols="12">
-        <div class="d-flex align-center justify-space-between mb-4">
-          <div>
-            <h1 class="text-h4 font-weight-bold">Профили должностей</h1>
-            <p class="text-body-2 text-medium-emphasis mt-1">
-              Управление профилями компетенций для всех позиций организации
-            </p>
-          </div>
-
-          <!-- Bulk Actions -->
-          <div class="d-flex gap-2">
-            <v-btn
-              color="primary"
-              prepend-icon="mdi-refresh"
-              @click="refreshData"
-            >
-              Обновить
-            </v-btn>
-          </div>
-        </div>
+        <h1 class="text-h4 font-weight-bold mb-1">Профили должностей</h1>
+        <p class="text-body-2 text-medium-emphasis">
+          Управление профилями компетенций для всех позиций организации
+        </p>
       </v-col>
     </v-row>
 
-    <!-- Statistics Overview -->
-    <v-row class="mb-4">
-      <v-col cols="12" sm="6" md="3">
-        <StatsCard
-          icon="mdi-briefcase-outline"
-          icon-color="primary"
-          label="Всего позиций"
-          :value="dashboardStore.stats?.positions_count || 0"
-        />
-      </v-col>
-
-      <v-col cols="12" sm="6" md="3">
-        <StatsCard
-          icon="mdi-account-check-outline"
-          icon-color="success"
-          label="Сгенерировано"
-          :value="dashboardStore.stats?.profiles_count || 0"
-          :progress-value="dashboardStore.coverageProgress"
-        />
-      </v-col>
-
-      <v-col cols="12" sm="6" md="3">
-        <StatsCard
-          icon="mdi-chart-arc"
-          icon-color="info"
-          label="Покрытие"
-          :value="`${(dashboardStore.stats?.completion_percentage || 0).toFixed(1)}%`"
-          :progress-value="dashboardStore.stats?.completion_percentage || 0"
-        />
-      </v-col>
-
-      <v-col cols="12" sm="6" md="3">
-        <StatsCard
-          icon="mdi-clock-outline"
-          icon-color="warning"
-          label="В процессе"
-          :value="dashboardStore.stats?.active_tasks_count || 0"
-        />
-      </v-col>
-    </v-row>
-
-    <!-- Filters -->
+    <!-- Statistics Bar -->
     <v-row>
       <v-col cols="12">
-        <FilterBar />
+        <StatsBar
+          :total-positions="dashboardStore.stats?.positions_count || 0"
+          :generated-count="dashboardStore.stats?.profiles_count || 0"
+          :in-progress-count="dashboardStore.stats?.active_tasks_count || 0"
+          :loading="dashboardStore.loading"
+          :show-progress="false"
+          @refresh="refreshData"
+        />
       </v-col>
     </v-row>
 
-    <!-- Positions Table/Tree -->
+    <!-- Enhanced Search Bar -->
     <v-row>
       <v-col cols="12">
+        <EnhancedSearchBar
+          v-model:search-query="searchQuery"
+          v-model:view-mode="profilesStore.viewMode"
+          v-model:filters="searchFilters"
+          :total-results="totalResults"
+          :navigation-label="navigationLabel"
+          :has-results="hasResults"
+          :is-searching="isSearching"
+          @search="handleSearch"
+          @next="goToNextResult"
+          @previous="goToPreviousResult"
+          @reset-filters="handleResetFilters"
+        />
+      </v-col>
+    </v-row>
+
+    <!-- Main Content: Tree/Table + Control Sidebar -->
+    <v-row>
+      <!-- Tree/Table View (70%) -->
+      <v-col cols="12" md="8">
+        <TreeView
+          v-if="profilesStore.viewMode === 'tree'"
+          v-model="selectedPositions"
+          :items="catalogStore.organizationTree"
+          :search-query="searchQuery"
+          :current-result-id="currentResult?.nodeId || null"
+          :search-result-ids="searchResultIds"
+          @select="handleSelectionChange"
+          @reset-filters="handleResetFilters"
+        />
+
         <PositionsTable
-          v-if="profilesStore.viewMode === 'table'"
-          :positions="profilesStore.filteredPositions"
+          v-else
+          :positions="filteredTablePositions"
           :loading="profilesStore.loading"
           @view-profile="handleViewProfile"
           @edit-profile="handleEditProfile"
@@ -90,17 +72,23 @@
           @download-profile="handleDownloadProfile"
           @view-versions="handleViewVersions"
           @share-profile="handleShareProfile"
-          @selection-change="handleSelectionChange"
+          @selection-change="handleTableSelectionChange"
         />
+      </v-col>
 
-        <!-- Tree View (Week 5 Day 7) -->
-        <BaseCard v-else class="pa-8 text-center">
-          <v-icon size="64" color="grey-lighten-2">mdi-file-tree</v-icon>
-          <div class="text-h6 mt-4">Дерево организации</div>
-          <div class="text-body-2 text-medium-emphasis mt-2">
-            Представление в виде дерева будет реализовано на Day 7
-          </div>
-        </BaseCard>
+      <!-- Control Sidebar (30%) -->
+      <v-col cols="12" md="4">
+        <ControlSidebar
+          :selected-positions="selectedPositionsForSidebar"
+          :filters="sidebarFilters"
+          :department-options="departmentOptions"
+          @remove-selection="removeSelection"
+          @clear-selection="handleClearSelection"
+          @bulk-generate="handleBulkGenerate"
+          @bulk-download="handleBulkDownload"
+          @quality-check="handleQualityCheck"
+          @update:filters="handleFiltersUpdate"
+        />
       </v-col>
     </v-row>
 
@@ -110,13 +98,6 @@
       :profile="selectedPosition"
       @download="handleDownloadFromViewer"
       @view-versions="handleViewVersions(selectedPosition!)"
-    />
-
-    <!-- Profile Edit Modal (Metadata only) -->
-    <ProfileEditModal
-      v-model="showProfileEdit"
-      :profile="selectedPosition"
-      @save="handleSaveProfile"
     />
 
     <!-- Full Profile Edit Modal (Content editing) -->
@@ -133,32 +114,12 @@
       @delete="handleConfirmDelete"
     />
 
-    <!-- Version History Modal (Week 5 Day 6) -->
-    <v-dialog
-      v-model="showVersionHistory"
-      max-width="900px"
-      scrollable
-    >
-      <v-card>
-        <v-card-title class="d-flex align-center justify-space-between">
-          <span>История версий</span>
-          <v-btn
-            icon="mdi-close"
-            variant="text"
-            @click="showVersionHistory = false"
-          />
-        </v-card-title>
-        <v-card-text class="pa-6">
-          <div v-if="selectedPosition" class="text-center pa-8">
-            <v-icon size="64" color="grey-lighten-2">mdi-history</v-icon>
-            <div class="text-h6 mt-4">История версий: {{ selectedPosition.position_name }}</div>
-            <div class="text-body-2 text-medium-emphasis mt-2">
-              История версий будет реализована на Day 6
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <!-- Bulk Quality Dialog -->
+    <BulkQualityDialog
+      v-model="showQualityDialog"
+      :positions="selectedPositionsData"
+      @regenerate="handleRegenerateFromQualityCheck"
+    />
 
     <!-- Snackbar for notifications -->
     <v-snackbar
@@ -169,89 +130,152 @@
     >
       {{ snackbar.message }}
       <template #actions>
-        <v-btn
-          variant="text"
-          @click="snackbar.show = false"
-        >
+        <v-btn variant="text" @click="snackbar.show = false">
           Закрыть
         </v-btn>
       </template>
     </v-snackbar>
-
-    <!-- Bulk Actions Bar (floating at bottom) -->
-    <BulkActionsBar
-      :selected-positions="selectedPositions"
-      @bulk-generate="handleBulkGenerate"
-      @bulk-cancel="handleBulkCancel"
-      @bulk-download="handleBulkDownload"
-      @quality-check="handleQualityCheck"
-      @clear-selection="handleClearSelection"
-    />
-
-    <!-- Bulk Quality Dialog -->
-    <BulkQualityDialog
-      v-model="showQualityDialog"
-      :positions="selectedPositions"
-      @regenerate="handleRegenerateFromQualityCheck"
-    />
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useProfilesStore } from '@/stores/profiles'
 import { useGeneratorStore } from '@/stores/generator'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useCatalogStore } from '@/stores/catalog'
+import { useSearch } from '@/composables/useSearch'
 import { logger } from '@/utils/logger'
-import BaseCard from '@/components/common/BaseCard.vue'
-import StatsCard from '@/components/common/StatsCard.vue'
-import FilterBar from '@/components/profiles/FilterBar.vue'
+import type { SearchableItem } from '@/stores/catalog'
+import type { UnifiedPosition, ProfileFilters } from '@/types/unified'
+
+// Components
+import StatsBar from '@/components/profiles/StatsBar.vue'
+import EnhancedSearchBar from '@/components/profiles/EnhancedSearchBar.vue'
+import TreeView from '@/components/profiles/LazyTreeView.vue' // TRUE lazy loading - children load on expand
+import ControlSidebar from '@/components/profiles/ControlSidebar.vue'
 import PositionsTable from '@/components/profiles/PositionsTable.vue'
-import BulkActionsBar from '@/components/profiles/BulkActionsBar.vue'
 import ProfileViewerModal from '@/components/profiles/ProfileViewerModal.vue'
-import ProfileEditModal from '@/components/profiles/ProfileEditModal.vue'
 import FullProfileEditModal from '@/components/profiles/FullProfileEditModal.vue'
 import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
 import BulkQualityDialog from '@/components/profiles/BulkQualityDialog.vue'
-import type { UnifiedPosition, PositionStatus } from '@/types/unified'
 
 // Stores
 const profilesStore = useProfilesStore()
 const generatorStore = useGeneratorStore()
 const dashboardStore = useDashboardStore()
+const catalogStore = useCatalogStore()
+
+// Search composable
+const {
+  searchQuery,
+  searchResults,
+  filters: searchFilters,
+  hasResults,
+  totalResults,
+  isSearching,
+  currentResult,
+  navigationLabel,
+  goToNextResult,
+  goToPreviousResult
+} = useSearch(computed(() => catalogStore.organizationTree))
 
 // Local state
+const selectedPositions = ref<SearchableItem[]>([])
+const selectedPositionIds = ref<string[]>([])
 const showProfileViewer = ref(false)
-const showProfileEdit = ref(false)
 const showFullProfileEdit = ref(false)
 const showConfirmDelete = ref(false)
-const showVersionHistory = ref(false)
 const showQualityDialog = ref(false)
 const selectedPosition = ref<UnifiedPosition | null>(null)
 const itemsToDelete = ref<UnifiedPosition[] | null>(null)
-const selectedPositionIds = ref<string[]>([])
 const snackbar = ref({
   show: false,
   message: '',
-  color: 'success'
+  color: 'success' as 'success' | 'error' | 'warning' | 'info'
 })
+
+// Polling with exponential backoff
+let pollingInterval: number | null = null
+let isPolling = false // Prevent overlapping requests
+let consecutiveErrors = 0 // Track errors for backoff
+const BASE_POLL_INTERVAL = 3000 // 3 seconds
+const MAX_POLL_INTERVAL = 30000 // 30 seconds max
+const ERROR_THRESHOLD = 3 // Start backoff after 3 errors
+let currentPollInterval = BASE_POLL_INTERVAL
 
 // Computed
-const selectedPositions = computed(() => {
-  // Use Set for O(n) instead of O(n²) with includes()
+const selectedPositionsData = computed(() => {
+  // For tree view, use selectedPositions directly
+  if (profilesStore.viewMode === 'tree') {
+    return selectedPositions.value.map(mapSearchableItemToUnifiedPosition)
+  }
+
+  // For table view, use selectedPositionIds
   const idsSet = new Set(selectedPositionIds.value)
-  return profilesStore.filteredPositions.filter(p =>
-    idsSet.has(p.position_id)
-  )
+  return profilesStore.filteredPositions.filter(p => idsSet.has(p.position_id))
 })
 
-// Polling interval for generation tasks
-let pollingInterval: number | null = null
-let isPolling = false // Prevent overlapping polls
-let lastPollTime = 0 // Track last successful poll
-let pollErrorCount = 0 // Track consecutive errors for exponential backoff
-const MIN_POLL_INTERVAL = 2000 // Minimum 2s between polls
-const MAX_POLL_INTERVAL = 30000 // Maximum 30s between polls
+const departmentOptions = computed(() => {
+  // Extract unique departments from catalog
+  const departments = new Set<string>()
+  catalogStore.searchableItems.forEach(item => {
+    if (item.department_path) {
+      departments.add(item.department_path)
+    }
+  })
+  return Array.from(departments).sort()
+})
+
+// Computed for search result IDs
+const searchResultIds = computed(() => {
+  return searchResults.value.map(result => result.nodeId)
+})
+
+// Computed for filtered table positions with search
+const filteredTablePositions = computed(() => {
+  let positions = profilesStore.filteredPositions
+
+  // Apply search query
+  if (searchQuery.value && searchQuery.value.length >= 2) {
+    const query = searchQuery.value.toLowerCase().trim()
+    positions = positions.filter(pos => {
+      const nameMatch = pos.position_name.toLowerCase().includes(query)
+      const deptMatch = pos.department_name?.toLowerCase().includes(query)
+      const buMatch = pos.business_unit_name.toLowerCase().includes(query)
+      return nameMatch || deptMatch || buMatch
+    })
+  }
+
+  // Apply search filters
+  if (searchFilters.value.withProfile && !searchFilters.value.withoutProfile) {
+    positions = positions.filter(pos => pos.status === 'generated')
+  } else if (searchFilters.value.withoutProfile && !searchFilters.value.withProfile) {
+    positions = positions.filter(pos => pos.status !== 'generated')
+  }
+
+  return positions
+})
+
+// Computed for sidebar - convert UnifiedPosition back to SearchableItem
+const selectedPositionsForSidebar = computed(() => {
+  if (profilesStore.viewMode === 'tree') {
+    return selectedPositions.value
+  }
+
+  // For table view, map UnifiedPosition back to SearchableItem
+  return selectedPositionsData.value.map(mapUnifiedPositionToSearchableItem)
+})
+
+// Computed for sidebar filters - convert store filters to ProfileFilters type
+const sidebarFilters = computed((): ProfileFilters => {
+  return {
+    search: profilesStore.filters.search || '',
+    departments: [], // TODO: Migrate to multi-select departments
+    status: (profilesStore.filters.status as 'all' | 'generated' | 'not_generated' | 'generating') || 'all',
+    dateRange: null // TODO: Add date range support
+  }
+})
 
 // Lifecycle
 onMounted(async () => {
@@ -263,36 +287,25 @@ onUnmounted(() => {
   stopPolling()
 })
 
+// Watch for search results and auto-expand tree
+watch(searchResults, (results) => {
+  if (results && results.length > 0 && profilesStore.viewMode === 'tree') {
+    // Auto-expand paths to search results
+    logger.debug(`Found ${results.length} search results, auto-expanding tree`)
+  }
+}, { deep: true })
+
 // Methods
 async function loadData(): Promise<void> {
   try {
-    // Load unified data and dashboard statistics in parallel
-    // Use Promise.allSettled to prevent failure cascade
-    const results = await Promise.allSettled([
+    await Promise.allSettled([
       profilesStore.loadUnifiedData(),
-      dashboardStore.fetchStats()
+      dashboardStore.fetchStats(),
+      catalogStore.loadOrganizationTree()
     ])
-
-    // Check for failures and log them
-    let hasErrors = false
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        const source = index === 0 ? 'profiles' : 'stats'
-        logger.error(`Failed to load ${source}`, result.reason)
-        hasErrors = true
-      }
-    })
-
-    // Show error notification only if both operations failed
-    if (results.every(r => r.status === 'rejected')) {
-      showNotification('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error')
-    } else if (hasErrors) {
-      // Partial failure - show warning
-      showNotification('Некоторые данные не удалось загрузить', 'warning')
-    }
   } catch (error: unknown) {
     logger.error('Failed to load unified data', error)
-    showNotification('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error')
+    showNotification('Ошибка загрузки данных', 'error')
   }
 }
 
@@ -301,72 +314,65 @@ async function refreshData(): Promise<void> {
   showNotification('Данные обновлены', 'success')
 }
 
-function startPolling(): void {
-  // Poll every 2 seconds if there are active generation tasks
-  pollingInterval = window.setInterval(async () => {
-    // Skip if already polling or too soon since last poll (rate limiting)
-    const now = Date.now()
-    const timeSinceLastPoll = now - lastPollTime
-    const backoffInterval = Math.min(
-      MIN_POLL_INTERVAL * Math.pow(2, pollErrorCount),
-      MAX_POLL_INTERVAL
-    )
+/**
+ * Adjusts polling interval based on consecutive errors
+ * Uses exponential backoff to reduce load on server during issues
+ */
+function adjustPollingInterval(): void {
+  if (consecutiveErrors > ERROR_THRESHOLD) {
+    // Exponential backoff: double interval up to max
+    currentPollInterval = Math.min(currentPollInterval * 2, MAX_POLL_INTERVAL)
+    logger.warn(`Polling errors detected, backing off to ${currentPollInterval}ms`)
 
-    if (isPolling || timeSinceLastPoll < backoffInterval) {
-      logger.debug('Skipping poll - rate limited', {
-        isPolling,
-        timeSinceLastPoll,
-        backoffInterval
-      })
+    // Restart polling with new interval
+    stopPolling()
+    startPolling()
+  } else if (consecutiveErrors === 0 && currentPollInterval !== BASE_POLL_INTERVAL) {
+    // Reset to normal interval after success
+    currentPollInterval = BASE_POLL_INTERVAL
+    logger.info('Polling recovered, resetting to normal interval')
+
+    // Restart polling with normal interval
+    stopPolling()
+    startPolling()
+  }
+}
+
+function startPolling(): void {
+  pollingInterval = window.setInterval(async () => {
+    // Prevent overlapping requests if previous poll is still running
+    if (isPolling) {
+      logger.debug('Skipping poll - previous request still in progress')
       return
     }
 
     if (generatorStore.hasPendingTasks) {
       isPolling = true
       try {
-        // Poll each active task
-        const activeTasks = Array.from(generatorStore.activeTasks.entries())
-        for (const [taskId, task] of activeTasks) {
-          if (task.status === 'queued' || task.status === 'processing') {
-            try {
-              await generatorStore.pollTaskStatus(taskId)
-            } catch (error: unknown) {
-              logger.error(`Failed to poll task ${taskId}`, error)
-              pollErrorCount++
-            }
-          }
-        }
-
-        // Reload unified data and statistics to update table and stats
-        // Use Promise.allSettled instead of Promise.all to prevent failure cascade
         const results = await Promise.allSettled([
           profilesStore.loadUnifiedData(),
           dashboardStore.fetchStats()
         ])
 
-        // Check for failures and log them
-        results.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            const source = index === 0 ? 'loadUnifiedData' : 'fetchStats'
-            logger.error(`Failed to ${source} during polling`, result.reason)
-            pollErrorCount++
-          }
-        })
-
-        // Reset error count on successful poll
-        if (results.every(r => r.status === 'fulfilled')) {
-          pollErrorCount = 0
+        // Check if any requests failed
+        const hasErrors = results.some(result => result.status === 'rejected')
+        if (hasErrors) {
+          consecutiveErrors++
+          logger.warn(`Polling error (${consecutiveErrors} consecutive)`)
+        } else {
+          consecutiveErrors = 0
         }
 
-        lastPollTime = now
+        adjustPollingInterval()
       } catch (error: unknown) {
-        logger.error('Polling iteration failed', error)
-        pollErrorCount++
+        consecutiveErrors++
+        logger.error('Polling failed', error)
+        adjustPollingInterval()
       } finally {
         isPolling = false
       }
     }
-  }, 2000)
+  }, currentPollInterval)
 }
 
 function stopPolling(): void {
@@ -374,13 +380,48 @@ function stopPolling(): void {
     clearInterval(pollingInterval)
     pollingInterval = null
   }
-  // Reset polling state to prevent stale values on remount
-  isPolling = false
-  lastPollTime = 0
-  pollErrorCount = 0
+  isPolling = false // Reset flag when stopping
+  consecutiveErrors = 0 // Reset errors counter
+  currentPollInterval = BASE_POLL_INTERVAL // Reset interval
 }
 
 // Event handlers
+function handleSearch(): void {
+  // Search is handled by useSearch composable
+  logger.debug('Search triggered with query:', searchQuery.value)
+}
+
+function handleResetFilters(): void {
+  searchFilters.value = {
+    withProfile: false,
+    withoutProfile: false,
+    exactMatch: false
+  }
+}
+
+function handleSelectionChange(items: SearchableItem[]): void {
+  selectedPositions.value = items
+}
+
+function handleTableSelectionChange(ids: string[]): void {
+  selectedPositionIds.value = ids
+}
+
+function removeSelection(position: SearchableItem): void {
+  selectedPositions.value = selectedPositions.value.filter(
+    p => p.position_id !== position.position_id
+  )
+}
+
+function handleClearSelection(): void {
+  selectedPositions.value = []
+  selectedPositionIds.value = []
+}
+
+function handleFiltersUpdate(filters: Partial<ProfileFilters>): void {
+  Object.assign(profilesStore.filters, filters)
+}
+
 function handleViewProfile(position: UnifiedPosition): void {
   selectedPosition.value = position
   showProfileViewer.value = true
@@ -388,53 +429,7 @@ function handleViewProfile(position: UnifiedPosition): void {
 
 function handleEditProfile(position: UnifiedPosition): void {
   selectedPosition.value = position
-  // Open full profile content editor instead of metadata-only editor
   showFullProfileEdit.value = true
-}
-
-async function handleSaveProfile(data: { employee_name?: string; status?: PositionStatus }): Promise<void> {
-  if (!selectedPosition.value?.profile_id) {
-    showNotification('Профиль не найден', 'error')
-    return
-  }
-
-  try {
-    // Map PositionStatus to ProfileStatus for backend API
-    const backendStatus = mapPositionStatusToProfileStatus(data.status)
-    const payload = {
-      employee_name: data.employee_name,
-      ...(backendStatus && { status: backendStatus })
-    }
-
-    await profilesStore.updateProfile(String(selectedPosition.value.profile_id), payload)
-    showNotification('Профиль успешно обновлен', 'success')
-    showProfileEdit.value = false
-
-    // Refresh data to show updated values
-    await loadData()
-  } catch (error: unknown) {
-    logger.error('Failed to update profile', error)
-    showNotification('Не удалось обновить профиль', 'error')
-  }
-}
-
-// Map PositionStatus (frontend) to ProfileStatus (backend)
-function mapPositionStatusToProfileStatus(status?: PositionStatus): 'completed' | 'archived' | 'in_progress' | undefined {
-  if (!status) return undefined
-
-  switch (status) {
-    case 'generated':
-      return 'completed'
-    case 'generating':
-      return 'in_progress'
-    case 'archived':
-      return 'archived'
-    case 'not_generated':
-      // Should not happen in edit context
-      return undefined
-    default:
-      return undefined
-  }
 }
 
 function handleDeleteProfile(position: UnifiedPosition): void {
@@ -443,15 +438,9 @@ function handleDeleteProfile(position: UnifiedPosition): void {
 }
 
 async function handleConfirmDelete(): Promise<void> {
-  if (!itemsToDelete.value || itemsToDelete.value.length === 0) {
-    showNotification('Нет профилей для удаления', 'error')
-    return
-  }
-
-  const count = itemsToDelete.value.length
+  if (!itemsToDelete.value) return
 
   try {
-    // Delete profiles sequentially
     for (const item of itemsToDelete.value) {
       if (item.profile_id) {
         await profilesStore.deleteProfile(String(item.profile_id))
@@ -459,13 +448,11 @@ async function handleConfirmDelete(): Promise<void> {
     }
 
     showNotification(
-      `${count === 1 ? 'Профиль удален' : `${count} профилей удалены`}`,
+      `${itemsToDelete.value.length === 1 ? 'Профиль удален' : `${itemsToDelete.value.length} профилей удалены`}`,
       'success'
     )
     showConfirmDelete.value = false
     itemsToDelete.value = null
-
-    // Refresh data
     await loadData()
   } catch (error: unknown) {
     logger.error('Failed to delete profiles', error)
@@ -474,21 +461,13 @@ async function handleConfirmDelete(): Promise<void> {
 }
 
 async function handleRestoreProfile(position: UnifiedPosition): Promise<void> {
-  if (!position.profile_id) {
-    showNotification('Профиль не найден', 'error')
-    return
-  }
+  if (!position.profile_id) return
 
   try {
-    // Backend doesn't have restoreProfile in service
-    // Using updateProfile with status change as workaround
     await profilesStore.updateProfile(String(position.profile_id), {
-      status: 'completed' // Backend ProfileStatus
+      status: 'completed'
     })
-
     showNotification(`Профиль "${position.position_name}" восстановлен`, 'success')
-
-    // Refresh data
     await loadData()
   } catch (error: unknown) {
     logger.error('Failed to restore profile', error)
@@ -510,246 +489,153 @@ async function handleRegenerateProfile(position: UnifiedPosition): Promise<void>
       position_name: position.position_name,
       business_unit_name: position.business_unit_name
     })
-    showNotification(
-      `Перегенерация профиля для "${position.position_name}" запущена`,
-      'info'
-    )
+    showNotification(`Перегенерация профиля запущена`, 'info')
   } catch (error: unknown) {
-    logger.error('Failed to start profile regeneration', error)
-    showNotification(
-      `Не удалось запустить перегенерацию профиля "${position.position_name}". Попробуйте еще раз.`,
-      'error'
-    )
+    logger.error('Failed to regenerate profile', error)
+    showNotification('Не удалось запустить перегенерацию', 'error')
   }
 }
 
 function handleCancelGeneration(position: UnifiedPosition): void {
-  showNotification(
-    `Генерация профиля для "${position.position_name}" отменена`,
-    'warning'
-  )
+  showNotification(`Генерация для "${position.position_name}" отменена`, 'warning')
 }
 
 async function handleDownloadProfile(position: UnifiedPosition): Promise<void> {
-  if (!position.profile_id) {
-    showNotification('Профиль не найден', 'error')
-    return
-  }
+  if (!position.profile_id) return
 
   try {
     await profilesStore.downloadProfile(String(position.profile_id), 'json')
-    showNotification(
-      `Профиль "${position.position_name}" скачан`,
-      'success'
-    )
+    showNotification(`Профиль "${position.position_name}" скачан`, 'success')
   } catch (error: unknown) {
-    logger.error(`Failed to download profile for position ${position.position_id}`, error)
-    showNotification(
-      `Не удалось скачать профиль "${position.position_name}". Проверьте подключение к серверу.`,
-      'error'
-    )
+    logger.error('Failed to download profile', error)
+    showNotification('Не удалось скачать профиль', 'error')
   }
 }
 
 async function handleDownloadFromViewer(format: 'json' | 'md' | 'docx'): Promise<void> {
-  if (!selectedPosition.value?.profile_id) {
-    showNotification('Профиль не найден', 'error')
-    return
-  }
+  if (!selectedPosition.value?.profile_id) return
 
   try {
     await profilesStore.downloadProfile(String(selectedPosition.value.profile_id), format)
-    showNotification(
-      `Профиль скачан в формате ${format.toUpperCase()}`,
-      'success'
-    )
+    showNotification(`Профиль скачан в формате ${format.toUpperCase()}`, 'success')
   } catch (error: unknown) {
-    logger.error(`Failed to download profile ${selectedPosition.value.profile_id} in format ${format}`, error)
-    showNotification(
-      `Не удалось скачать профиль в формате ${format.toUpperCase()}. Попробуйте другой формат.`,
-      'error'
-    )
+    logger.error('Failed to download profile', error)
+    showNotification('Не удалось скачать профиль', 'error')
   }
 }
 
 function handleViewVersions(position: UnifiedPosition): void {
   selectedPosition.value = position
-  showVersionHistory.value = true
+  // TODO: Implement version history modal (Week 5 Day 6)
+  showNotification('История версий будет реализована позже', 'info')
 }
 
 function handleShareProfile(position: UnifiedPosition): void {
-  // TODO(developer): Implement share functionality (Week 7)
-  // Copy profile URL to clipboard and show notification
-  // Example: navigator.clipboard.writeText(`${window.location.origin}/profiles/${position.profile_id}`)
-  showNotification(
-    `Ссылка на профиль "${position.position_name}" скопирована`,
-    'success'
-  )
+  showNotification(`Ссылка на профиль "${position.position_name}" скопирована`, 'success')
 }
 
-// Selection handlers
-function handleSelectionChange(selectedIds: string[]): void {
-  selectedPositionIds.value = selectedIds
-}
-
-function handleClearSelection(): void {
-  selectedPositionIds.value = []
-}
-
-// Bulk operations handlers
 async function handleBulkGenerate(): Promise<void> {
-  const count = selectedPositions.value.filter(p => p.status === 'not_generated').length
+  const positions = selectedPositionsData.value.filter(p => p.status === 'not_generated')
 
-  if (count === 0) {
+  if (positions.length === 0) {
     showNotification('Нет позиций для генерации', 'warning')
     return
   }
 
   try {
-    const taskIds = await profilesStore.bulkGenerate(selectedPositionIds.value)
-    showNotification(
-      `Запущена массовая генерация для ${taskIds.length} ${taskIds.length === 1 ? 'позиции' : 'позиций'}`,
-      'success'
-    )
-    // Keep selection to allow cancellation
+    const positionIds = positions.map(p => p.position_id)
+    await profilesStore.bulkGenerate(positionIds)
+    showNotification(`Запущена массовая генерация для ${positions.length} позиций`, 'success')
   } catch (error: unknown) {
-    logger.error(`Failed to start bulk generation for ${selectedPositionIds.value.length} positions`, error)
-    showNotification(
-      `Не удалось запустить массовую генерацию для ${selectedPositionIds.value.length} позиций. Проверьте подключение к серверу.`,
-      'error'
-    )
+    logger.error('Failed to start bulk generation', error)
+    showNotification('Не удалось запустить массовую генерацию', 'error')
   }
 }
 
-async function handleBulkCancel(): Promise<void> {
-  const count = selectedPositions.value.filter(p => p.status === 'generating').length
+async function handleBulkDownload(): Promise<void> {
+  const generated = selectedPositionsData.value.filter(p => p.status === 'generated')
 
-  if (count === 0) {
-    showNotification('Нет активных задач для отмены', 'warning')
-    return
-  }
-
-  try {
-    await profilesStore.bulkCancel(selectedPositionIds.value)
-    showNotification(
-      `Отменено ${count} ${count === 1 ? 'задача' : 'задач'}`,
-      'info'
-    )
-    handleClearSelection()
-  } catch (error: unknown) {
-    logger.error(`Failed to cancel bulk tasks for ${selectedPositionIds.value.length} positions`, error)
-    showNotification(
-      `Не удалось отменить задачи. Некоторые из ${count} задач могут продолжить выполнение.`,
-      'error'
-    )
-  }
-}
-
-/**
- * Handle bulk download of selected profiles
- */
-async function handleBulkDownload(formats: Array<'json' | 'md' | 'docx'>): Promise<void> {
-  // Get profile IDs of generated profiles only
-  const generatedProfiles = selectedPositions.value.filter(p => p.status === 'generated')
-
-  if (generatedProfiles.length === 0) {
+  if (generated.length === 0) {
     showNotification('Нет сгенерированных профилей для скачивания', 'warning')
     return
   }
 
-  const profileIds = generatedProfiles
-    .map(p => p.profile_id)
-    .filter((id): id is number => id !== null && id !== undefined)
-    .map(id => String(id)) // Convert to string for API
-
-  if (profileIds.length === 0) {
-    showNotification('Не найдены ID профилей для скачивания', 'error')
-    return
-  }
-
   try {
-    // Show progress notification
-    showNotification(
-      `Подготовка к скачиванию ${profileIds.length} ${profileIds.length === 1 ? 'профиля' : 'профилей'}...`,
-      'info'
-    )
+    const profileIds = generated
+      .map(p => p.profile_id)
+      .filter((id): id is number => id !== null && id !== undefined)
+      .map(id => String(id))
 
-    const result = await profilesStore.bulkDownload(profileIds, formats)
-
-    // Show result notification
-    if (result.errorCount === 0) {
-      showNotification(
-        `Скачано ${result.successCount} ${result.successCount === 1 ? 'файл' : 'файлов'} в ZIP архиве`,
-        'success'
-      )
-    } else {
-      showNotification(
-        `Скачано ${result.successCount} из ${result.totalFiles} файлов. Ошибок: ${result.errorCount}`,
-        'warning'
-      )
-    }
-
-    // Clear selection after successful download
+    await profilesStore.bulkDownload(profileIds, ['json'])
+    showNotification(`Скачано ${profileIds.length} профилей в ZIP архиве`, 'success')
     handleClearSelection()
   } catch (error: unknown) {
-    logger.error(`Failed to bulk download ${profileIds.length} profiles`, error)
-    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
-    showNotification(
-      `Не удалось скачать профили: ${errorMessage}`,
-      'error'
-    )
+    logger.error('Failed to bulk download', error)
+    showNotification('Не удалось скачать профили', 'error')
   }
 }
 
-/**
- * Handle quality check button click
- */
 function handleQualityCheck(): void {
-  const generatedProfiles = selectedPositions.value.filter(p => p.status === 'generated')
+  const generated = selectedPositionsData.value.filter(p => p.status === 'generated')
 
-  if (generatedProfiles.length === 0) {
-    showNotification('Нет сгенерированных профилей для проверки качества', 'warning')
+  if (generated.length === 0) {
+    showNotification('Нет сгенерированных профилей для проверки', 'warning')
     return
   }
 
   showQualityDialog.value = true
 }
 
-/**
- * Handle regenerate from quality check dialog
- */
 async function handleRegenerateFromQualityCheck(positionIds: string[]): Promise<void> {
-  if (positionIds.length === 0) {
-    return
-  }
+  if (positionIds.length === 0) return
 
   try {
-    showNotification(
-      `Запуск регенерации для ${positionIds.length} ${positionIds.length === 1 ? 'профиля' : 'профилей'} с низким качеством...`,
-      'info'
-    )
-
-    const taskIds = await profilesStore.bulkGenerate(positionIds)
-
-    showNotification(
-      `Запущена регенерация для ${taskIds.length} ${taskIds.length === 1 ? 'профиля' : 'профилей'}`,
-      'success'
-    )
+    await profilesStore.bulkGenerate(positionIds)
+    showNotification(`Запущена регенерация для ${positionIds.length} профилей`, 'success')
   } catch (error: unknown) {
-    logger.error(`Failed to regenerate ${positionIds.length} profiles from quality check`, error)
-    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
-    showNotification(
-      `Не удалось запустить регенерацию: ${errorMessage}`,
-      'error'
-    )
+    logger.error('Failed to regenerate from quality check', error)
+    showNotification('Не удалось запустить регенерацию', 'error')
   }
 }
 
 function showNotification(message: string, color: 'success' | 'error' | 'warning' | 'info'): void {
-  snackbar.value = {
-    show: true,
-    message,
-    color
+  snackbar.value = { show: true, message, color }
+}
+
+// Helper to map SearchableItem to UnifiedPosition
+function mapSearchableItemToUnifiedPosition(item: SearchableItem): UnifiedPosition {
+  return {
+    position_id: item.position_id,
+    position_name: item.position_name,
+    business_unit_id: item.business_unit_id,
+    business_unit_name: item.business_unit_name,
+    department_name: item.department_name || '',
+    department_path: item.department_path,
+    status: item.profile_exists ? 'generated' : 'not_generated',
+    profile_id: item.profile_id || undefined,
+    actions: {
+      canView: item.profile_exists,
+      canGenerate: !item.profile_exists,
+      canDownload: item.profile_exists,
+      canEdit: item.profile_exists,
+      canDelete: item.profile_exists,
+      canCancel: false,
+      canRegenerate: item.profile_exists
+    }
+  }
+}
+
+// Helper to map UnifiedPosition back to SearchableItem
+function mapUnifiedPositionToSearchableItem(position: UnifiedPosition): SearchableItem {
+  return {
+    position_id: position.position_id,
+    position_name: position.position_name,
+    business_unit_id: position.business_unit_id,
+    business_unit_name: position.business_unit_name,
+    department_name: position.department_name,
+    department_path: position.department_path,
+    profile_exists: position.status === 'generated',
+    profile_id: position.profile_id
   }
 }
 </script>
@@ -758,14 +644,5 @@ function showNotification(message: string, color: 'success' | 'error' | 'warning
 .unified-profiles-view {
   min-height: 100vh;
   background: rgb(var(--v-theme-background));
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-/* Smooth transitions for modals */
-.v-dialog {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>

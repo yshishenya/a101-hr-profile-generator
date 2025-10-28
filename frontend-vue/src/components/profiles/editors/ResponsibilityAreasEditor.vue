@@ -275,7 +275,10 @@ function addArea(): void {
 }
 
 function removeArea(index: number): void {
-  const areaId = localAreas.value[index].id
+  const area = localAreas.value[index]
+  if (!area) return
+
+  const areaId = area.id
   localAreas.value.splice(index, 1)
 
   // Remove from open panels

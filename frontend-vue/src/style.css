@@ -61,3 +61,67 @@ html {
 .gap-5 {
   gap: 16px;
 }
+
+/* ================================
+ * Vuetify Tooltip Fix for Dark Theme
+ * ================================ */
+
+/**
+ * Fix v-tooltip visibility in dark theme
+ * Problem: Default Vuetify tooltips have grey background with black text in dark mode
+ * Solution: Force proper contrast colors that work in both light and dark themes
+ */
+.v-overlay.v-tooltip > .v-overlay__content {
+  /* Dark semi-transparent background for better readability */
+  background-color: rgba(97, 97, 97, 0.95) !important;
+
+  /* White text for contrast */
+  color: rgba(255, 255, 255, 0.95) !important;
+
+  /* Subtle shadow for depth */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+
+  /* Ensure text is readable */
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  /* Proper padding */
+  padding: 8px 12px !important;
+
+  /* Smooth edges */
+  border-radius: 4px !important;
+}
+
+/* Alternative: Use theme colors (if preferred) */
+/* Uncomment this block if you want tooltips to follow theme colors exactly */
+/*
+.v-theme--light .v-overlay.v-tooltip > .v-overlay__content {
+  background-color: rgba(97, 97, 97, 0.95) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.v-theme--dark .v-overlay.v-tooltip > .v-overlay__content {
+  background-color: rgba(238, 238, 238, 0.95) !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+*/
+
+/* Fix for code blocks inside tooltips */
+.v-overlay.v-tooltip > .v-overlay__content code {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.8125rem;
+}
+
+/* Fix for buttons inside tooltips */
+.v-overlay.v-tooltip > .v-overlay__content .v-btn {
+  margin-top: 4px;
+}
+
+/* Ensure tooltip arrow (if present) matches */
+.v-overlay.v-tooltip .v-overlay__content::before {
+  border-color: rgba(97, 97, 97, 0.95) transparent transparent transparent !important;
+}

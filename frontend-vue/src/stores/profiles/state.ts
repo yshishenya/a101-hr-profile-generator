@@ -36,9 +36,10 @@ export const loading = ref<boolean>(false)
 export const error = ref<string | null>(null)
 
 /**
- * View mode for unified interface (table or cards)
+ * View mode for unified interface (tree or table)
+ * Default: 'tree' - shows organization tree view by default
  */
-export const viewMode: Ref<ViewMode> = ref('table')
+export const viewMode: Ref<ViewMode> = ref('tree')
 
 /**
  * Unified filters for positions

@@ -62,19 +62,9 @@ const drawer = ref(true)
 // Navigation menu items
 const menuItems = [
   {
-    title: 'Dashboard',
-    icon: 'mdi-view-dashboard',
-    route: '/',
-  },
-  {
-    title: 'Profile Generator',
-    icon: 'mdi-account-plus-outline',
-    route: '/generator',
-  },
-  {
-    title: 'Profiles Management',
+    title: 'Profiles',
     icon: 'mdi-briefcase-outline',
-    route: '/profiles',
+    route: '/',
   },
 ]
 </script>

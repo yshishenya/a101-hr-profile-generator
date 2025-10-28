@@ -187,6 +187,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<Emits>()
+
 /**
  * Emits
  */
@@ -201,8 +203,6 @@ interface Emits {
    */
   (e: 'regenerate', positionIds: string[]): void
 }
-
-const emit = defineEmits<Emits>()
 
 /**
  * Two-way binding for dialog visibility
