@@ -3,7 +3,7 @@
  * Tests add/remove items, validation (min/max), readonly mode, and v-model binding
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createVuetify } from 'vuetify'
 import CompetenciesEditor from '@/components/profiles/editors/CompetenciesEditor.vue'

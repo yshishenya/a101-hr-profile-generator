@@ -3,7 +3,7 @@
  * Tests view/edit mode switching, status badges display, validation error display, and action buttons
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createVuetify } from 'vuetify'
 import SectionCard from '@/components/profiles/SectionCard.vue'

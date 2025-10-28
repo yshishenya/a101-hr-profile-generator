@@ -73,9 +73,10 @@ async function getVersionCard(page: Page, versionNumber: number): Promise<Return
 }
 
 /**
- * Open version actions menu
+ * Open version actions menu (unused for now, but kept for future use)
  */
-async function openVersionMenu(page: Page, versionNumber: number): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _openVersionMenu(page: Page, versionNumber: number): Promise<void> {
   const versionCard = await getVersionCard(page, versionNumber)
   await versionCard.getByRole('button', { name: /действия|menu/i }).click()
   await page.waitForTimeout(300)
