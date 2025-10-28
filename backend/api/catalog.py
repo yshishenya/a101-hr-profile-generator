@@ -648,8 +648,8 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
           "with_positions": 488
         },
         "positions": {
-          "total_count": 1487,
-          "average_per_department": 2.92,
+          "total_count": 1689,
+          "average_per_department": 3.31,
           "levels_distribution": {
             "1": 504,
             "2": 38,
@@ -679,24 +679,37 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
         logger.info(f"Getting catalog stats for user {current_user['username']}")
 
         catalog_service = get_catalog_service()
-        departments = catalog_service.get_departments()
+
+        # ИСПРАВЛЕНО: Используем searchable_items для правильного подсчета всех позиций
+        # Старый метод пропускал позиции из БУ с дублирующимися именами
+        searchable_items = catalog_service.get_searchable_items()
 
         total_positions = 0
         all_levels = {}
         all_categories = {}
 
-        # Собираем статистику по всем департаментам
-        for dept in departments:
-            catalog_service = get_catalog_service()
-            positions = catalog_service.get_positions(dept["name"])
-            total_positions += len(positions)
+        # Собираем все позиции из всех бизнес-единиц напрямую
+        all_positions_with_metadata = []
+        for item in searchable_items:
+            for position_name in item.get('positions', []):
+                # Получаем метаданные для позиции через публичный метод
+                metadata = catalog_service.get_position_metadata(position_name)
+                level = metadata['level']
+                category = metadata['category']
 
-            for pos in positions:
-                level = pos["level"]
-                category = pos["category"]
+                all_positions_with_metadata.append({
+                    'name': position_name,
+                    'level': level,
+                    'category': category
+                })
 
                 all_levels[level] = all_levels.get(level, 0) + 1
                 all_categories[category] = all_categories.get(category, 0) + 1
+
+        total_positions = len(all_positions_with_metadata)
+
+        # Для обратной совместимости получаем departments (уникальные названия БУ)
+        departments = catalog_service.get_departments()
 
         # Создаем типизированные модели для статистики
         departments_stats = CatalogDepartmentsStats(
@@ -737,11 +750,17 @@ async def get_catalog_stats(current_user: dict = Depends(get_current_user)):
         )
         return response
 
-    except Exception as e:
-        logger.error(f"Error getting catalog stats: {e}")
+    except (KeyError, ValueError, AttributeError, TypeError) as e:
+        logger.error(f"Error getting catalog stats: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка получения статистики каталога: {str(e)}",
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error getting catalog stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера",
         )
 
 

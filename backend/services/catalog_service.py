@@ -12,11 +12,43 @@ import logging
 import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from functools import lru_cache
 
 from ..models.database import get_db_manager
 from ..core.organization_cache import organization_cache
 
 logger = logging.getLogger(__name__)
+
+
+# Module-level cached helper functions for performance optimization
+@lru_cache(maxsize=1024)
+def _cached_determine_position_level(position_name: str) -> int:
+    """
+    Кешированная функция для определения уровня должности.
+
+    Args:
+        position_name: Название позиции
+
+    Returns:
+        Уровень должности (1 - высший, 5 - младший)
+    """
+    from ..utils.position_utils import determine_position_level
+    return determine_position_level(position_name, "number")
+
+
+@lru_cache(maxsize=1024)
+def _cached_determine_position_category(position_name: str) -> str:
+    """
+    Кешированная функция для определения категории должности.
+
+    Args:
+        position_name: Название позиции
+
+    Returns:
+        Категория должности (management, specialist, etc.)
+    """
+    from ..utils.position_utils import determine_position_category
+    return determine_position_category(position_name)
 
 
 class CatalogService:
@@ -289,16 +321,45 @@ class CatalogService:
             return None
 
     def _determine_position_level(self, position_name: str) -> int:
-        """Определение уровня должности (1 - высший, 5 - младший)"""
-        from ..utils.position_utils import determine_position_level
+        """
+        Определение уровня должности (1 - высший, 5 - младший).
 
-        return determine_position_level(position_name, "number")
+        Использует кешированную функцию для оптимизации производительности.
+        """
+        return _cached_determine_position_level(position_name)
 
     def _determine_position_category(self, position_name: str) -> str:
-        """Определение категории должности"""
-        from ..utils.position_utils import determine_position_category
+        """
+        Определение категории должности.
 
-        return determine_position_category(position_name)
+        Использует кешированную функцию для оптимизации производительности.
+        """
+        return _cached_determine_position_category(position_name)
+
+    def get_position_metadata(self, position_name: str) -> Dict[str, Any]:
+        """
+        Получение метаданных для позиции (уровень и категория).
+
+        Публичный метод для использования в API endpoints.
+        Использует LRU cache для оптимизации производительности при повторных запросах.
+
+        Args:
+            position_name: Название позиции
+
+        Returns:
+            Dict с ключами 'level' (int) и 'category' (str)
+
+        Examples:
+            >>> metadata = catalog_service.get_position_metadata("Главный бухгалтер")
+            >>> # {'level': 1, 'category': 'management'}
+
+        Performance:
+            Кешируется до 1024 уникальных позиций для быстрого доступа.
+        """
+        return {
+            'level': _cached_determine_position_level(position_name),
+            'category': _cached_determine_position_category(position_name)
+        }
 
     def clear_cache(self, cache_type: Optional[str] = None):
         """

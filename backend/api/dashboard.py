@@ -76,7 +76,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
       "data": {
         "summary": {
           "departments_count": 510,
-          "positions_count": 1487,
+          "positions_count": 1689,
           "profiles_count": 8,
           "completion_percentage": 0.5,
           "active_tasks_count": 0
@@ -84,12 +84,12 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         "departments": {
           "total": 510,
           "with_positions": 488,
-          "average_positions": 2.9
+          "average_positions": 3.3
         },
         "positions": {
-          "total": 1487,
+          "total": 1689,
           "with_profiles": 8,
-          "without_profiles": 1479,
+          "without_profiles": 1681,
           "coverage_percent": 0.5
         },
         "profiles": {
@@ -122,20 +122,24 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         
     Examples:
         python> response = await get_dashboard_stats()
-        python> # {'success': True, 'data': {'summary': {'departments_count': 510, 'positions_count': 1487}}}
+        python> # {'success': True, 'data': {'summary': {'departments_count': 510, 'positions_count': 1689}}}
     """
     try:
         logger.info(f"Getting dashboard stats for user {current_user['username']}")
 
         # 1. Получаем статистику каталога (кэшированная, быстро)
         catalog_service = get_catalog_service()
-        departments = catalog_service.get_departments()
 
-        # Считаем общее количество должностей
-        total_positions = 0
-        for dept in departments:
-            positions = catalog_service.get_positions(dept["name"])
-            total_positions += len(positions)
+        # ИСПРАВЛЕНО: Используем searchable_items для правильного подсчета всех позиций
+        # Старый метод get_departments() пропускал позиции из БУ с дублирующимися именами
+        searchable_items = catalog_service.get_searchable_items()
+
+        # Считаем общее количество должностей из всех бизнес-единиц
+        total_positions = sum(len(item.get('positions', [])) for item in searchable_items)
+        logger.debug(f"Counting positions from {len(searchable_items)} business units")
+
+        # Для обратной совместимости получаем departments (уникальные названия БУ)
+        departments = catalog_service.get_departments()
 
         # 2. Получаем количество профилей (одним SQL запросом)
         conn = get_db_manager().get_connection()
@@ -207,15 +211,21 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         )
 
         logger.info(
-            f"Dashboard stats: {len(departments)} depts, {total_positions} positions, {profiles_count} profiles, {len(active_tasks)} active tasks"
+            f"Dashboard stats: {len(searchable_items)} business units, {total_positions} positions, {profiles_count} profiles, {len(active_tasks)} active tasks"
         )
         return response
 
-    except Exception as e:
-        logger.error(f"Error getting dashboard stats: {e}")
+    except (KeyError, ValueError, AttributeError, TypeError) as e:
+        logger.error(f"Error getting dashboard stats: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка получения статистики dashboard: {str(e)}",
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error getting dashboard stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера",
         )
 
 
@@ -244,7 +254,7 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
     {
       "success": true,
       "data": {
-        "positions_count": 1487,
+        "positions_count": 1689,
         "profiles_count": 8,
         "completion_percentage": 0.5,
         "active_tasks_count": 0,
@@ -270,15 +280,17 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
         
     Examples:
         python> response = await get_minimal_stats()
-        python> # {'success': True, 'data': {'positions_count': 1487, 'profiles_count': 8, 'completion_percentage': 0.5}}
+        python> # {'success': True, 'data': {'positions_count': 1689, 'profiles_count': 8, 'completion_percentage': 0.5}}
     """
     try:
         logger.info(f"Getting minimal stats for user {current_user['username']}")
 
         # Используем кэшированные данные каталога
         catalog_service = get_catalog_service()
-        departments = catalog_service.get_departments()
-        total_positions = sum(dept["positions_count"] for dept in departments)
+
+        # ИСПРАВЛЕНО: Используем searchable_items для правильного подсчета всех позиций
+        searchable_items = catalog_service.get_searchable_items()
+        total_positions = sum(len(item.get('positions', [])) for item in searchable_items)
 
         # Быстрый подсчет профилей
         conn = get_db_manager().get_connection()
@@ -316,11 +328,17 @@ async def get_minimal_stats(current_user: dict = Depends(get_current_user)):
         )
         return response
 
-    except Exception as e:
-        logger.error(f"Error getting minimal stats: {e}")
+    except (KeyError, ValueError, AttributeError, TypeError) as e:
+        logger.error(f"Error getting minimal stats: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка получения минимальной статистики: {str(e)}",
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error getting minimal stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Внутренняя ошибка сервера",
         )
 
 
