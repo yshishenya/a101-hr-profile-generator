@@ -1,25 +1,169 @@
 # Technology Stack and Conventions
 
-## Core Stack
+**Last Updated**: 2025-10-28
+**Status**: Current (Post Week 6)
+
+---
+
+## 🏗️ Core Architecture
+
+### Backend
 - **Language**: Python 3.11+ (modern, type-safe approach)
 - **Framework**: FastAPI (async web framework)
-- **Frontend**: NiceGUI (Python-based web UI framework)
 - **Asynchronous Runtime**: asyncio with async/await patterns
-- **Package Management**: pip + requirements.txt (Python standard package management)
+- **Package Management**: pip + requirements.txt
 - **Database**: SQLite (file-based SQL database)
-- **LLM Integration**: OpenRouter (Gemini 2.5 Flash) + Langfuse (observability)
+- **LLM Integration**: OpenRouter API (Gemini 2.5 Flash) + Langfuse (observability)
 
-## Python-Specific Best Practices
+### Frontend (Vue.js 3 MVP)
+- **Framework**: Vue.js 3.5+ (Composition API with `<script setup>`)
+- **Language**: TypeScript 5.7+ (strict mode enabled)
+- **UI Framework**: Vuetify 3.7+ (Material Design components)
+- **State Management**: Pinia 2.2+ (Composition API style)
+- **Routing**: Vue Router 4.4+
+- **Build Tool**: Vite 6.0+
+- **HTTP Client**: Axios 1.7+
+- **Package Management**: npm
+- **Testing**: Vitest 2.1+ (unit/component), Playwright 1.49+ (E2E)
+- **Code Quality**: ESLint 9+ + Prettier 3+
+
+### DevOps
+- **Containerization**: Docker + Docker Compose
+- **Reverse Proxy**: Nginx (serves Vue frontend + proxies to FastAPI)
+- **Environment**: .env files for configuration
+- **Git**: Conventional Commits standard
+
+---
+
+## 📂 Project Structure
+
+```
+HR/
+├── backend/                    # FastAPI Backend (Python)
+│   ├── api/                    # API endpoints (REST)
+│   │   ├── auth.py             # Authentication endpoints
+│   │   ├── catalog.py          # Organization catalog
+│   │   ├── dashboard.py        # Statistics and metrics
+│   │   ├── generation.py       # Profile generation
+│   │   ├── organization.py     # Organization structure
+│   │   └── profiles.py         # Profile CRUD + bulk operations
+│   ├── core/                   # Business logic
+│   │   ├── ai_profile_generator.py
+│   │   ├── data_mapper.py
+│   │   ├── docx_generator.py
+│   │   └── profile_validator.py
+│   ├── models/                 # Data models
+│   │   ├── database.py         # SQLAlchemy models
+│   │   └── schemas.py          # Pydantic schemas (28+ response models)
+│   ├── services/               # Service layer
+│   │   ├── catalog_service.py  # Organization catalog (LRU cache)
+│   │   ├── docx_service.py
+│   │   ├── markdown_service.py
+│   │   └── storage_service.py
+│   ├── tools/                  # Utilities and tools
+│   ├── utils/                  # Helper functions
+│   │   ├── errors.py           # Custom exceptions (5 classes)
+│   │   └── position_utils.py
+│   ├── main.py                 # FastAPI application entry point
+│   └── README.md
+│
+├── frontend-vue/               # Vue.js 3 Frontend (TypeScript)
+│   ├── src/
+│   │   ├── assets/             # Static assets
+│   │   ├── components/         # Vue components
+│   │   │   ├── common/         # BaseCard, ConfirmDeleteDialog
+│   │   │   ├── layout/         # AppLayout, AppHeader
+│   │   │   └── profiles/       # 26 profile-related components
+│   │   ├── composables/        # Composition API reusable logic
+│   │   │   ├── useAnalytics.ts     # Analytics tracking
+│   │   │   ├── useProfileVersions.ts
+│   │   │   ├── useSearch.ts        # Tree search functionality
+│   │   │   ├── useTaskStatus.ts    # Polling mechanism
+│   │   │   └── useTheme.ts
+│   │   ├── router/             # Vue Router configuration
+│   │   ├── services/           # API clients
+│   │   │   ├── api.ts          # Axios instance + interceptors
+│   │   │   ├── catalog.service.ts
+│   │   │   ├── dashboard.service.ts
+│   │   │   ├── generation.service.ts
+│   │   │   └── profile.service.ts
+│   │   ├── stores/             # Pinia stores
+│   │   │   ├── auth.ts
+│   │   │   ├── catalog.ts
+│   │   │   ├── dashboard.ts
+│   │   │   ├── generator.ts
+│   │   │   └── profiles/       # Modularized (7 files)
+│   │   ├── types/              # TypeScript type definitions
+│   │   │   ├── analytics.ts
+│   │   │   ├── api.ts
+│   │   │   ├── index.ts
+│   │   │   ├── profile.ts
+│   │   │   └── version.ts
+│   │   ├── utils/              # Utility functions
+│   │   │   ├── errors.ts       # Error handling helpers
+│   │   │   ├── exportHelper.ts # Bulk download (JSZip)
+│   │   │   ├── formatters.ts   # Date, number formatters
+│   │   │   └── logger.ts
+│   │   ├── views/              # Route components
+│   │   │   ├── LoginView.vue
+│   │   │   └── UnifiedProfilesView.vue  # Main workspace
+│   │   ├── App.vue
+│   │   ├── main.ts
+│   │   └── style.css
+│   ├── tests/                  # Unit tests (Vitest)
+│   │   ├── components/         # Component tests
+│   │   └── utils/              # Utility tests
+│   ├── e2e/                    # E2E tests (Playwright)
+│   │   ├── profile-versioning.spec.ts
+│   │   └── README.md
+│   ├── .eslintrc.cjs           # ESLint config
+│   ├── .prettierrc.json        # Prettier config
+│   ├── package.json            # npm dependencies
+│   ├── playwright.config.ts    # Playwright config
+│   ├── tsconfig.json           # TypeScript config
+│   ├── vite.config.ts          # Vite config
+│   └── vitest.config.ts        # Vitest config
+│
+├── data/                       # Data files and SQLite database
+│   ├── profiles.db             # Main database
+│   └── organization.json       # Organization structure
+│
+├── templates/                  # JSON schemas and prompts
+│   ├── profile_schema.json
+│   └── prompts/                # Langfuse-managed prompts
+│
+├── tests/                      # Backend tests
+│   ├── integration/
+│   ├── unit/
+│   │   ├── test_catalog_service.py  # 15 tests
+│   │   └── test_schemas.py          # 30 tests
+│   └── conftest.py
+│
+├── scripts/                    # Utility scripts
+├── .memory_bank/               # Memory Bank (Claude Code knowledge base)
+├── docs/                       # Documentation (208 files)
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt            # Backend Python dependencies
+├── .env.example
+├── .gitignore
+├── CLAUDE.md                   # Claude Code instructions
+└── README.md
+```
+
+---
+
+## 🐍 Backend: Python + FastAPI
 
 ### Type Safety
-- **Type Hints**: Use typing module for all function signatures
+- **Type Hints**: typing module for all function signatures
 - **Static Analysis**: mypy for compile-time type checking
-- **Pydantic**: For runtime data validation and settings management
+- **Pydantic**: Runtime data validation and settings management
 - **NO `Any` types**: All types must be explicitly defined
 
 ### Code Quality Tools
-- **black**: Code formatting (line length: 88-100 characters)
-- **ruff**: Fast Python linter (replaces flake8, isort, and more)
+- **black**: Code formatting (line length: 100 characters)
+- **ruff**: Fast Python linter
 - **mypy**: Static type checker
 - **pre-commit**: Git hooks for automated checks
 
@@ -27,328 +171,29 @@
 - **pytest**: Primary testing framework
 - **pytest-asyncio**: For testing async code
 - **pytest-cov**: Code coverage reporting
-- **pytest-mock**: Mocking support
 - **Minimum Coverage**: 80%
 
-### Project Structure
-```
-HR/
-├── backend/         # FastAPI Backend
-│   ├── api/         # API endpoints
-│   ├── core/        # Business logic
-│   ├── models/      # Data models (Pydantic/SQLAlchemy)
-│   ├── services/    # Service layer
-│   ├── tools/       # Utilities and tools
-│   ├── utils/       # Helper functions
-│   └── main.py      # FastAPI application entry point
-├── frontend/        # NiceGUI Frontend
-│   ├── pages/       # UI pages
-│   ├── components/  # Reusable UI components
-│   ├── services/    # Frontend services
-│   └── main.py      # NiceGUI application entry point
-├── data/            # Data files and SQLite database
-├── templates/       # JSON schemas and prompts
-├── tests/           # Test suite
-├── scripts/         # Utility scripts
-├── requirements.txt # pip dependencies
-└── .env.example     # Environment variables template
-```
-
-## Asynchronous Patterns (CRITICAL)
-
-**All I/O operations MUST be asynchronous:**
-
-### HTTP Requests
-```python
-import httpx
-from typing import Dict, Any
-
-async def fetch_data(url: str) -> Dict[str, Any]:
-    """Fetch data asynchronously."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, timeout=10.0)
-        response.raise_for_status()
-        return response.json()
-```
-
-### Database Operations
-- **Database**: SQLite (file-based, simple deployment)
-- **ORM**: SQLAlchemy 2.0+ with sync/async support
-- **Driver**: sqlite3 (built-in) / aiosqlite (for async operations)
-
-```python
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-
-# SQLite connection
-engine = create_engine("sqlite:///./data/profiles.db")
-with Session(engine) as session:
-    result = session.execute(query)
-```
-
-### File Operations
-```python
-import aiofiles
-
-async def read_file_async(path: str) -> str:
-    """Read file asynchronously."""
-    async with aiofiles.open(path, mode='r') as f:
-        return await f.read()
-```
-
-## Data Validation
-
-### Pydantic Models
-```python
-from pydantic import BaseModel, Field, validator
-from typing import Optional
-from datetime import datetime
-
-class UserModel(BaseModel):
-    """User data model."""
-    id: int
-    username: str = Field(..., min_length=3, max_length=50)
-    email: str
-    created_at: datetime
-    is_active: bool = True
-
-    @validator('email')
-    def validate_email(cls, v: str) -> str:
-        """Validate email format."""
-        if '@' not in v:
-            raise ValueError('Invalid email')
-        return v.lower()
-
-    class Config:
-        from_attributes = True  # For SQLAlchemy compatibility
-```
-
-## Environment Configuration
-
-### Settings Management
-```python
-from pydantic_settings import BaseSettings
-from typing import Optional
-
-class Settings(BaseSettings):
-    """Application settings from environment variables."""
-    # Required settings
-    app_name: str = "HR profile generator"
-    debug: bool = False
-
-    # Database
-    database_url: str
-
-    # Optional settings
-    redis_url: Optional[str] = None
-    log_level: str = "INFO"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
-settings = Settings()
-```
-
-## Prohibited Practices
-
-### FORBIDDEN:
-1. **Synchronous I/O in async code** - Blocks event loop
-   ```python
-   # BAD
-   async def bad_example():
-       import requests
-       response = requests.get(url)  # Blocks!
-
-   # GOOD
-   async def good_example():
-       import httpx
-       async with httpx.AsyncClient() as client:
-           response = await client.get(url)
-   ```
-
-2. **Using `Any` type hints** - Defeats type safety
-   ```python
-   # BAD
-   def process(data: Any) -> Any:
-       ...
-
-   # GOOD
-   def process(data: Dict[str, int]) -> List[str]:
-       ...
-   ```
-
-3. **Storing secrets in code**
-   ```python
-   # BAD
-   API_KEY = "sk-1234567890"
-
-   # GOOD
-   from settings import settings
-   API_KEY = settings.api_key
-   ```
-
-4. **Raw SQL without parameterization**
-   ```python
-   # BAD - SQL injection risk
-   query = f"SELECT * FROM users WHERE id = {user_id}"
-
-   # GOOD
-   query = "SELECT * FROM users WHERE id = :user_id"
-   result = await session.execute(query, {"user_id": user_id})
-   ```
-
-5. **Empty exception handlers**
-   ```python
-   # BAD
-   try:
-       risky_operation()
-   except:
-       pass
-
-   # GOOD
-   import logging
-   logger = logging.getLogger(__name__)
-
-   try:
-       risky_operation()
-   except SpecificError as e:
-       logger.error(f"Failed to perform operation: {e}")
-       raise
-   ```
-
-## Error Handling
-
-### Structured Error Handling
-```python
-import logging
-from typing import Optional, TypeVar, Callable
-from functools import wraps
-
-logger = logging.getLogger(__name__)
-T = TypeVar('T')
-
-async def with_retry(
-    func: Callable[..., T],
-    max_attempts: int = 3,
-    backoff: float = 1.0
-) -> Optional[T]:
-    """Retry async function with exponential backoff."""
-    import asyncio
-
-    for attempt in range(max_attempts):
-        try:
-            return await func()
-        except Exception as e:
-            if attempt == max_attempts - 1:
-                logger.error(f"Failed after {max_attempts} attempts: {e}")
-                raise
-            wait_time = backoff * (2 ** attempt)
-            logger.warning(f"Attempt {attempt + 1} failed, retrying in {wait_time}s")
-            await asyncio.sleep(wait_time)
-```
-
-## Logging Standards
-
-### Configuration
-```python
-import logging
-import sys
-
-def setup_logging(log_level: str = "INFO") -> None:
-    """Configure application logging."""
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler('app.log')
-        ]
-    )
-```
-
-### Usage
-- **DEBUG**: Detailed diagnostic information
-- **INFO**: General operational information
-- **WARNING**: Warning messages (something unexpected but handled)
-- **ERROR**: Error messages (functionality impaired)
-- **CRITICAL**: Critical errors (system cannot continue)
-
-```python
-logger.info(f"Processing request for user {user_id}")
-logger.error(f"Failed to fetch data from API: {error}", exc_info=True)
-```
-
-## Testing Standards
-
-### Test Structure
-```python
-import pytest
-from unittest.mock import AsyncMock, patch
-
-@pytest.mark.asyncio
-async def test_fetch_user_data():
-    """Test user data fetching."""
-    # Arrange
-    user_id = "test_123"
-    expected_data = {"id": user_id, "name": "Test User"}
-
-    # Act
-    with patch('httpx.AsyncClient.get') as mock_get:
-        mock_response = AsyncMock()
-        mock_response.json.return_value = expected_data
-        mock_get.return_value = mock_response
-
-        result = await fetch_user_data(user_id)
-
-    # Assert
-    assert result["id"] == user_id
-    assert result["name"] == "Test User"
-```
-
-### Fixtures
-```python
-import pytest
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-
-@pytest.fixture
-async def db_session():
-    """Create test database session."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with AsyncSession(engine) as session:
-        yield session
-        await session.rollback()
-```
-
-## Dependency Management
-
-### requirements.txt
+### Key Dependencies
 ```txt
-# Core Backend Dependencies
+# Web Framework
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
+
+# Data Validation
 pydantic>=2.5.0
 pydantic-settings>=2.0.0
+
+# Async HTTP
 httpx>=0.27.0
 
 # Database
 sqlalchemy>=2.0.0
-aiosqlite>=0.19.0
 
 # Authentication
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt==4.1.3
 python-multipart>=0.0.6
-
-# Frontend
-nicegui>=2.24.0
-
-# Environment
-python-dotenv>=1.0.0
-
-# Async Operations
-aiofiles>=23.2.1
 
 # Data Processing
 pandas>=2.1.0
@@ -359,103 +204,283 @@ python-docx>=1.1.0
 langfuse
 openai>=1.0.0
 
-# Development & Testing
+# Testing
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
-structlog>=23.2.0
 ```
-
-### Tool Configuration
-Tools like black, ruff, mypy can be configured in `setup.cfg`:
-
-```ini
-# setup.cfg
-[tool:pytest]
-asyncio_mode = auto
-testpaths = tests
-python_files = test_*.py
-python_functions = test_*
-
-[tool.black]
-line-length = 100
-target-version = py311
-
-[tool.ruff]
-line-length = 100
-target-version = py311
-
-[tool.mypy]
-python_version = 3.11
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-```
-
-## Version Control
-
-### Git Workflow
-- **Branch Naming**: `feature/`, `bugfix/`, `hotfix/`, `docs/`
-- **Commit Messages**: Use Conventional Commits format
-  - `feat:` - New feature
-  - `fix:` - Bug fix
-  - `docs:` - Documentation changes
-  - `refactor:` - Code refactoring
-  - `test:` - Adding tests
-  - `chore:` - Maintenance tasks
-
-### Pre-commit Hooks
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: https://github.com/psf/black
-    rev: 23.12.1
-    hooks:
-      - id: black
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.7.1
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-all]
-```
-
-## Performance Optimization
-
-### Best Practices
-1. **Use connection pooling** for databases and HTTP clients
-2. **Cache frequently accessed data** (Redis, lru_cache)
-3. **Batch operations** where possible
-4. **Use async context managers** for resource management
-5. **Profile before optimizing** (cProfile, py-spy)
-
-### Caching Example
-```python
-from functools import lru_cache
-from typing import List
-
-@lru_cache(maxsize=128)
-def expensive_computation(n: int) -> List[int]:
-    """Cache expensive synchronous computations."""
-    return [i ** 2 for i in range(n)]
-```
-
-## Security Best Practices
-
-1. **Environment Variables**: All secrets in `.env` file
-2. **Input Validation**: Pydantic models for all inputs
-3. **SQL Injection**: Use ORM or parameterized queries
-4. **Dependency Scanning**: Regular `pip list --outdated` and security audits with pip-audit
-5. **HTTPS Only**: All external API calls over HTTPS
 
 ---
 
-**Last Updated**: 2025-10-19
-**Python Version**: 3.11+
-**Framework**: FastAPI
+## ⚡ Frontend: Vue.js 3 + TypeScript
+
+### TypeScript Strict Mode (MANDATORY)
+- **NO `any` types allowed** - TypeScript strict mode enabled
+- **Type safety**: 100% compliance required
+- **Error handling**: `catch (error: unknown)` pattern mandatory
+
+### Vue 3 Composition API
+- **`<script setup>` only** - NO Options API
+- **Composables**: Reusable logic extracted to composables/
+- **Type safety**: All props/emits typed with TypeScript
+- **File size limits**: Components <300 lines, Stores <500 lines
+
+### Code Quality
+- **ESLint**: 0 errors, 0 warnings (100% clean)
+- **Prettier**: Auto-formatting on save
+- **TypeScript**: `vue-tsc` type checking passing
+- **Tests**: 80%+ coverage required
+
+### Key Dependencies
+```json
+{
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5",
+    "pinia": "^2.2.6",
+    "vuetify": "^3.7.4",
+    "axios": "^1.12.2",
+    "@mdi/font": "^7.4.47",
+    "@tanstack/vue-virtual": "^3.13.12",
+    "dompurify": "^3.2.2",
+    "js-cookie": "^3.0.5",
+    "jszip": "^3.10.1",
+    "file-saver": "^2.0.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.3",
+    "typescript": "~5.7.2",
+    "vitest": "^2.1.8",
+    "@playwright/test": "^1.49.1",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "@vue/test-utils": "^2.4.6",
+    "@testing-library/vue": "^8.1.0",
+    "happy-dom": "^16.8.0"
+  }
+}
+```
+
+### Component Architecture
+```
+Views (Route Components)
+  ↓ uses
+Components (Reusable UI)
+  ↓ uses
+Stores (State Management)
+  ↓ uses
+Services (API Clients)
+  ↓ calls
+Backend API
+```
+
+### State Management (Pinia)
+- **Composition API style**: `setup()` function pattern
+- **Modular stores**: Large stores split into modules (profiles/ has 7 files)
+- **Type safety**: All state, getters, actions fully typed
+
+### Testing Strategy
+- **Unit Tests**: Vitest for utils, composables, stores (207 tests, 100% passing)
+- **Component Tests**: @vue/test-utils + @testing-library/vue
+- **E2E Tests**: Playwright (22 scenarios)
+- **Coverage**: 80%+ required for new code
+
+---
+
+## 🔒 Authentication & Security
+
+### Backend
+- **JWT tokens**: python-jose for token generation
+- **Password hashing**: passlib with bcrypt
+- **Token expiration**: Configurable via environment
+- **Secure headers**: CORS configured for production
+
+### Frontend
+- **Token storage**: HTTP-only cookies (secure)
+- **Axios interceptors**: Auto-attach tokens
+- **Router guards**: Protected routes check authentication
+- **XSS protection**: DOMPurify for sanitizing HTML
+
+---
+
+## 🗄️ Database
+
+### SQLite
+- **File-based**: Simple deployment, no separate DB server
+- **ORM**: SQLAlchemy 2.0+
+- **Connection pooling**: For performance
+- **Schema management**: `db_manager.create_schema()`
+
+### Key Tables
+- `profiles` - Generated profile documents
+- `users` - User accounts
+- `generation_tasks` - Async profile generation status
+- `profile_versions` - Version history
+
+---
+
+## 🚀 API Architecture
+
+### REST API (FastAPI)
+- **BaseResponse pattern**: All endpoints return consistent format
+  ```json
+  {
+    "success": boolean,
+    "timestamp": datetime,
+    "message": optional string,
+    "data": { ... }
+  }
+  ```
+- **28+ Pydantic response models** in `backend/models/schemas.py`
+- **Authentication**: JWT Bearer tokens
+- **CORS**: Configured for Vue.js frontend
+- **Documentation**: Auto-generated OpenAPI/Swagger at `/docs`
+
+### Key Endpoints
+- **Auth**: `/api/auth/*` - Login, logout, token refresh
+- **Catalog**: `/api/organization/*` - Organization structure
+- **Dashboard**: `/api/dashboard/*` - Statistics
+- **Generation**: `/api/generation/*` - Profile generation
+- **Profiles**: `/api/profiles/*` - CRUD + bulk operations
+
+---
+
+## 🔄 Asynchronous Patterns (CRITICAL)
+
+**All I/O operations MUST be asynchronous:**
+
+### HTTP Requests
+```python
+import httpx
+
+async def fetch_data(url: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, timeout=10.0)
+        response.raise_for_status()
+        return response.json()
+```
+
+### File Operations
+```python
+import aiofiles
+
+async def read_file_async(path: str) -> str:
+    async with aiofiles.open(path, mode='r') as f:
+        return await f.read()
+```
+
+---
+
+## ⛔ Prohibited Practices
+
+### Backend (Python)
+1. ❌ **Synchronous I/O in async code** - Use httpx, aiofiles
+2. ❌ **Using `Any` type hints** - Specify concrete types
+3. ❌ **Storing secrets in code** - Use .env files
+4. ❌ **Raw SQL without parameterization** - SQL injection risk
+5. ❌ **Empty exception handlers** - Always log and handle properly
+
+### Frontend (Vue.js/TypeScript)
+1. ❌ **Using `any` types** - TypeScript strict mode enabled
+2. ❌ **Options API** - Only Composition API with `<script setup>`
+3. ❌ **Importing Services in Components** - Use Stores
+4. ❌ **Files >300 lines (components) or >500 lines (stores)**
+5. ❌ **Skipping tests** - 80%+ coverage required
+6. ❌ **Creating components without checking Component Library**
+
+---
+
+## 🧪 Testing Standards
+
+### Backend
+```python
+import pytest
+
+@pytest.mark.asyncio
+async def test_example():
+    """Test with arrange-act-assert pattern."""
+    # Arrange
+    expected = {"result": "success"}
+
+    # Act
+    result = await async_function()
+
+    # Assert
+    assert result == expected
+```
+
+### Frontend
+```typescript
+import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
+
+describe('Component', () => {
+  it('should render correctly', () => {
+    const wrapper = mount(Component)
+    expect(wrapper.text()).toContain('Expected')
+  })
+})
+```
+
+---
+
+## 📦 Performance Optimization
+
+### Backend
+1. **LRU Cache**: `@lru_cache(maxsize=1024)` for expensive computations
+2. **Connection pooling**: Database and HTTP clients
+3. **Async operations**: All I/O operations non-blocking
+4. **Batch operations**: Process multiple items efficiently
+
+### Frontend
+1. **Virtual scrolling**: `@tanstack/vue-virtual` for large lists (1000+ items)
+2. **Lazy loading**: Components loaded on demand
+3. **Debouncing**: Search inputs debounced (300ms)
+4. **Memoization**: Computed properties for expensive calculations
+
+---
+
+## 🔄 Git Workflow
+
+### Branch Naming
+- `feature/` - New features
+- `bugfix/` - Bug fixes
+- `hotfix/` - Urgent production fixes
+- `docs/` - Documentation changes
+- `refactor/` - Code refactoring
+
+### Commit Messages (Conventional Commits)
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation
+- `refactor:` - Code refactoring
+- `test:` - Adding tests
+- `chore:` - Maintenance
+
+**Example**: `feat(frontend): add bulk download functionality`
+
+---
+
+## 📚 Documentation Standards
+
+### Code Documentation
+- **Python**: Docstrings (Google style) for all functions
+- **TypeScript**: JSDoc comments for complex logic
+- **Components**: Props/events documented with types
+
+### Project Documentation
+- **Memory Bank** (`.memory_bank/`): Single source of truth
+- **Implementation docs** (`docs/implementation/`): Feature specs
+- **API docs**: Auto-generated from FastAPI
+- **Testing docs**: Test plans and reports
+
+---
+
+**Version Control**: Git with Conventional Commits
+**CI/CD**: Manual (planned automation in Week 7+)
+**Deployment**: Docker + Docker Compose
+**Monitoring**: Langfuse for LLM observability
+
+---
+
+**Note**: This stack reflects the state after Week 6 completion (2025-10-28). Vue.js 3 MVP migration successfully completed with production-ready code quality.
