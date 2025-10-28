@@ -20,6 +20,7 @@ import sqlite3
 import tempfile
 import io
 import os
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -27,6 +28,7 @@ from ..models.schemas import (
     ProfileListResponse,
     ProfileUpdateRequest,
     ProfileContentUpdateRequest,
+    BulkDownloadRequest,
 )
 from .auth import get_current_user
 from ..models.database import get_db_manager
@@ -2397,3 +2399,204 @@ async def regenerate_profile(
         "Profile regeneration is not yet implemented. "
         "Please use the generation endpoint to create a new profile."
     )
+
+
+# ============================================================================
+# BULK DOWNLOAD ENDPOINT
+# ============================================================================
+
+
+@router.post("/bulk-download")
+async def bulk_download_profiles(
+    request: BulkDownloadRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    @doc Массовое скачивание профилей в ZIP архиве
+
+    Скачивает несколько профилей одним ZIP архивом. Поддерживает до 100 профилей за раз.
+    Использует streaming response для эффективной работы с большими объемами данных.
+
+    **Request Body:**
+    - `profile_ids` (List[str]): Список UUID профилей (1-100)
+    - `format` (str): Формат файлов - "json", "md", или "docx" (по умолчанию "docx")
+
+    **Response:** ZIP архив для скачивания
+    - Content-Type: application/zip
+    - Content-Disposition: attachment
+    - Имя файла: profiles_{count}.zip
+
+    **Authentication:** Требуется Bearer Token
+
+    **Error Cases:**
+    - 400: Невалидный запрос (пустой список, некорректные UUID, неподдерживаемый формат)
+    - 404: Один или несколько профилей не найдены (пропускаются, остальные включаются в архив)
+    - 401: Невалидный токен авторизации
+
+    Examples:
+        bash>
+        # 1. Скачать 3 профиля в DOCX формате
+        curl -X POST "http://localhost:8001/api/profiles/bulk-download" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+          -H "Content-Type: application/json" \
+          -d '{
+            "profile_ids": [
+              "4aec3e73-c9bd-4d25-a123-456789abcdef",
+              "b1fc8d92-e5ae-4f36-b234-567890abcdef",
+              "c2gd9ea3-f6bf-5g47-c345-678901bcdefg"
+            ],
+            "format": "docx"
+          }' \
+          --output "profiles_3.zip"
+
+        # 2. Скачать профили в JSON формате
+        curl -X POST "http://localhost:8001/api/profiles/bulk-download" \
+          -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+          -H "Content-Type: application/json" \
+          -d '{
+            "profile_ids": ["4aec3e73-c9bd-4d25-a123-456789abcdef"],
+            "format": "json"
+          }' \
+          --output "profile.zip"
+
+        # Response (200 OK): ZIP архив скачивается автоматически
+        # Headers:
+        # Content-Type: application/zip
+        # Content-Disposition: attachment; filename="profiles_3.zip"
+    """
+    profile_ids = request.profile_ids
+    file_format = request.format
+
+    # Создаем ZIP в памяти
+    zip_buffer = io.BytesIO()
+
+    conn = get_db_manager().get_connection()
+    cursor = conn.cursor()
+
+    successful_count = 0
+    failed_ids = []
+
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for profile_id in profile_ids:
+                try:
+                    # Валидируем profile_id
+                    profile_id = validate_profile_id(profile_id)
+
+                    # Получаем информацию о профиле
+                    cursor.execute(
+                        """
+                        SELECT id, department, position, created_at, profile_data
+                        FROM profiles
+                        WHERE id = ?
+                        """,
+                        (profile_id,)
+                    )
+
+                    row = cursor.fetchone()
+                    if not row:
+                        # Профиль не найден - пропускаем и добавляем в список failed
+                        failed_ids.append(profile_id)
+                        continue
+
+                    # Генерируем безопасное имя файла
+                    position_name = row["position"].replace("/", "_").replace("\\", "_")
+                    profile_id_short = profile_id[:8]
+
+                    if file_format == "json":
+                        # JSON - берем из БД
+                        profile_data = json.loads(row["profile_data"])
+                        content = json.dumps(profile_data, ensure_ascii=False, indent=2)
+                        filename = f"profile_{position_name}_{profile_id_short}.json"
+                        zip_file.writestr(filename, content.encode('utf-8'))
+
+                    elif file_format == "md":
+                        # Markdown - генерируем на лету
+                        created_at = datetime.fromisoformat(row["created_at"])
+                        _, md_path, _ = storage_service.get_profile_paths(
+                            profile_id=row["id"],
+                            department=row["department"],
+                            position=row["position"],
+                            created_at=created_at
+                        )
+
+                        # Если MD файл существует - используем его
+                        if md_path.exists():
+                            with open(md_path, 'rb') as f:
+                                content = f.read()
+                        else:
+                            # Генерируем MD из JSON
+                            profile_data = json.loads(row["profile_data"])
+                            md_content = markdown_service.generate_from_json(profile_data)
+                            content = md_content.encode('utf-8')
+
+                        filename = f"profile_{position_name}_{profile_id_short}.md"
+                        zip_file.writestr(filename, content)
+
+                    elif file_format == "docx":
+                        # DOCX - генерируем на лету
+                        created_at = datetime.fromisoformat(row["created_at"])
+                        _, _, docx_path = storage_service.get_profile_paths(
+                            profile_id=row["id"],
+                            department=row["department"],
+                            position=row["position"],
+                            created_at=created_at
+                        )
+
+                        # Если DOCX файл существует - используем его
+                        if docx_path.exists():
+                            with open(docx_path, 'rb') as f:
+                                content = f.read()
+                        else:
+                            # Генерируем DOCX из JSON
+                            profile_data = json.loads(row["profile_data"])
+                            content = docx_service.generate_from_json(profile_data)
+
+                        filename = f"profile_{position_name}_{profile_id_short}.docx"
+                        zip_file.writestr(filename, content)
+
+                    successful_count += 1
+
+                except Exception as e:
+                    # Ошибка обработки конкретного профиля - пропускаем
+                    failed_ids.append(profile_id)
+                    continue
+
+        # Подготавливаем ZIP для отправки
+        zip_buffer.seek(0)
+
+        # Определяем имя файла
+        if successful_count == 0:
+            raise NotFoundError(
+                "No profiles could be downloaded",
+                resource="profiles",
+                resource_id=",".join(profile_ids)
+            )
+
+        filename = f"profiles_{successful_count}.zip"
+
+        # Возвращаем streaming response
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Successful-Count": str(successful_count),
+                "X-Failed-Count": str(len(failed_ids))
+            }
+        )
+
+    except (NotFoundError, ValidationError):
+        raise
+    except sqlite3.Error as e:
+        raise DatabaseError(
+            f"Failed to fetch profiles for bulk download: {str(e)}",
+            operation="SELECT",
+            table="profiles"
+        )
+    except Exception as e:
+        raise DatabaseError(
+            f"Unexpected error during bulk download: {str(e)}",
+            operation="BULK_DOWNLOAD",
+            table="profiles"
+        )

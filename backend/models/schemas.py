@@ -605,6 +605,47 @@ class ProfileContentUpdateRequest(BaseModel):
         return v
 
 
+class BulkDownloadRequest(BaseModel):
+    """Запрос массового скачивания профилей в ZIP архиве"""
+
+    profile_ids: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Список UUID профилей для скачивания (максимум 100)"
+    )
+    format: str = Field(
+        default="docx",
+        description="Формат файлов в архиве (json, md, docx)"
+    )
+
+    @field_validator("profile_ids")
+    @classmethod
+    def validate_profile_ids(cls, v: List[str]) -> List[str]:
+        """Проверка что все ID валидны"""
+        if not v:
+            raise ValueError("profile_ids cannot be empty")
+        if len(v) > 100:
+            raise ValueError("Maximum 100 profiles per download")
+
+        # Проверяем что все ID - валидные UUID
+        for profile_id in v:
+            try:
+                uuid.UUID(profile_id)
+            except ValueError:
+                raise ValueError(f"Invalid UUID format: {profile_id}")
+
+        return v
+
+    @field_validator("format")
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        """Проверка формата файлов"""
+        if v not in ["json", "md", "docx"]:
+            raise ValueError("format must be one of: json, md, docx")
+        return v
+
+
 # ================================
 # WEBHOOK MODELS (для будущего использования)
 # ================================
