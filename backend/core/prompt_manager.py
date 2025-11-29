@@ -1,5 +1,5 @@
 """
-@doc Prompt Template Management System для A101 HR Profile Generator
+@doc Prompt Template Management System для Linney
 
 Система управления промпт-шаблонами с поддержкой:
 - Langfuse Prompt Management интеграции

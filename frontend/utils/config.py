@@ -1,6 +1,6 @@
 """
 @doc
-Конфигурация frontend приложения A101 HR Profile Generator.
+Конфигурация frontend приложения Linney.
 
 Управляет настройками через environment variables для
 интеграции с backend API и настройки UI.
@@ -49,7 +49,7 @@ class FrontendConfig:
 
     HOST: str = os.getenv("FRONTEND_HOST", "0.0.0.0")
     PORT: int = int(os.getenv("FRONTEND_PORT", "8033"))
-    TITLE: str = os.getenv("FRONTEND_TITLE", "A101 HR Profile Generator")
+    TITLE: str = os.getenv("FRONTEND_TITLE", "Linney")
 
     # =============================================================================
     # Environment & Debug
@@ -97,7 +97,7 @@ class FrontendConfig:
     SESSION_TIMEOUT_MINUTES: int = int(os.getenv("SESSION_TIMEOUT_MINUTES", "60"))
     AUTO_REFRESH_TOKEN: bool = os.getenv("AUTO_REFRESH_TOKEN", "true").lower() == "true"
     STORAGE_SECRET: str = os.getenv(
-        "STORAGE_SECRET", "a101hr-frontend-storage-secret-key"
+        "STORAGE_SECRET", "linney-frontend-storage-secret-key"
     )
 
     # =============================================================================
@@ -193,7 +193,7 @@ class FrontendConfig:
 
         print(
             f"""
-🎨 A101 HR Frontend Configuration Summary:
+🎨 Linney Frontend Configuration Summary:
    Environment: {self.ENVIRONMENT}
    Debug: {self.DEBUG}
    Server: {self.HOST}:{self.PORT}
@@ -289,7 +289,7 @@ config = FrontendConfig()
 
 if __name__ == "__main__":
     # Тестирование конфигурации
-    print("🧪 Testing A101 HR Frontend Configuration...")
+    print("🧪 Testing Linney Frontend Configuration...")
 
     config.print_summary()
     config.validate()

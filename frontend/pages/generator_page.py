@@ -150,7 +150,7 @@ class GeneratorPage:
                     with ui.row().classes("items-center gap-2"):
                         ui.icon("info", size="1.2rem").classes("text-blue-600")
                         ui.label(
-                            "Добро пожаловать в A101 HR Profile Generator! Создавайте профили должностей с помощью ИИ"
+                            "Добро пожаловать в Linney! Создавайте профили должностей с помощью ИИ"
                         ).classes("text-body1 text-blue-800")
 
                     with ui.row().classes("items-center gap-1"):
@@ -197,7 +197,7 @@ class GeneratorPage:
                 with ui.card_section():
                     with ui.row().classes("items-center justify-between"):
                         ui.label(
-                            "🚀 Руководство по использованию A101 HR Profile Generator"
+                            "🚀 Руководство по использованию Linney"
                         ).classes("text-h5 font-bold")
                         ui.button(icon="close", on_click=dialog.close).props(
                             "flat round"

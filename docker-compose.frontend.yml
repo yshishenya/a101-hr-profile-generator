@@ -8,7 +8,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: a101hr_frontend_dev
+    container_name: linney_frontend_dev
     ports:
       - "8033:8033"
     env_file:
@@ -22,7 +22,7 @@ services:
       # Backend connection для development (внешний backend)
       - BACKEND_HOST=host.docker.internal
       - BACKEND_PORT=8022
-      - FRONTEND_TITLE=A101 HR Frontend (Dev)
+      - FRONTEND_TITLE=Linney Frontend (Dev)
       - THEME=auto
     volumes:
       # Development mode - mount source code with hot reload

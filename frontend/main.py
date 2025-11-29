@@ -95,7 +95,7 @@ async def login_page(redirect_to: str = "/") -> None:
         return
 
     # Настройка страницы
-    ui.page_title("Авторизация - A101 HR Profile Generator")
+    ui.page_title("Авторизация - Linney")
 
     with ui.column().classes("w-full h-screen justify-center items-center"):
         with ui.card().classes("w-96 p-6"):
@@ -103,7 +103,7 @@ async def login_page(redirect_to: str = "/") -> None:
             with ui.row().classes("w-full justify-center mb-4"):
                 ui.icon("business", size="48px").classes("text-primary")
 
-            ui.label("A101 HR Profile Generator").classes(
+            ui.label("Linney").classes(
                 "text-h5 text-center w-full mb-2"
             )
             ui.label("Авторизация в системе").classes(
@@ -170,7 +170,7 @@ async def main_page() -> None:
         except Exception as e:
             # Fallback если dashboard не загружается
             with ui.card().classes("w-full p-6 text-center"):
-                ui.label("🚀 A101 HR Profile Generator").classes("text-h4 mb-4")
+                ui.label("🚀 Linney").classes("text-h4 mb-4")
                 ui.label("Добро пожаловать!").classes("text-h6 mb-4")
 
                 ui.markdown(
@@ -211,7 +211,7 @@ async def generator_page() -> None:
         ui.navigate.to("/login?redirect_to=/generator")
         return
 
-    ui.page_title("🎯 Генератор профилей - A101 HR")
+    ui.page_title("🎯 Генератор профилей - Linney")
 
     # Unified header component
     header = HeaderComponent(api_client)
@@ -265,14 +265,14 @@ def main():
       python> # Сервер запущен на http://localhost:8033
     """
 
-    print(f"🚀 Starting A101 HR Frontend on {config.HOST}:{config.PORT}")
+    print(f"🚀 Starting Linney Frontend on {config.HOST}:{config.PORT}")
     print(f"🔗 Backend URL: {config.BACKEND_URL}")
 
     # Настройка приложения
     ui.run(
         host=config.HOST,
         port=config.PORT,
-        title="A101 HR Profile Generator",
+        title="Linney",
         favicon="🏢",
         dark=None,  # Автоматический режим
         reload=False,  # Disable reload to prevent permission errors

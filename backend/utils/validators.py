@@ -1,5 +1,5 @@
 """
-@doc Input validation utilities for A101 HR Profile Generator
+@doc Input validation utilities for Linney
 
 Централизованная валидация входных данных для всех API endpoints.
 Включает бизнес-логику валидации и проверки на уровне приложения.

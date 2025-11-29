@@ -1,6 +1,6 @@
 """
 @doc
-Error Recovery Infrastructure - Comprehensive error recovery mechanisms for A101 HR Profile Generator.
+Error Recovery Infrastructure - Comprehensive error recovery mechanisms for Linney.
 
 Provides Circuit Breaker pattern, exponential backoff retry, API health monitoring,
 component state management, and resource cleanup for production-ready reliability.

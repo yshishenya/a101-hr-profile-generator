@@ -1,5 +1,5 @@
 """
-@doc Custom exception classes for A101 HR Profile Generator
+@doc Custom exception classes for Linney
 
 Реализует стандартизированные исключения для различных типов ошибок системы.
 Обеспечивает консистентную обработку ошибок с правильными HTTP статусами.

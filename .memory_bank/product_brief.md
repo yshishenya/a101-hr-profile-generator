@@ -1,7 +1,7 @@
 # Product Brief
 
 ## Project Name
-A101 HR Profile Generator
+Linney
 
 ## Project Goal (WHY)
 Автоматизация создания детальных профилей должностей для компании А101 с использованием AI, чтобы:

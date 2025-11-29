@@ -1,6 +1,6 @@
 """
 @doc
-Unified header component for consistent navigation across all A101 HR pages.
+Unified header component for consistent navigation across all Linney pages.
 
 Provides consistent navigation, user info, and logout functionality
 that can be reused on all pages of the application.
@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 class HeaderComponent:
     """
     @doc
-    Unified header with navigation for all A101 HR pages.
+    Unified header with navigation for all Linney pages.
 
     Features:
-    - Consistent A101 branding with corporate colors
+    - Consistent Linney branding with corporate colors
     - Navigation menu with active state using Tabs
     - User information display in a dropdown menu
     - Logout functionality
@@ -56,7 +56,7 @@ class HeaderComponent:
         """Renders the logo and application title."""
         with ui.row().classes("items-center gap-3 cursor-pointer") as logo:
             ui.icon("business_center", size="2rem").classes("text-white")
-            ui.label("A101 HR").classes("text-xl font-bold")
+            ui.label("Linney").classes("text-xl font-bold")
         logo.on("click", lambda: ui.navigate.to("/"))
 
     def _render_navigation(self, current_page: str):
@@ -120,4 +120,4 @@ if __name__ == "__main__":
     print("  - Unified navigation across all pages")
     print("  - Active page highlighting")
     print("  - User information display")
-    print("  - Consistent A101 branding")
+    print("  - Consistent Linney branding")

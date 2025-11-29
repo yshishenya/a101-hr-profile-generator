@@ -1,6 +1,6 @@
 """
 @doc
-Core infrastructure modules for A101 HR Profile Generator frontend.
+Core infrastructure modules for Linney frontend.
 
 Contains error recovery, state management, and other core utilities.
 

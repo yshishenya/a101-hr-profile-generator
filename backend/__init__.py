@@ -1,6 +1,6 @@
 """
-Backend модули для системы генерации профилей должностей А101
+Backend модули для Linney - системы генерации профилей должностей
 """
 
 __version__ = "1.0.0"
-__author__ = "A101 HR Profile Generator"
+__author__ = "Linney"

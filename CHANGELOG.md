@@ -1,4 +1,4 @@
-# 📝 A101 HR Profile Generator - Changelog
+# 📝 Linney - Changelog
 
 ## [🚀 Performance Optimization] - 2025-09-07
 
