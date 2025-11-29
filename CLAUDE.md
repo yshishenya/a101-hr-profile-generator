@@ -1,4 +1,4 @@
-# Claude Code Configuration for HR profile generator
+# Claude Code Configuration for Linney
 
 ## At the Start of ANY Work Session
 
@@ -20,9 +20,9 @@
 
 ---
 
-## About the Project: HR profile generator
+## About the Project: Linney
 
-**HR profile generator** - Profile generatorof empleyyes
+**Linney** - AI-powered HR profile generator that systematizes job positions like Carl Linnaeus systematized species in nature
 
 ### Key Project Features:
 

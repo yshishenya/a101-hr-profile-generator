@@ -41,7 +41,7 @@ This memory bank is your main source of information. Before starting any task, *
 
 ## Project Philosophy
 
-**HR profile generator** - Profile generatorof empleyyes
+**Linney** - AI-powered HR profile generator that systematizes job positions like Carl Linnaeus systematized species in nature
 
 Our approach:
 
